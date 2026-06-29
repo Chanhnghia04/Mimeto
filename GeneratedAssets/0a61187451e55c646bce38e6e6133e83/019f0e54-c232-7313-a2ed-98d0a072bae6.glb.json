@@ -1,0 +1,23 @@
+{
+    "asset": "0a61187451e55c646bce38e6e6133e83",
+    "fileName": "019f0e54-c232-7313-a2ed-98d0a072bae6.glb",
+    "prompt": "An industrial security keypad, wall-mounted, 3D game asset, sci-fi security style.",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "a7a5eaf5176e2ab47a3bb26b6e14f55a",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

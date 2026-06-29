@@ -1,0 +1,23 @@
+{
+    "asset": "5e8820be2a8d44443a41c89e7ef8d1b4",
+    "fileName": "019effde-5d88-7a56-b9e8-3bc698264409.glb",
+    "prompt": "a crude survival machete weapon, 3D game model, rusty metal blade, taped handle",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "1da9f300b9299cf47b5e14eef3bee3a0",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

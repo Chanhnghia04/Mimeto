@@ -1,0 +1,12 @@
+{
+    "asset": "e7159b74c3b444f44915d6a91f2714db",
+    "fileName": "019eb011-98dc-7933-afcc-1b905dc03c9d_Preview.jpg",
+    "prompt": "Cracked asphalt with green toxic puddles, seamless texture, high detail, industrial waste ground",
+    "negativePrompt": "",
+    "model": "realistic-textures-3-0",
+    "modelName": "Realistic Textures 3.0",
+    "customSeed": 391326339,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation"
+}

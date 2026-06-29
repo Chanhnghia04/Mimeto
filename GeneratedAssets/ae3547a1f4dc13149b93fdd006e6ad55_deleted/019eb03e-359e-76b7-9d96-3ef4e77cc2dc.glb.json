@@ -1,0 +1,23 @@
+{
+    "asset": "ae3547a1f4dc13149b93fdd006e6ad55",
+    "fileName": "019eb03e-359e-76b7-9d96-3ef4e77cc2dc.glb",
+    "prompt": "Sci-fi military cargo crate, digital camouflage, metallic, high detail",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "17e543e542d9a9641bc3c3f4dfcde5f5",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

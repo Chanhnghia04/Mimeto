@@ -1,0 +1,23 @@
+{
+    "asset": "ae1fb7053b2222b499d06a2ae9b27246",
+    "fileName": "019eb027-27bc-7faa-b36c-969eaaf6131c.glb",
+    "prompt": "Sci-fi street lamp, rusted iron, futuristic design, game ready mesh",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "0d3962ad9dda85640956b168bd617520",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

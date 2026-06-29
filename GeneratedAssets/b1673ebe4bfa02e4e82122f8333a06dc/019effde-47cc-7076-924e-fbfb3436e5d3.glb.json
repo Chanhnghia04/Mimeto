@@ -1,0 +1,23 @@
+{
+    "asset": "b1673ebe4bfa02e4e82122f8333a06dc",
+    "fileName": "019effde-47cc-7076-924e-fbfb3436e5d3.glb",
+    "prompt": "a rusty iron crowbar, 3D game model, survival horror style",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "47ab9647f3437304f87c4dca134fffb6",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

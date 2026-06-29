@@ -1,0 +1,23 @@
+{
+    "asset": "9a06e8c0f206fe8428bb0b6ef283609c",
+    "fileName": "019eb035-6f5a-72ba-a0a7-24bdfa27e166.glb",
+    "prompt": "Industrial post-apocalyptic building, highly detailed, colorful but grimy, sci-fi style",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "f7872a4a0d677c64fb58d295fc3cb271",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

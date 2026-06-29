@@ -1,0 +1,23 @@
+{
+    "asset": "cb70d311cdfe86e4d8a5ec3c6fc293ae",
+    "fileName": "019f0784-f003-7fc7-897f-6b7e68f8cc2a.glb",
+    "prompt": "A 3D model of a stylized wooden chest with iron bands, matching the reference image. High quality textures, low poly optimized for games.",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "1bec2136b9ecb454cb9c6f12959d8939",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

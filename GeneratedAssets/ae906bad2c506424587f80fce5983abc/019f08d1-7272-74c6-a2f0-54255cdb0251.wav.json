@@ -1,0 +1,15 @@
+{
+    "asset": "ae906bad2c506424587f80fce5983abc",
+    "fileName": "019f08d1-7272-74c6-a2f0-54255cdb0251.wav",
+    "prompt": "Footsteps walking on loose dirt and dry leaves, crunchy, realistic, single steps for randomization",
+    "negativePrompt": "",
+    "model": "elevenlabs-sound-effects-v2",
+    "modelName": "ElevenLabs Sound Effects V2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "duration": 10.0,
+    "autoTrim": false,
+    "hasReference": false,
+    "voice": ""
+}

@@ -1,0 +1,23 @@
+{
+    "asset": "af756102e8e94ff45b5460b85c592fc5",
+    "fileName": "019eb027-50ab-7981-9f2a-edacc7ed7bce.glb",
+    "prompt": "Sci-fi military cargo crate, weathered metal, digital locks, industrial style",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "17e543e542d9a9641bc3c3f4dfcde5f5",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

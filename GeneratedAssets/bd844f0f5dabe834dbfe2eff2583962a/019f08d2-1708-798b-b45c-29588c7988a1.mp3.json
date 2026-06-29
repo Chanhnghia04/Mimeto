@@ -1,0 +1,15 @@
+{
+    "asset": "bd844f0f5dabe834dbfe2eff2583962a",
+    "fileName": "019f08d2-1708-798b-b45c-29588c7988a1.mp3",
+    "prompt": "Eerie dark ambient horror background music, low drone, unsettling pads, survival atmosphere, 30 seconds loopable",
+    "negativePrompt": "",
+    "model": "google-lyria-3-clip",
+    "modelName": "Google Lyria 3 Clip",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "duration": 10.0,
+    "autoTrim": false,
+    "hasReference": false,
+    "voice": ""
+}

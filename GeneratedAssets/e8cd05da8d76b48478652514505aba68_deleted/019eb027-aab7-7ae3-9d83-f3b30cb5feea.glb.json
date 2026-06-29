@@ -1,0 +1,23 @@
+{
+    "asset": "e8cd05da8d76b48478652514505aba68",
+    "fileName": "019eb027-aab7-7ae3-9d83-f3b30cb5feea.glb",
+    "prompt": "Cyberpunk style industrial building, rusty metal, neon signs, game ready mesh",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "f7872a4a0d677c64fb58d295fc3cb271",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

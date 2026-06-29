@@ -1,0 +1,15 @@
+{
+    "asset": "1a9ce9baead23954c82a9897926c4027",
+    "fileName": "019f08d1-6693-746e-a6a3-570a88257930.wav",
+    "prompt": "Footsteps walking on hollow metal grating, metallic clank, industrial, single steps",
+    "negativePrompt": "",
+    "model": "elevenlabs-sound-effects-v2",
+    "modelName": "ElevenLabs Sound Effects V2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "duration": 10.0,
+    "autoTrim": false,
+    "hasReference": false,
+    "voice": ""
+}

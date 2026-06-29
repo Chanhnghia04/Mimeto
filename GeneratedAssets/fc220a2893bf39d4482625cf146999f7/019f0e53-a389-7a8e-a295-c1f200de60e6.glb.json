@@ -1,0 +1,23 @@
+{
+    "asset": "fc220a2893bf39d4482625cf146999f7",
+    "fileName": "019f0e53-a389-7a8e-a295-c1f200de60e6.glb",
+    "prompt": "A high-detail industrial mechanical gear, 3D game asset, metallic finish.",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "d9bcd4546d6a77d429701f0459f9ed10",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

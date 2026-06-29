@@ -1,0 +1,41 @@
+# Bỏ qua các thư mục do Unity tự sinh ra
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+
+# Bỏ qua các file cache, crash và log
+sysinfo.txt
+*.crash
+*.log
+
+# Bỏ qua các file cấu hình của Editor và hệ điều hành
+.vs/
+.idea/
+.vscode/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Bỏ qua các file hệ thống (Windows/Mac)
+.DS_Store
+Thumbs.db
+Desktop.ini
+.agent 
+.claude
+.gemini

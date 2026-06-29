@@ -1,0 +1,28 @@
+{
+    "asset": "da1b811688733a347bb0a62242e75b40",
+    "fileName": "019f0e50-1cdd-7391-a4c1-756cdde77c23.jpg",
+    "prompt": "A single portable sci-fi fuel canister, cylindrical shape, isolated on a white background, industrial sci-fi style, realistic metallic texture, 3D model concept art.",
+    "negativePrompt": "",
+    "model": "flux-2-pro",
+    "modelName": "Flux 2 (Pro)",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelatePixelGridSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0,
+    "dimensions": {
+        "width": 1024,
+        "height": 1024
+    },
+    "spriteSheet": false,
+    "duration": 0.0
+}

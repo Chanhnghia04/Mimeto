@@ -1,0 +1,23 @@
+{
+    "asset": "4c2a4346fab13c34ea8ebfc1b3ace312",
+    "fileName": "019eb027-27d9-741a-989b-87677ecfc421.glb",
+    "prompt": "Corroded toxic waste barrel, leaking green slime, radioactive warning symbol, rusty metal texture",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "f218557b5adb85a439e81ec8f4142d2b",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

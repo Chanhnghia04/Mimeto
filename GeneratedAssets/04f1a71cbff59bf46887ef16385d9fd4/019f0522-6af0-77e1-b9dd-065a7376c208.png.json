@@ -1,0 +1,28 @@
+{
+    "asset": "04f1a71cbff59bf46887ef16385d9fd4",
+    "fileName": "019f0522-6af0-77e1-b9dd-065a7376c208.png",
+    "prompt": "A tactile stamped metal UI button, hazard orange color, convex gradient, chamfered corners, scratched steel texture, industrial aesthetic, flat perspective, front view, isolated on white background.",
+    "negativePrompt": "",
+    "model": "gemini-3.1-flash",
+    "modelName": "Gemini 3.1 Nano Banana 2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelatePixelGridSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0,
+    "dimensions": {
+        "width": 1024,
+        "height": 1024
+    },
+    "spriteSheet": false,
+    "duration": 0.0
+}

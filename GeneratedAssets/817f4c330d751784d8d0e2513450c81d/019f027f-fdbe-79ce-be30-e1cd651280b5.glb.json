@@ -1,0 +1,23 @@
+{
+    "asset": "817f4c330d751784d8d0e2513450c81d",
+    "fileName": "019f027f-fdbe-79ce-be30-e1cd651280b5.glb",
+    "prompt": "a wooden baseball bat with rusty nails through the end, 3D game model, survival melee weapon",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "0f2de5a9887fc9f40ab9549922e35c90",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

@@ -1,0 +1,23 @@
+{
+    "asset": "36ca680eddd98fd42a5b539d0dc151cb",
+    "fileName": "019eb02b-766c-745d-b575-d9db8e847928.glb",
+    "prompt": "Detailed sci-fi workbench with tools, rusty metal frame, futuristic laboratory style 3D model",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "c1393204e4ce61d4dbb2a42f7d331dd4",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

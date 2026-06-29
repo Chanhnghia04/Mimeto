@@ -1,0 +1,28 @@
+{
+    "asset": "5ec44d068fbb2fe4383267f803a370fb",
+    "fileName": "019f07c2-658e-7fc7-85e6-4e40e3f55728.png",
+    "prompt": "A glowing golden aura, circular glow, radial gradient, semi-transparent, magic effect, isolated on black background",
+    "negativePrompt": "",
+    "model": "flux-2-dev",
+    "modelName": "Flux 2 (Dev)",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelatePixelGridSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0,
+    "dimensions": {
+        "width": 1024,
+        "height": 1024
+    },
+    "spriteSheet": false,
+    "duration": 0.0
+}

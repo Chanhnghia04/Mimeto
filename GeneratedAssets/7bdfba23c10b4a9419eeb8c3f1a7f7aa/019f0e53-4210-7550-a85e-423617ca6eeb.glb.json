@@ -1,0 +1,23 @@
+{
+    "asset": "7bdfba23c10b4a9419eeb8c3f1a7f7aa",
+    "fileName": "019f0e53-4210-7550-a85e-423617ca6eeb.glb",
+    "prompt": "A tall sci-fi communications antenna tower, 3D game asset, industrial sci-fi style.",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "7fedb63fd7679ce488c7ee13c3d16f00",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

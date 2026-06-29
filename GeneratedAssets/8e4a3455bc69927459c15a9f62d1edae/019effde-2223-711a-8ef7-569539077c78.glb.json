@@ -1,0 +1,23 @@
+{
+    "asset": "8e4a3455bc69927459c15a9f62d1edae",
+    "fileName": "019effde-2223-711a-8ef7-569539077c78.glb",
+    "prompt": "a dirty metal shovel with a wooden handle, 3D game model, survival style",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "5e09e8e7fcd12cc47b3369d2269607d3",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

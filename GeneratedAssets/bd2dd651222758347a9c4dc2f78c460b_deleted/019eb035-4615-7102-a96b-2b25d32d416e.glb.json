@@ -1,0 +1,23 @@
+{
+    "asset": "bd2dd651222758347a9c4dc2f78c460b",
+    "fileName": "019eb035-4615-7102-a96b-2b25d32d416e.glb",
+    "prompt": "Military sci-fi cargo crate, metallic, colorful accents, high quality mesh",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "17e543e542d9a9641bc3c3f4dfcde5f5",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

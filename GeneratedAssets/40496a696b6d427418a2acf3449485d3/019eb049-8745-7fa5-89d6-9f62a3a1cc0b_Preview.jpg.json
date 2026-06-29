@@ -1,0 +1,12 @@
+{
+    "asset": "40496a696b6d427418a2acf3449485d3",
+    "fileName": "019eb049-8745-7fa5-89d6-9f62a3a1cc0b_Preview.jpg",
+    "prompt": "Weathered military cargo crate metal, olive drab and rusty, digital camouflage pattern, seamless texture, high detail, PBR maps",
+    "negativePrompt": "",
+    "model": "realistic-textures-3-0",
+    "modelName": "Realistic Textures 3.0",
+    "customSeed": 1211326137,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation"
+}

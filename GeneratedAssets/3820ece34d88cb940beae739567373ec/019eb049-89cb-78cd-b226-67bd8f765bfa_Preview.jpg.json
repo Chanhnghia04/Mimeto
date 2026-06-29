@@ -1,0 +1,12 @@
+{
+    "asset": "3820ece34d88cb940beae739567373ec",
+    "fileName": "019eb049-89cb-78cd-b226-67bd8f765bfa_Preview.jpg",
+    "prompt": "Corroded toxic barrel metal, radioactive green slime streaks, rusty iron, seamless texture, high detail, PBR maps",
+    "negativePrompt": "",
+    "model": "realistic-textures-3-0",
+    "modelName": "Realistic Textures 3.0",
+    "customSeed": 433538431,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation"
+}

@@ -1,0 +1,15 @@
+{
+    "asset": "f4dbab08c4b7c2c478afff2b0910615e",
+    "fileName": "019f08d1-c815-747a-8d98-a6c0d90f23ae.wav",
+    "prompt": "Distant terrifying monster howl, echoey, deep, bone-chilling, horror atmosphere",
+    "negativePrompt": "",
+    "model": "elevenlabs-sound-effects-v2",
+    "modelName": "ElevenLabs Sound Effects V2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "duration": 10.0,
+    "autoTrim": false,
+    "hasReference": false,
+    "voice": ""
+}

@@ -1,0 +1,23 @@
+{
+    "asset": "9deda14b13fe2b242b1d839c926d4cf0",
+    "fileName": "019eb03d-fc7a-76c3-a173-49f987b07b70.glb",
+    "prompt": "Sci-fi street lamp, neon green light, metallic, futuristic",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "0d3962ad9dda85640956b168bd617520",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

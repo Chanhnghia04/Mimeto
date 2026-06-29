@@ -1,0 +1,23 @@
+{
+    "asset": "a51d1882754a2404ab5a39b84990c368",
+    "fileName": "019f0e53-32ba-7c61-82a1-4567cf18eb22.glb",
+    "prompt": "A cylindrical sci-fi fuel canister, 3D game asset, industrial metallic texture.",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "da1b811688733a347bb0a62242e75b40",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

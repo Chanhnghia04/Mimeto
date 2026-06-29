@@ -1,0 +1,23 @@
+{
+    "asset": "54472d62984afc248a2f82161b8818d6",
+    "fileName": "019f0e54-af3a-7278-87c9-1ea0efa24253.glb",
+    "prompt": "A massive industrial nuclear reactor core, cylindrical shape, 3D game asset, sci-fi power plant style.",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "efb93e5c7f238e8408c8e9c7969ca14a",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

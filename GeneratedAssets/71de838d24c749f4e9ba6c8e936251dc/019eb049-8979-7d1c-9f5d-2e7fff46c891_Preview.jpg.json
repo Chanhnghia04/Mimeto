@@ -1,0 +1,12 @@
+{
+    "asset": "71de838d24c749f4e9ba6c8e936251dc",
+    "fileName": "019eb049-8979-7d1c-9f5d-2e7fff46c891_Preview.jpg",
+    "prompt": "Rusty industrial metal building wall, cyberpunk style, dark metal, neon highlights, seamless texture, high detail, PBR maps",
+    "negativePrompt": "",
+    "model": "realistic-textures-3-0",
+    "modelName": "Realistic Textures 3.0",
+    "customSeed": 900542910,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation"
+}

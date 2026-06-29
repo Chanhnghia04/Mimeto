@@ -1,0 +1,15 @@
+{
+    "asset": "de1f2a4645908d346b5e365aa111b266",
+    "fileName": "019f07c3-8ee5-70ee-aaab-a54ac5d23759.wav",
+    "prompt": "Heavy wooden chest opening, creaking wood, stone grinding, rewarding sound effect",
+    "negativePrompt": "",
+    "model": "elevenlabs-sound-effects-v2",
+    "modelName": "ElevenLabs Sound Effects V2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "duration": 10.0,
+    "autoTrim": false,
+    "hasReference": false,
+    "voice": ""
+}

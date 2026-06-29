@@ -1,0 +1,28 @@
+{
+    "asset": "a7a5eaf5176e2ab47a3bb26b6e14f55a",
+    "fileName": "019f0e50-81af-7849-b2ae-323a19a6d978.jpg",
+    "prompt": "A single wall-mounted industrial security keypad with digital display and buttons, isolated on a white background, sci-fi security style, 3D model concept art.",
+    "negativePrompt": "",
+    "model": "flux-2-pro",
+    "modelName": "Flux 2 (Pro)",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelatePixelGridSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0,
+    "dimensions": {
+        "width": 1024,
+        "height": 1024
+    },
+    "spriteSheet": false,
+    "duration": 0.0
+}

@@ -1,0 +1,15 @@
+{
+    "asset": "871be2bcd67815441894249586d05459",
+    "fileName": "019f08d1-d00a-7641-8db9-8eb95b0e2840.wav",
+    "prompt": "Heavy wooden chest lid opening, creaking wood, stone grinding hinges",
+    "negativePrompt": "",
+    "model": "elevenlabs-sound-effects-v2",
+    "modelName": "ElevenLabs Sound Effects V2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "duration": 10.0,
+    "autoTrim": false,
+    "hasReference": false,
+    "voice": ""
+}

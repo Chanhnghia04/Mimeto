@@ -1,0 +1,15 @@
+{
+    "asset": "2a3795365dbc0844982e35f142f8c8ec",
+    "fileName": "019f08d1-c77b-7f77-b364-355e5e5a90c8.wav",
+    "prompt": "Flesh impact sound, wet punch, player taking damage from a monster attack",
+    "negativePrompt": "",
+    "model": "elevenlabs-sound-effects-v2",
+    "modelName": "ElevenLabs Sound Effects V2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "duration": 10.0,
+    "autoTrim": false,
+    "hasReference": false,
+    "voice": ""
+}

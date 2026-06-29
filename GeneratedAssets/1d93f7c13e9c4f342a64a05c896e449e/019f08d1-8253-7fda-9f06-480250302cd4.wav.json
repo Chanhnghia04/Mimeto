@@ -1,0 +1,15 @@
+{
+    "asset": "1d93f7c13e9c4f342a64a05c896e449e",
+    "fileName": "019f08d1-8253-7fda-9f06-480250302cd4.wav",
+    "prompt": "Footsteps walking on old creaky wooden floorboards, hollow thud, single steps",
+    "negativePrompt": "",
+    "model": "elevenlabs-sound-effects-v2",
+    "modelName": "ElevenLabs Sound Effects V2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "duration": 10.0,
+    "autoTrim": false,
+    "hasReference": false,
+    "voice": ""
+}

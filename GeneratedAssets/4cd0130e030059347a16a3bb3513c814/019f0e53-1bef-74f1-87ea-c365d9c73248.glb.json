@@ -1,0 +1,23 @@
+{
+    "asset": "4cd0130e030059347a16a3bb3513c814",
+    "fileName": "019f0e53-1bef-74f1-87ea-c365d9c73248.glb",
+    "prompt": "A futuristic electronic circuit board, 3D game asset, sci-fi tech details.",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "011a5b19785ad7445ba3993d01f6a4f4",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

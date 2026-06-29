@@ -1,0 +1,23 @@
+{
+    "asset": "8d1b73d828f7f9945be2b2a4016da7f6",
+    "fileName": "019f027f-d979-7aa6-be21-263ea661eba3.glb",
+    "prompt": "a rugged fire axe with a red metal head and wooden handle, 3D game model, survival style",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "3061d190e7260fe40bbd2851b47c5cca",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

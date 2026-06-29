@@ -1,0 +1,23 @@
+{
+    "asset": "c129b26bfb94a4f4686200d6324c6093",
+    "fileName": "019eb048-ea12-7d59-b29e-43e7dd06ec04.glb",
+    "prompt": "Cyberpunk industrial building, highly detailed, colorful, neon lights, high quality mesh",
+    "negativePrompt": "",
+    "model": "model3d-hunyuan-3d-pro-3-1",
+    "modelName": "Hunyuan 3D 3.1 Pro",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "f7872a4a0d677c64fb58d295fc3cb271",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

@@ -1,0 +1,28 @@
+{
+    "asset": "1bec2136b9ecb454cb9c6f12959d8939",
+    "fileName": "019f0782-afba-72c8-83a5-aca901577aa1.png",
+    "prompt": "A stylized wooden chest with iron bands, isolated on white background, game asset style, front view, slightly tilted, 4k, high detail, hand-painted texture style",
+    "negativePrompt": "",
+    "model": "flux-2-dev",
+    "modelName": "Flux 2 (Dev)",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelatePixelGridSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0,
+    "dimensions": {
+        "width": 1024,
+        "height": 1024
+    },
+    "spriteSheet": false,
+    "duration": 0.0
+}

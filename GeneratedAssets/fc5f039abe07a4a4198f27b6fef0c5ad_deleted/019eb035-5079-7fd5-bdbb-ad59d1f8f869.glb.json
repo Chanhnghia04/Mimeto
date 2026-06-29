@@ -1,0 +1,23 @@
+{
+    "asset": "fc5f039abe07a4a4198f27b6fef0c5ad",
+    "fileName": "019eb035-5079-7fd5-bdbb-ad59d1f8f869.glb",
+    "prompt": "Sci-fi street lamp, toxic green light source, rusty metal, detailed model",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "0d3962ad9dda85640956b168bd617520",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

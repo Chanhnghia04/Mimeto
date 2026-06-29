@@ -1,0 +1,23 @@
+{
+    "asset": "8c5daa66e13083641a157f70d7dcaa23",
+    "fileName": "019eb03e-2956-7dd0-9f86-b360a41bc498.glb",
+    "prompt": "Cyberpunk industrial building, highly detailed, colorful, neon lights",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "f7872a4a0d677c64fb58d295fc3cb271",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

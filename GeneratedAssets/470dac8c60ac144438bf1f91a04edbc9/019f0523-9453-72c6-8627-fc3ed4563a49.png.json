@@ -1,0 +1,28 @@
+{
+    "asset": "470dac8c60ac144438bf1f91a04edbc9",
+    "fileName": "019f0523-9453-72c6-8627-fc3ed4563a49.png",
+    "prompt": "Generic industrial metal plate UI panel, dark oil-stained iron, bolted corners, subtle rust, no text, no gauges, flat front view, 9-slice compatible layout, high detail texture, isolated on white background.",
+    "negativePrompt": "",
+    "model": "gemini-3.1-flash",
+    "modelName": "Gemini 3.1 Nano Banana 2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelatePixelGridSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0,
+    "dimensions": {
+        "width": 1024,
+        "height": 1024
+    },
+    "spriteSheet": false,
+    "duration": 0.0
+}

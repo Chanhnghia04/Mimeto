@@ -1,0 +1,23 @@
+{
+    "asset": "b800838e4eb00594a91eb1184f3e86de",
+    "fileName": "019eb044-eca2-7fd5-9098-adb5f3628be7.glb",
+    "prompt": "Sci-fi workbench, futuristic tools, holographic screens, detailed metal texture",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "c1393204e4ce61d4dbb2a42f7d331dd4",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

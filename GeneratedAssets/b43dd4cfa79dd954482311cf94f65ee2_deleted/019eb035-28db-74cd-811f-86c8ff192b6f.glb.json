@@ -1,0 +1,23 @@
+{
+    "asset": "b43dd4cfa79dd954482311cf94f65ee2",
+    "fileName": "019eb035-28db-74cd-811f-86c8ff192b6f.glb",
+    "prompt": "Toxic waste barrel, corroded metal, green glowing residue, detailed 3D model",
+    "negativePrompt": "",
+    "model": "model3d-tripo-p1",
+    "modelName": "Tripo P1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "f218557b5adb85a439e81ec8f4142d2b",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

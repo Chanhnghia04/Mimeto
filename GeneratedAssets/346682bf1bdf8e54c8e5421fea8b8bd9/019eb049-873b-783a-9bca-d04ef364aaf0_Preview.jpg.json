@@ -1,0 +1,12 @@
+{
+    "asset": "346682bf1bdf8e54c8e5421fea8b8bd9",
+    "fileName": "019eb049-873b-783a-9bca-d04ef364aaf0_Preview.jpg",
+    "prompt": "Rusted sci-fi street lamp metal, dark iron, futuristic electronic details, seamless texture, high detail, PBR maps",
+    "negativePrompt": "",
+    "model": "realistic-textures-3-0",
+    "modelName": "Realistic Textures 3.0",
+    "customSeed": 1474471438,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation"
+}

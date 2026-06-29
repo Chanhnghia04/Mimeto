@@ -1,0 +1,28 @@
+{
+    "asset": "a54865909d0ae5c4aa1e9690fdbf2012",
+    "fileName": "019eb04a-5c81-78ea-9e46-58e52e498bc5.jpg",
+    "prompt": "Dystopian toxic city at night, green haze, neon signs, massive industrial buildings, high quality cinematic skybox",
+    "negativePrompt": "",
+    "model": "skybox-cyberpunk",
+    "modelName": "Cyberpunk",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelatePixelGridSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0,
+    "dimensions": {
+        "width": 1024,
+        "height": 1024
+    },
+    "spriteSheet": false,
+    "duration": 0.0
+}

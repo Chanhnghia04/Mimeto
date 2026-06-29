@@ -1,0 +1,28 @@
+{
+    "asset": "d9bcd4546d6a77d429701f0459f9ed10",
+    "fileName": "019f0e50-1608-7741-9f94-937b68156710.jpg",
+    "prompt": "A single high-detail industrial mechanical gear, isolated on a white background, sci-fi industrial style, realistic metallic texture, 3D model concept art.",
+    "negativePrompt": "",
+    "model": "flux-2-pro",
+    "modelName": "Flux 2 (Pro)",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelatePixelGridSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0,
+    "dimensions": {
+        "width": 1024,
+        "height": 1024
+    },
+    "spriteSheet": false,
+    "duration": 0.0
+}
