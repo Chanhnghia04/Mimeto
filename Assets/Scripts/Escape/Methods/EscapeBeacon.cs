@@ -40,6 +40,13 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
     private Color  _msgColor = Color.white;
     private float  _msgTimer = 0f;
 
+    public bool isUIOpen = false;
+    private PlayerInventory _currentInv;
+    
+    private float _pulseTimer = 0f;
+    private Texture2D _hazardTex;
+    private Texture2D _blackTex;
+
     // ─────────────────────────────────────────────────────────────────────────
 
     void Start()
@@ -64,11 +71,20 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
             beaconLight.range     = 6f;
         }
 
-        if (audioSource == null) audioSource = GetComponent<AudioSource>() ?? gameObject.AddComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+        }
     }
 
     void Update()
     {
+        if (isUIOpen && Input.GetKeyDown(KeyCode.Escape))
+        {
+            isUIOpen = false;
+        }
+
         if (_msgTimer > 0) _msgTimer -= Time.deltaTime;
         if (!_isBuilt || _isDone) return;
 
@@ -87,6 +103,18 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
             $"Sống sót thêm: {FormatTime(Mathf.Max(0, _remaining))}  ←  Đội cứu hộ đang đến",
             progress);
 
+        // Báo động thu hút Mimic mỗi 5 giây
+        _pulseTimer += Time.deltaTime;
+        if (_pulseTimer >= 5f)
+        {
+            _pulseTimer = 0f;
+            MimicAI[] mimics = FindObjectsByType<MimicAI>(FindObjectsSortMode.None);
+            foreach (var m in mimics)
+            {
+                m.Investigate(transform.position);
+            }
+        }
+
         if (_remaining <= 0f) StartCoroutine(RescueArrived());
     }
 
@@ -104,14 +132,11 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
                            ?? interactor.GetComponentInChildren<PlayerInventory>();
         if (inv == null) return;
 
-        if (!inv.HasResources(requiredCircuits, 0, 0, 0, 0, requiredBatteries))
-        {
-            ShowMsg($"Cần {requiredCircuits} Circuit + {requiredBatteries} Battery!", Color.red);
-            return;
-        }
-
-        inv.ConsumeResources(requiredCircuits, 0, 0, 0, 0, requiredBatteries);
-        Build();
+        isUIOpen = true;
+        _currentInv = inv;
+        
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     // ── Build + Countdown ─────────────────────────────────────────────────────
@@ -120,8 +145,10 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
     {
         _isBuilt = true;
         if (audioSource != null && buildClip != null) audioSource.PlayOneShot(buildClip);
-        ShowMsg("BEACON KÍCH HOẠT! Sống sót trong 3 phút!", new Color(0.1f, 0.85f, 1f));
         Debug.Log("<color=cyan>[EscapeBeacon] Beacon kích hoạt! Đếm ngược bắt đầu!</color>");
+        
+        EscapeHUD hud = Object.FindAnyObjectByType<EscapeHUD>();
+        if (hud != null) hud.ForceOpenHUD();
     }
 
     IEnumerator RescueArrived()
@@ -147,12 +174,161 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
 
     void OnGUI()
     {
+        DrawHUDMessages();
+        if (isUIOpen) DrawBeaconUI();
+
+        if (_isBuilt && !_isDone)
+        {
+            DrawAlarmUI();
+        }
+    }
+
+    void CreateTextures()
+    {
+        if (_blackTex == null)
+        {
+            _blackTex = new Texture2D(1, 1);
+            _blackTex.SetPixel(0, 0, new Color(0.05f, 0.05f, 0.05f, 0.95f));
+            _blackTex.Apply();
+        }
+        if (_hazardTex == null)
+        {
+            int size = 32;
+            _hazardTex = new Texture2D(size, size);
+            _hazardTex.wrapMode = TextureWrapMode.Repeat;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    bool isYellow = ((x + y) % size) < (size / 2);
+                    _hazardTex.SetPixel(x, y, isYellow ? new Color(1f, 0.85f, 0f) : new Color(0.1f, 0.1f, 0.1f));
+                }
+            }
+            _hazardTex.Apply();
+        }
+    }
+
+    void DrawAlarmUI()
+    {
+        CreateTextures();
+
+        float pulse = Mathf.PingPong(Time.time * 3f, 1f);
+        
+        float panelW = Mathf.Min(Screen.width * 0.7f, 800f);
+        float panelH = 160f; // Tăng chiều cao để chữ vừa vặn bên trong
+        float panelX = (Screen.width - panelW) / 2f;
+        float panelY = Screen.height * 0.1f;
+        
+        // 1. Red Neon Glow effect
+        Color neonColor = new Color(1f, 0f, 0f, 0.05f + 0.1f * pulse);
+        for (int i = 1; i <= 6; i++)
+        {
+            GUI.color = neonColor;
+            float expand = i * 6f;
+            GUI.DrawTexture(new Rect(panelX - expand, panelY - expand, panelW + expand * 2, panelH + expand * 2), Texture2D.whiteTexture);
+        }
+        GUI.color = Color.white;
+
+        // 2. Black Background Panel
+        GUI.DrawTexture(new Rect(panelX, panelY, panelW, panelH), _blackTex);
+
+        // 3. Hazard Stripes Border
+        float borderThickness = 26f; // Dòng sọc to ra
+        float repeatX = panelW / 32f;
+        float offset = -Time.time * 0.8f; // Scrolling effect
+        
+        // Cạnh trên
+        GUI.DrawTextureWithTexCoords(
+            new Rect(panelX, panelY, panelW, borderThickness), 
+            _hazardTex, 
+            new Rect(offset, 0, repeatX, borderThickness / 32f)
+        );
+        // Cạnh dưới
+        GUI.DrawTextureWithTexCoords(
+            new Rect(panelX, panelY + panelH - borderThickness, panelW, borderThickness), 
+            _hazardTex, 
+            new Rect(offset, 0, repeatX, borderThickness / 32f)
+        );
+
+        // 4. Text Content (Bright Reddish-Pink)
+        GUIStyle s = new GUIStyle();
+        s.fontSize = 36;
+        s.fontStyle = FontStyle.Bold;
+        s.alignment = TextAnchor.MiddleCenter;
+
+        string alarmText = $"BẦY QUÁI VẬT ĐANG TỚI\nCỨU HỘ ĐẾN SAU: {FormatTime(Mathf.Max(0, _remaining))}";
+
+        // Đổ bóng chữ đen
+        s.normal.textColor = Color.black;
+        GUI.Label(new Rect(panelX + 2f, panelY + 2f, panelW, panelH), alarmText, s);
+        
+        // Chữ màu Đỏ Hồng (Reddish-Pink) có chớp nháy
+        s.normal.textColor = new Color(1f, 0.2f, 0.4f, Mathf.Lerp(0.8f, 1f, pulse));
+        GUI.Label(new Rect(panelX, panelY, panelW, panelH), alarmText, s);
+    }
+
+    void DrawHUDMessages()
+    {
         if (_msgTimer <= 0) return;
         GUIStyle s = new GUIStyle { fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
         s.normal.textColor = Color.black;
         GUI.Label(new Rect(2f, Screen.height * 0.65f + 2, Screen.width, 50), _msg, s);
         s.normal.textColor = _msgColor;
         GUI.Label(new Rect(0f, Screen.height * 0.65f,     Screen.width, 50), _msg, s);
+    }
+
+    void DrawBeaconUI()
+    {
+        float width = 600;
+        float height = 400;
+        Rect windowRect = new Rect((Screen.width - width) / 2, (Screen.height - height) / 2, width, height);
+
+        GUI.Box(windowRect, "");
+
+        GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
+        titleStyle.fontSize = 32;
+        titleStyle.fontStyle = FontStyle.Bold;
+        titleStyle.alignment = TextAnchor.UpperCenter;
+        titleStyle.normal.textColor = new Color(0.1f, 0.8f, 1f);
+
+        GUI.Label(new Rect(windowRect.x, windowRect.y + 20, windowRect.width, 50), "TRẠM ĂNG-TEN CỨU HỘ", titleStyle);
+
+        GUIStyle descStyle = new GUIStyle(GUI.skin.label);
+        descStyle.fontSize = 20;
+        descStyle.alignment = TextAnchor.UpperCenter;
+        descStyle.normal.textColor = Color.white;
+
+        bool hasRes = _currentInv != null && _currentInv.HasResources(requiredCircuits, 0, 0, 0, 0, requiredBatteries);
+
+        string desc = hasRes 
+            ? $"Đã đủ nguyên liệu ({requiredCircuits} Circuit, {requiredBatteries} Battery).\nNhấn nút KÍCH HOẠT để gọi cứu hộ!" 
+            : $"Bạn chưa đủ nguyên liệu!\nYêu cầu: {requiredCircuits} Circuit, {requiredBatteries} Battery\nHiện có: {_currentInv.circuits} Circuit, {_currentInv.scrapBatteries} Battery.";
+
+        GUI.Label(new Rect(windowRect.x + 50, windowRect.y + 100, windowRect.width - 100, 100), desc, descStyle);
+
+        // Nút kích hoạt
+        GUIStyle btnStyle = new GUIStyle(GUI.skin.button);
+        btnStyle.fontSize = 24;
+        btnStyle.fontStyle = FontStyle.Bold;
+
+        GUI.enabled = hasRes;
+
+        if (GUI.Button(new Rect(windowRect.x + 150, windowRect.y + 220, 300, 60), "KÍCH HOẠT BEACON", btnStyle))
+        {
+            if (_currentInv != null)
+            {
+                _currentInv.ConsumeResources(requiredCircuits, 0, 0, 0, 0, requiredBatteries);
+                Build();
+            }
+            isUIOpen = false;
+        }
+
+        GUI.enabled = true;
+
+        if (GUI.Button(new Rect(windowRect.x + 250, windowRect.y + 320, 100, 40), "ĐÓNG", GUI.skin.button))
+        {
+            isUIOpen = false;
+        }
     }
 
 #if UNITY_EDITOR

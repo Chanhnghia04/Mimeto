@@ -50,7 +50,10 @@ private Color originalLightColor;
     private float lastScanTime;
     private float scanInterval = 1f;
     private float lastAttackTime;
-    private float lastFlashTime; // Bug 1 fix: proper timer instead of Time.time % interval
+    private float lastFlashTime;
+
+    private Vector3 lastKnownPosition;
+    private float loseSightTimer = 0f;
 
     void Start()
     {
@@ -131,13 +134,27 @@ private Color originalLightColor;
         float distance = Vector3.Distance(transform.position, player.transform.position);
         if (distance > detectionRadius) return false;
 
-        Vector3 directionToPlayer = (player.transform.position - transform.position).normalized;
+        Vector3 mimicEye = transform.position + Vector3.up * 1.5f;
+        Vector3 playerEye = player.transform.position + Vector3.up * 1.5f;
+        Vector3 directionToPlayer = (playerEye - mimicEye).normalized;
+        float distanceToEyes = Vector3.Distance(mimicEye, playerEye);
+
         float angleBetween = Vector3.Angle(transform.forward, directionToPlayer);
 
         if (angleBetween < fieldOfView / 2f)
         {
-            if (!Physics.Raycast(transform.position + Vector3.up, directionToPlayer, distance, obstacleMask))
+            RaycastHit hit;
+            if (Physics.Raycast(mimicEye, directionToPlayer, out hit, distanceToEyes, obstacleMask))
             {
+                // Nếu tia chạm trúng cái gì đó, nhưng đó lại là Player (hoặc con của Player), thì có nghĩa là nhìn thấy!
+                if (hit.collider.gameObject == player || hit.collider.transform.IsChildOf(player.transform) || hit.collider.CompareTag("Player"))
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                // Không có chướng ngại vật nào chắn tầm nhìn
                 return true;
             }
         }
@@ -146,6 +163,22 @@ private Color originalLightColor;
         if (distance < 3f && pc != null && !pc.isHiding) return true;
 
         return false;
+    }
+
+    private bool CanHearPlayer(GameObject player)
+    {
+        if (player == null) return false;
+
+        PlayerController pc = player.GetComponent<PlayerController>();
+        if (pc == null || pc.isHiding) return false;
+
+        if (!pc.isMoving) return false; // Không đi không phát tiếng
+        if (pc.isCrouching) return false; // Ngồi đi cũng không phát tiếng
+
+        float distance = Vector3.Distance(transform.position, player.transform.position);
+        float hearingRadius = pc.isSprinting ? 20f : 10f; // Chạy thì 20m, đi bộ thì 10m
+
+        return distance <= hearingRadius;
     }
 
     void HandleStalking()
@@ -161,24 +194,44 @@ private Color originalLightColor;
         if (targetPlayer != null && CanSeePlayer(targetPlayer))
         {
             Debug.Log("Mimic detected player! Chasing...");
+            lastKnownPosition = targetPlayer.transform.position;
+            loseSightTimer = 0f;
             SetState(MimicState.Chasing);
             return;
         }
 
-        // 3. Nếu chưa thấy player hoặc ở xa -> Đi tuần ngẫu nhiên (Wandering)
-wanderTimer += Time.deltaTime;
-        if (wanderTimer >= wanderInterval || (!agent.pathPending && agent.remainingDistance <= 1.0f))
+        // 2.5. Nếu NGHE thấy tiếng bước chân -> Đi tới đó để kiểm tra
+        if (targetPlayer != null && CanHearPlayer(targetPlayer))
         {
-            Vector3 randomDirection = Random.insideUnitSphere * wanderRadius;
-            randomDirection += transform.position;
-            
-            NavMeshHit hit;
-            if (NavMesh.SamplePosition(randomDirection, out hit, wanderRadius, NavMesh.AllAreas))
+            Investigate(targetPlayer.transform.position);
+        }
+
+        // 3. Nếu chưa thấy player hoặc ở xa -> Đi tuần ngẫu nhiên (Wandering)
+        if (isInvestigating)
+        {
+            // Nếu đã tới nơi tìm hiểu, chuyển lại thành đi dạo
+            if (!agent.pathPending && agent.remainingDistance <= 2.0f)
             {
-                agent.SetDestination(hit.position);
+                isInvestigating = false;
+                wanderTimer = wanderInterval; // Ép chọn đường đi dạo ngay
             }
-            wanderTimer = 0f;
-            wanderInterval = Random.Range(3f, 7f); 
+        }
+        else
+        {
+            wanderTimer += Time.deltaTime;
+            if (wanderTimer >= wanderInterval || (!agent.pathPending && agent.remainingDistance <= 1.0f))
+            {
+                Vector3 randomDirection = Random.insideUnitSphere * wanderRadius;
+                randomDirection += transform.position;
+                
+                NavMeshHit hit;
+                if (NavMesh.SamplePosition(randomDirection, out hit, wanderRadius, NavMesh.AllAreas))
+                {
+                    agent.SetDestination(hit.position);
+                }
+                wanderTimer = 0f;
+                wanderInterval = Random.Range(3f, 7f); 
+            }
         }
     }
 
@@ -208,10 +261,28 @@ wanderTimer += Time.deltaTime;
             return;
         }
 
+        if (CanSeePlayer(targetPlayer))
+        {
+            lastKnownPosition = targetPlayer.transform.position;
+            loseSightTimer = 0f;
+        }
+        else
+        {
+            loseSightTimer += Time.deltaTime;
+        }
+
         if (agent.isOnNavMesh) 
-{
-            // NavMeshAgent sẽ tự động hãm phanh khi cách Player = stoppingDistance (được gán ở SetState)
-            agent.SetDestination(targetPlayer.transform.position);
+        {
+            agent.SetDestination(lastKnownPosition);
+        }
+
+        // Mất dấu nếu sau 6s không thấy lại, HOẶC đã chạy đến nơi thấy cuối cùng mà vẫn không thấy
+        if (loseSightTimer > 6f || (loseSightTimer > 0.5f && !agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.5f))
+        {
+            Debug.Log("Mimic lost track of player behind obstacle!");
+            targetPlayer = null;
+            SetState(MimicState.Stalking);
+            return;
         }
 
         // Sửa lỗi không cắn: Tính khoảng cách bỏ qua trục Y và bù trừ bán kính của 2 nhân vật
@@ -261,7 +332,6 @@ wanderTimer += Time.deltaTime;
 
     void HandleRevealed()
     {
-        // Bug 5 fix: speed is now set once in SetState(); just keep pursuing the player
         if (targetPlayer != null && targetPlayer.activeInHierarchy)
         {
             PlayerController pc = targetPlayer.GetComponent<PlayerController>();
@@ -274,7 +344,28 @@ wanderTimer += Time.deltaTime;
                 return;
             }
 
-            agent.SetDestination(targetPlayer.transform.position);
+            if (CanSeePlayer(targetPlayer))
+            {
+                lastKnownPosition = targetPlayer.transform.position;
+                loseSightTimer = 0f;
+            }
+            else
+            {
+                loseSightTimer += Time.deltaTime;
+            }
+
+            if (agent.isOnNavMesh) 
+            {
+                agent.SetDestination(lastKnownPosition);
+            }
+
+            if (loseSightTimer > 6f || (loseSightTimer > 0.5f && !agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.5f))
+            {
+                Debug.Log("Mimic (Revealed) lost track of player behind obstacle!");
+                targetPlayer = null;
+                SetState(MimicState.Stalking);
+                return;
+            }
         }
     }
 
@@ -440,5 +531,24 @@ wanderTimer += Time.deltaTime;
     GameObject FindClosestGroup()
     {
         return FindLonePlayer();
+    }
+
+    private bool isInvestigating = false;
+
+    public void Investigate(Vector3 targetPos)
+    {
+        if (isDead) return;
+        
+        if (currentState != MimicState.Chasing && currentState != MimicState.Revealed)
+        {
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(targetPos, out hit, 10f, NavMesh.AllAreas))
+            {
+                SetState(MimicState.Stalking);
+                agent.speed = monsterSpeed * 0.85f; 
+                agent.SetDestination(hit.position);
+                isInvestigating = true;
+            }
+        }
     }
 }

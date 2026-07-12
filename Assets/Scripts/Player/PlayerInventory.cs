@@ -24,6 +24,10 @@ public class PlayerInventory : NetworkBehaviour
     public bool hasEscapeKey = false;
     public int rareLootCount = 0;
 
+    void Start()
+    {
+    }
+
     public void AddScrap(string type, int amount)
     {
         if (IsSpawned && !IsOwner && !IsServer) return; // Chỉ cập nhật túi đồ cho chủ sở hữu hoặc khi test offline

@@ -15,9 +15,9 @@ public class EscapeAssembly : MonoBehaviour
 {
     [Header("Spawn Config")]
     public int   totalParts          = 3;
-    public float spawnRadius         = 40f;
-    public float minDistFromPlayer   = 18f;
-    public float minDistBetweenParts = 14f;
+    public float spawnRadius         = 5f; // FOR TESTING (was 40f)
+    public float minDistFromPlayer   = 1f; // FOR TESTING (was 18f)
+    public float minDistBetweenParts = 1f; // FOR TESTING (was 14f)
 
     private int _collected = 0;
 
@@ -69,15 +69,15 @@ public class EscapeAssembly : MonoBehaviour
         {
             go = Instantiate(prefab);
             go.name = $"EscapePart_{PartDefs[index].name}";
-            // Bù đắp độ cao (Mesh cao 1m -> offset 0.5m)
-            go.transform.position = worldPos + Vector3.up * 0.5f;
+            // Bù đắp độ cao thật thấp (sát mặt đất)
+            go.transform.position = worldPos + Vector3.up * 0.15f;
         }
         else
         {
             // Fallback to primitive
             go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = $"EscapePart_{PartDefs[index].name}_Fallback";
-            go.transform.position = worldPos + Vector3.up * 0.3f;
+            go.transform.position = worldPos + Vector3.up * 0.15f;
             go.transform.localScale = Vector3.one * 0.32f;
             
             // Material màu + emissive glow
@@ -90,21 +90,19 @@ public class EscapeAssembly : MonoBehaviour
                 mat.EnableKeyword("_EMISSION");
                 rend.material = mat;
             }
+
+            GameObject lg = new GameObject("Glow");
+            lg.transform.SetParent(go.transform, false);
+            Light l = lg.AddComponent<Light>();
+            l.color = Color.yellow;
+            l.range = 4f;
         }
 
         go.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
 
-        // Point light nhỏ để dễ thấy từ xa
-        GameObject lg = new GameObject("Glow");
-        lg.transform.SetParent(go.transform, false);
-        Light l = lg.AddComponent<Light>();
-        l.type = LightType.Point;
-        l.color = PartDefs[index].color;
-        l.intensity = 1.8f;
-        l.range = 4f;
-
         // Component xử lý tương tác
-        EscapePart ep = go.GetComponent<EscapePart>() ?? go.AddComponent<EscapePart>();
+        EscapePart ep = go.GetComponent<EscapePart>();
+        if (ep == null) ep = go.AddComponent<EscapePart>();
         ep.partName = PartDefs[index].name;
         ep.parentAssembly = this;
 
@@ -115,6 +113,10 @@ public class EscapeAssembly : MonoBehaviour
             bc.size = new Vector3(1f, 1f, 1f);
         }
 
+        // Bỏ Rigidbody đi vì mình sẽ cho nó lơ lửng lại
+        Rigidbody rb = go.GetComponent<Rigidbody>();
+        if (rb != null) Destroy(rb);
+
         Debug.Log($"[EscapeAssembly] Spawn '{PartDefs[index].name}' tại {worldPos}");
     }
 
@@ -122,9 +124,8 @@ public class EscapeAssembly : MonoBehaviour
     {
         for (int attempt = 0; attempt < 40; attempt++)
         {
-            Vector3 rand = Random.insideUnitSphere * spawnRadius;
-            rand.y = 0f;
-            Vector3 candidate = playerPos + rand;
+            Vector2 circle = Random.insideUnitCircle * spawnRadius;
+            Vector3 candidate = playerPos + new Vector3(circle.x, 0f, circle.y);
 
             if (Vector3.Distance(candidate, playerPos) < minDistFromPlayer) continue;
 
@@ -133,15 +134,19 @@ public class EscapeAssembly : MonoBehaviour
                 if (Vector3.Distance(candidate, u) < minDistBetweenParts) { tooClose = true; break; }
             if (tooClose) continue;
 
-            if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 6f, NavMesh.AllAreas))
-                return hit.position;
+            // Tìm điểm NavMesh gần nhất
+            if (UnityEngine.AI.NavMesh.SamplePosition(candidate, out UnityEngine.AI.NavMeshHit hit, 4f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                // QUAN TRỌNG: Loại bỏ những điểm nằm trên nóc nhà (Y chênh lệch quá 1.5 mét so với người chơi)
+                if (Mathf.Abs(hit.position.y - playerPos.y) < 1.5f)
+                {
+                    return hit.position;
+                }
+            }
         }
 
-        // Fallback
-        Vector3 fb = Random.insideUnitSphere * spawnRadius; fb.y = 0f;
-        return NavMesh.SamplePosition(fb, out NavMeshHit fhit, 12f, NavMesh.AllAreas)
-            ? fhit.position
-            : playerPos + fb;
+        // Fallback: Quăng ngay trước mặt Player, giữ nguyên độ cao của Player
+        return playerPos + GameObject.FindGameObjectWithTag("Player").transform.forward * 2f;
     }
 
     // ── Called by EscapePart when collected ──────────────────────────────────
@@ -154,15 +159,16 @@ public class EscapeAssembly : MonoBehaviour
 
         if (_collected >= totalParts)
         {
-            Debug.Log("<color=lime>[EscapeAssembly] Đủ bộ phận! Mở cửa thoát!</color>");
-            EscapeManager.Instance?.UnlockEscape();
+            Debug.Log("<color=lime>[EscapeAssembly] Đủ bộ phận! Đến cửa thoát ngay!</color>");
+            if (EscapeManager.Instance != null)
+                EscapeManager.Instance.IsReadyToAssemble = true;
         }
     }
 
     void UpdateHUD()
     {
         string msg = _collected >= totalParts
-            ? "Đủ bộ phận! Đến cửa thoát ngay!"
+            ? "Đủ bộ phận! Đến cửa thoát để lắp ráp!"
             : $"Bộ phận: {_collected}/{totalParts} — Tìm thêm trên bản đồ";
         EscapeManager.Instance?.ReportProgress(msg, (float)_collected / totalParts);
     }
@@ -190,12 +196,12 @@ public class EscapePart : MonoBehaviour, IInteractable
 
     void Update()
     {
-        // Float lên xuống + xoay nhẹ
+        // Float lên xuống thật nhẹ + xoay
         _phase += Time.deltaTime;
         Vector3 p = transform.position;
-        p.y = _baseY + Mathf.Sin(_phase * 1.4f) * 0.09f;
+        p.y = _baseY + Mathf.Sin(_phase * 1.5f) * 0.05f; // Biên độ rất nhỏ (5cm)
         transform.position = p;
-        transform.Rotate(Vector3.up * 28f * Time.deltaTime, Space.World);
+        transform.Rotate(Vector3.up * 20f * Time.deltaTime, Space.World);
     }
 
     public void Interact(GameObject interactor)

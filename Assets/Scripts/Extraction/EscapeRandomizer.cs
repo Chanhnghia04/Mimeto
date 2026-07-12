@@ -46,32 +46,60 @@ public class EscapeRandomizer : MonoBehaviour
         }
         else
         {
-            // Tự động dùng thuật toán tìm rìa bản đồ (NavMesh Edge)
-            // Lấy một hướng ngẫu nhiên chĩa ra ngoài bản đồ
-            Vector3 randomDir = Random.onUnitSphere;
-            randomDir.y = 0;
-            randomDir = randomDir.normalized * mapRadius;
-
-            // Dóng xuống mặt đất (NavMesh)
-            if (NavMesh.SamplePosition(randomDir, out NavMeshHit hit, mapRadius, NavMesh.AllAreas))
+            // Tự động dò rìa bản đồ bằng NavMesh.Raycast từ tâm bắn ra ngoài
+            Vector3 center = Vector3.zero;
+            
+            // Cố gắng tìm tâm NavMesh
+            if (NavMesh.SamplePosition(center, out NavMeshHit centerHit, 10f, NavMesh.AllAreas))
             {
-                // Tìm vách ngăn / rìa (Edge) gần nhất của NavMesh
-                if (NavMesh.FindClosestEdge(hit.position, out NavMeshHit edgeHit, NavMesh.AllAreas))
+                center = centerHit.position;
+            }
+
+            // Thử bắn nhiều tia để tìm rìa xa nhất (đảm bảo là tường bao ngoài cùng chứ không phải vách ngăn nhỏ)
+            Vector3 bestPos = center;
+            Vector3 bestNormal = Vector3.forward;
+            float maxDist = -1f;
+
+            for (int i = 0; i < 30; i++)
+            {
+                float angle = Random.Range(0f, 360f);
+                Vector3 dir = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)).normalized;
+                Vector3 target = center + dir * mapRadius;
+
+                if (NavMesh.Raycast(center, target, out NavMeshHit hit, NavMesh.AllAreas))
                 {
-                    door.transform.position = edgeHit.position;
-                    
-                    // Quay mặt cửa hướng vào giữa bản đồ (0,0,0) để dễ nhìn
-                    Vector3 lookDir = -edgeHit.position;
-                    lookDir.y = 0;
-                    if (lookDir != Vector3.zero) 
+                    float dist = Vector3.Distance(center, hit.position);
+                    // Lưu lại rìa xa nhất tìm được
+                    if (dist > maxDist)
                     {
-                        door.transform.rotation = Quaternion.LookRotation(lookDir);
+                        maxDist = dist;
+                        bestPos = hit.position;
+                        bestNormal = hit.normal;
                     }
                 }
-                else
+            }
+
+            if (maxDist > 0f)
+            {
+                door.transform.position = bestPos;
+                
+                // Đảm bảo pháp tuyến hướng vào trong map
+                Vector3 toCenter = center - bestPos;
+                toCenter.y = 0;
+                if (Vector3.Dot(bestNormal, toCenter) < 0)
                 {
-                    door.transform.position = hit.position;
+                    bestNormal = -bestNormal;
                 }
+                
+                if (bestNormal != Vector3.zero)
+                {
+                    door.transform.rotation = Quaternion.LookRotation(bestNormal);
+                }
+            }
+            else
+            {
+                // Fallback nếu không có navmesh
+                door.transform.position = center + Vector3.forward * 10f;
             }
         }
     }

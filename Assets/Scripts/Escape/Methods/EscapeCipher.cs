@@ -30,6 +30,8 @@ public class EscapeCipher : MonoBehaviour, IInteractable
     private bool     _unlocked    = false;
     private bool     _wrongFlash  = false;
     private float    _wrongTimer  = 0f;
+    
+    public bool IsKeypadOpen => _keypadOpen;
 
     // ── Styles ────────────────────────────────────────────────────────────────
     private GUIStyle _panelStyle;
@@ -49,7 +51,7 @@ public class EscapeCipher : MonoBehaviour, IInteractable
         Debug.Log($"[EscapeCipher] Mật mã màn này: {_code}  (dev log)");
 
         SpawnNotes();
-        UpdateHUD();
+        UpdateHUD(false);
     }
 
     // ── Note Spawning ─────────────────────────────────────────────────────────
@@ -70,13 +72,13 @@ public class EscapeCipher : MonoBehaviour, IInteractable
 
     void CreateNote(int noteIndex, Vector3 worldPos)
     {
-        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Quad);
         go.name = $"CipherNote_{noteIndex}";
-        go.transform.position   = worldPos + Vector3.up * 0.2f;
-        go.transform.localScale = new Vector3(0.22f, 0.28f, 0.04f);
-        go.transform.rotation   = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+        go.transform.position = worldPos + Vector3.up * 0.15f;
+        go.transform.rotation = Quaternion.Euler(90f, 0, 0);
+        go.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
 
-        // Màu vàng nổi bật
+        // Material màu cho tờ giấy note
         Renderer rend = go.GetComponent<Renderer>();
         if (rend != null)
         {
@@ -90,18 +92,24 @@ public class EscapeCipher : MonoBehaviour, IInteractable
         // Point light nhỏ
         GameObject lg = new GameObject("NoteLight");
         lg.transform.SetParent(go.transform, false);
-        Light l  = lg.AddComponent<Light>();
-        l.type      = LightType.Point;
-        l.color     = new Color(1f, 0.9f, 0.25f);
+        Light l = lg.AddComponent<Light>();
+        l.type = LightType.Point;
+        l.color = new Color(1f, 0.9f, 0.25f);
         l.intensity = 1.2f;
-        l.range     = 2.5f;
+        l.range = 2.5f;
+        l.shadows = LightShadows.None;
 
-        // CipherNote component
-        CipherNote cn      = go.AddComponent<CipherNote>();
-        cn.noteIndex       = noteIndex;
-        cn.parentCipher    = this;
+        CipherNote cn = go.GetComponent<CipherNote>();
+        if (cn == null) cn = go.AddComponent<CipherNote>();
+        cn.noteIndex = noteIndex;
+        cn.parentCipher = this;
         // Note 0 = 2 chữ số đầu, Note 1 = 2 chữ số cuối
         cn.digits = noteIndex == 0 ? _code.Substring(0, 2) : _code.Substring(2, 2);
+
+        if (go.GetComponent<Collider>() == null) go.AddComponent<BoxCollider>();
+        
+        Rigidbody rb = go.GetComponent<Rigidbody>();
+        if (rb != null) Destroy(rb);
 
         Debug.Log($"[EscapeCipher] Spawn ghi chú {noteIndex}: digits={cn.digits} tại {worldPos}");
     }
@@ -116,10 +124,13 @@ public class EscapeCipher : MonoBehaviour, IInteractable
             bool tooClose = false;
             foreach (var u in used) if (Vector3.Distance(c, u) < 12f) { tooClose = true; break; }
             if (tooClose) continue;
-            if (NavMesh.SamplePosition(c, out NavMeshHit hit, 6f, NavMesh.AllAreas)) return hit.position;
+            if (UnityEngine.AI.NavMesh.SamplePosition(c, out UnityEngine.AI.NavMeshHit hit, 6f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                if (Mathf.Abs(hit.position.y - playerPos.y) < 1.5f) return hit.position;
+            }
         }
         Vector3 fb = Random.insideUnitSphere * spawnRadius; fb.y = 0f;
-        return NavMesh.SamplePosition(fb, out NavMeshHit fhit, 12f, NavMesh.AllAreas)
+        return UnityEngine.AI.NavMesh.SamplePosition(fb, out UnityEngine.AI.NavMeshHit fhit, 12f, UnityEngine.AI.NavMesh.AllAreas)
             ? fhit.position : fb;
     }
 
@@ -132,7 +143,7 @@ public class EscapeCipher : MonoBehaviour, IInteractable
 
         int found = FoundCount();
         Debug.Log($"[EscapeCipher] Tìm thấy ghi chú {noteIndex}: '{digits}' ({found}/2)");
-        UpdateHUD();
+        UpdateHUD(true);
     }
 
     int FoundCount()
@@ -151,7 +162,7 @@ public class EscapeCipher : MonoBehaviour, IInteractable
         return new string(d);
     }
 
-    void UpdateHUD()
+    void UpdateHUD(bool forceOpen = false)
     {
         if (_unlocked) return;
         int found = FoundCount();
@@ -161,6 +172,13 @@ public class EscapeCipher : MonoBehaviour, IInteractable
             ? $"Ghi chú ({found}/2) | Mật mã: {known} | Đến bàn phím cửa thoát"
             : $"Mật mã đầy đủ: {known} | Đến bàn phím cửa thoát để nhập!";
         EscapeManager.Instance?.ReportProgress(msg, prog);
+
+        if (forceOpen)
+        {
+            // Tự động bật màn hình HUD bên phải lên để user thấy mã vừa nhặt
+            EscapeHUD hud = Object.FindAnyObjectByType<EscapeHUD>();
+            if (hud != null) hud.ForceOpenHUD();
+        }
     }
 
     // ── IInteractable: đây là bàn phím cạnh cửa thoát ────────────────────────
@@ -377,7 +395,7 @@ public class CipherNote : MonoBehaviour, IInteractable
     {
         _phase += Time.deltaTime;
         Vector3 p = transform.position;
-        p.y = _baseY + Mathf.Sin(_phase * 1.8f) * 0.07f;
+        p.y = _baseY + Mathf.Sin(_phase * 1.8f) * 0.04f;
         transform.position = p;
     }
 

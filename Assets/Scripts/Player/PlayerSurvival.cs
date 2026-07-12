@@ -72,11 +72,15 @@ public class PlayerSurvival : NetworkBehaviour
         sfxSource.spatialBlend = 0f;
 
         // Move player to spawn point at the start of the game
-if (spawnPoint != null)
+        if (spawnPoint != null)
         {
             transform.position = spawnPoint.position;
             transform.rotation = spawnPoint.rotation;
         }
+        
+        // Hide old UI sliders to use the new Sci-Fi IMGUI
+        if (healthBar != null) healthBar.gameObject.SetActive(false);
+        if (oxygenBar != null) oxygenBar.gameObject.SetActive(false);
         
         // Try to find the head automatically if not set
         if (headTransform == null)
@@ -164,6 +168,8 @@ if (spawnPoint != null)
                 breathingSource.Stop();
             }
         }
+
+        UpdateEKG(); // Update EKG every frame
     }
 
     public void EquipMask(GasMaskType type)
@@ -287,5 +293,278 @@ if (spawnPoint != null)
                 if (pc != null) pc.enabled = true;
             }
         }
+    }
+
+    // ─── NEW SCI-FI HUD IMPLEMENTATION (ULTIMATE WOW EDITION) ───────────────
+
+    private Texture2D _hudBgTex;
+    private Texture2D _hpTexGreen;
+    private Texture2D _hpTexYellow;
+    private Texture2D _hpTexRed;
+    private Texture2D _oxyTex;
+    private Texture2D _scanlineTex;
+    private float _noiseOffset = 0f;
+
+    // EKG Data
+    private float[] _ekgHistory = new float[120];
+    private float _ekgTimer = 0f;
+
+    void InitHUD()
+    {
+        if (_hudBgTex != null) return;
+        _hudBgTex = MakeTex(new Color(0.02f, 0.05f, 0.08f, 0.85f)); 
+        _hpTexGreen = MakeTex(new Color(0.1f, 1f, 0.4f, 1f));
+        _hpTexYellow = MakeTex(new Color(1f, 0.9f, 0.1f, 1f));
+        _hpTexRed = MakeTex(new Color(1f, 0.1f, 0.2f, 1f));
+        _oxyTex = MakeTex(new Color(0f, 0.8f, 1f, 1f));
+        
+        _scanlineTex = new Texture2D(2, 4);
+        for(int y=0; y<4; y++) 
+            for(int x=0; x<2; x++) 
+                _scanlineTex.SetPixel(x, y, y % 2 == 0 ? new Color(0,0,0,0) : new Color(0,0,0,0.5f));
+        _scanlineTex.filterMode = FilterMode.Point;
+        _scanlineTex.Apply();
+    }
+
+    Texture2D MakeTex(Color c)
+    {
+        Texture2D t = new Texture2D(1, 1);
+        t.SetPixel(0, 0, c);
+        t.Apply();
+        return t;
+    }
+
+    void UpdateEKG()
+    {
+        // Shift history left
+        for (int i = 0; i < _ekgHistory.Length - 1; i++) _ekgHistory[i] = _ekgHistory[i+1];
+
+        // Simulate BPM based on health and running state
+        float bpm = (currentHealth / maxHealth) * 50f + 40f; // 40 - 90 BPM
+        if (currentOxygen < lowOxygenThreshold) bpm += 40f; // Panic heart rate
+        
+        float speed = bpm / 60f * 1.5f; 
+        _ekgTimer += Time.deltaTime * speed;
+        
+        float val = 0f;
+        float beatPhase = _ekgTimer % 1f;
+        
+        // Synthesize ECG waveform (P, Q, R, S, T waves)
+        if (beatPhase < 0.1f) val = Mathf.Sin(beatPhase * 10f * Mathf.PI) * 0.2f; 
+        else if (beatPhase < 0.12f) val = -0.3f; 
+        else if (beatPhase < 0.16f) val = 1f; // Massive R spike
+        else if (beatPhase < 0.20f) val = -0.4f; 
+        else if (beatPhase < 0.35f) val = Mathf.Sin((beatPhase-0.20f) * 6.6f * Mathf.PI) * 0.25f; 
+        
+        // Micro noise
+        val += Random.Range(-0.02f, 0.02f);
+        if (isDead) val = Random.Range(-0.01f, 0.01f); // Flatline
+
+        _ekgHistory[_ekgHistory.Length - 1] = val;
+    }
+
+    void OnGUI()
+    {
+        if (IsSpawned && !IsOwner) return;
+        if (isDead) return;
+
+        InitHUD();
+        _noiseOffset += Time.deltaTime * 15f;
+
+        Matrix4x4 oldMatrix = GUI.matrix;
+        
+        float panelW = 460f;
+        float panelH = 180f;
+        float panelX = 20f;
+        // Đặt ở góc trái bên dưới (cách đáy 20px, tính cả scale 0.75)
+        float panelY = Screen.height - (panelH * 0.75f) - 20f;
+
+        // Thu nhỏ toàn bộ giao diện xuống còn 75% và xoay nghiêng 1 chút, với tâm (pivot) nằm ở góc Panel
+        GUIUtility.ScaleAroundPivot(new Vector2(0.75f, 0.75f), new Vector2(panelX, panelY));
+        GUIUtility.RotateAroundPivot(-1f, new Vector2(panelX, panelY));
+        
+        // Draw Main Hologram Box
+        GUI.color = new Color(1f, 1f, 1f, 0.9f);
+        GUI.DrawTexture(new Rect(panelX, panelY, panelW, panelH), _hudBgTex);
+        
+        // Scanlines
+        GUI.color = new Color(1f, 1f, 1f, 0.3f);
+        GUI.DrawTextureWithTexCoords(new Rect(panelX, panelY, panelW, panelH), _scanlineTex, new Rect(0, _noiseOffset * 0.1f, panelW, panelH / 4f));
+        GUI.color = Color.white;
+        
+        // Tech Corners
+        DrawTechCorners(panelX, panelY, panelW, panelH, new Color(0.2f, 0.8f, 1f, 0.8f));
+
+        // 1. HUGE HP NUMBER & BPM
+        Color hpColor = GetHealthColor();
+        GUIStyle hugeNum = new GUIStyle();
+        hugeNum.fontSize = 54;
+        hugeNum.fontStyle = FontStyle.Bold;
+        hugeNum.normal.textColor = hpColor;
+        hugeNum.alignment = TextAnchor.MiddleCenter;
+        
+        float hpBoxW = 100f;
+        GUI.Label(new Rect(panelX + 15f, panelY + 25f, hpBoxW, 60f), Mathf.CeilToInt(currentHealth).ToString("000"), hugeNum);
+        
+        GUIStyle bpmStyle = new GUIStyle();
+        bpmStyle.fontSize = 12;
+        bpmStyle.fontStyle = FontStyle.Bold;
+        bpmStyle.normal.textColor = new Color(0.6f, 0.8f, 1f);
+        bpmStyle.alignment = TextAnchor.MiddleCenter;
+        
+        float currentBpm = (currentHealth / maxHealth) * 50f + 40f + (currentOxygen < lowOxygenThreshold ? 40f : 0f);
+        GUI.Label(new Rect(panelX + 15f, panelY + 90f, hpBoxW, 20f), $"BPM: {currentBpm:F1}", bpmStyle);
+
+        // 2. SEGMENTED BARS (MÁU VÀ OXY)
+        float barStartX = panelX + 120f;
+        float barWidth = panelW - 140f;
+        
+        DrawSciFiBar(barStartX, panelY + 30f, barWidth, 14f, "INTEGRITY", currentHealth, maxHealth, GetHealthTex(), currentHealth <= 25f, 30);
+        DrawSciFiBar(barStartX, panelY + 75f, barWidth, 14f, "OXYGEN", currentOxygen, maxOxygen, _oxyTex, currentOxygen < lowOxygenThreshold, 30);
+
+        // 3. REAL-TIME EKG GRAPH (ĐỒ THỊ NHỊP TIM)
+        DrawEKG(panelX + 15f, panelY + 120f, 180f, 45f);
+
+        // 4. GPS & STATUS INFO
+        float infoX = panelX + 210f;
+        float infoY = panelY + 125f;
+        GUIStyle infoStyle = new GUIStyle();
+        infoStyle.fontSize = 12;
+        infoStyle.fontStyle = FontStyle.Bold;
+        infoStyle.normal.textColor = new Color(0.4f, 0.8f, 1f, 0.8f);
+
+        string gpsCoords = $"POS: X {transform.position.x:F1} Y {transform.position.y:F1} Z {transform.position.z:F1}";
+        GUI.Label(new Rect(infoX, infoY, 200f, 20f), gpsCoords, infoStyle);
+
+        if (activeMaskType != GasMaskType.None)
+        {
+            infoStyle.normal.textColor = new Color(0.1f, 1f, 0.5f);
+            GUI.Label(new Rect(infoX, infoY + 20f, 200f, 20f), $"FILTER: {activeMaskType.ToString().ToUpper()} ({Mathf.CeilToInt(maskDurability)}%)", infoStyle);
+        }
+        else
+        {
+            float pulse = Mathf.PingPong(Time.time * 8f, 1f);
+            infoStyle.normal.textColor = new Color(1f, 0.2f, 0.2f, 0.4f + 0.6f * pulse);
+            GUI.Label(new Rect(infoX, infoY + 20f, 200f, 20f), "WARNING: NO FILTER DETECTED", infoStyle);
+        }
+
+        GUI.matrix = oldMatrix; 
+    }
+
+    Color GetHealthColor()
+    {
+        float ratio = currentHealth / maxHealth;
+        if (ratio > 0.6f) return new Color(0.1f, 1f, 0.4f);
+        if (ratio > 0.3f) return new Color(1f, 0.9f, 0.1f);
+        return new Color(1f, 0.2f, 0.2f);
+    }
+
+    Texture2D GetHealthTex()
+    {
+        float ratio = currentHealth / maxHealth;
+        if (ratio > 0.6f) return _hpTexGreen;
+        if (ratio > 0.3f) return _hpTexYellow;
+        return _hpTexRed;
+    }
+
+    void DrawEKG(float x, float y, float w, float h)
+    {
+        // Draw grid
+        GUI.color = new Color(0.1f, 0.5f, 0.8f, 0.15f);
+        for(int i = 0; i <= 5; i++) {
+            GUI.DrawTexture(new Rect(x, y + (h/5)*i, w, 1f), Texture2D.whiteTexture);
+        }
+        for(int i = 0; i <= 10; i++) {
+            GUI.DrawTexture(new Rect(x + (w/10)*i, y, 1f, h), Texture2D.whiteTexture);
+        }
+
+        GUI.color = GetHealthColor();
+        float stepX = w / (_ekgHistory.Length - 1);
+        
+        for(int i = 0; i < _ekgHistory.Length - 1; i++)
+        {
+            float y1 = y + (h / 2f) - (_ekgHistory[i] * h * 0.4f);
+            float y2 = y + (h / 2f) - (_ekgHistory[i+1] * h * 0.4f);
+            
+            float minY = Mathf.Min(y1, y2);
+            float maxY = Mathf.Max(y1, y2);
+            float thick = Mathf.Max(1.5f, maxY - minY);
+            
+            // Fading trail effect
+            GUI.color = new Color(GUI.color.r, GUI.color.g, GUI.color.b, (float)i / _ekgHistory.Length);
+            GUI.DrawTexture(new Rect(x + i*stepX, minY, stepX * 1.5f, thick), Texture2D.whiteTexture);
+        }
+        GUI.color = Color.white;
+        
+        // Scanline passing over EKG
+        float sweep = (Time.time * 100f) % w;
+        GUI.color = new Color(1f, 1f, 1f, 0.5f);
+        GUI.DrawTexture(new Rect(x + sweep, y, 2f, h), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+    }
+
+    void DrawSciFiBar(float x, float y, float width, float height, string label, float current, float max, Texture2D fillTex, bool alert, int totalSegments)
+    {
+        GUIStyle labelStyle = new GUIStyle();
+        labelStyle.fontSize = 11;
+        labelStyle.fontStyle = FontStyle.Bold;
+        labelStyle.normal.textColor = new Color(0.5f, 0.8f, 1f);
+        GUI.Label(new Rect(x, y - 16f, 150f, 20f), label, labelStyle);
+        
+        GUIStyle valStyle = new GUIStyle(labelStyle);
+        valStyle.alignment = TextAnchor.MiddleRight;
+        valStyle.normal.textColor = Color.white;
+        GUI.Label(new Rect(x + width - 100f, y - 16f, 100f, 20f), $"{Mathf.CeilToInt((current / max) * 100)}%", valStyle);
+
+        // Tech Background
+        GUI.color = new Color(0f, 0f, 0f, 0.8f);
+        GUI.DrawTexture(new Rect(x, y, width, height), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        if (alert)
+        {
+            float pulse = Mathf.PingPong(Time.time * 10f, 1f);
+            GUI.color = new Color(1f, 0.3f + 0.7f * pulse, 0.3f + 0.7f * pulse);
+        }
+
+        float gap = 2f;
+        float segWidth = (width - (gap * (totalSegments - 1))) / totalSegments;
+        int activeSegs = Mathf.CeilToInt((current / max) * totalSegments);
+
+        for (int i = 0; i < totalSegments; i++)
+        {
+            float segX = x + (i * (segWidth + gap));
+            if (i < activeSegs)
+            {
+                GUI.DrawTexture(new Rect(segX, y, segWidth, height), fillTex);
+            }
+            else
+            {
+                GUI.color = new Color(1f, 1f, 1f, 0.1f);
+                GUI.DrawTexture(new Rect(segX, y, segWidth, height), Texture2D.whiteTexture);
+                if (alert) GUI.color = new Color(1f, 0.3f, 0.3f);
+                else GUI.color = Color.white;
+            }
+        }
+        
+        GUI.color = Color.white;
+    }
+
+    void DrawTechCorners(float x, float y, float w, float h, Color color)
+    {
+        GUI.color = color;
+        float len = 12f;
+        float thick = 2f;
+        Texture2D tex = Texture2D.whiteTexture;
+
+        GUI.DrawTexture(new Rect(x, y, len, thick), tex);
+        GUI.DrawTexture(new Rect(x, y, thick, len), tex);
+        GUI.DrawTexture(new Rect(x + w - len, y, len, thick), tex);
+        GUI.DrawTexture(new Rect(x + w - thick, y, thick, len), tex);
+        GUI.DrawTexture(new Rect(x, y + h - thick, len, thick), tex);
+        GUI.DrawTexture(new Rect(x, y + h - len, thick, len), tex);
+        GUI.DrawTexture(new Rect(x + w - len, y + h - thick, len, thick), tex);
+        GUI.DrawTexture(new Rect(x + w - thick, y + h - len, thick, len), tex);
+        GUI.color = Color.white;
     }
 }
