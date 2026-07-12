@@ -57,8 +57,13 @@ public class PlayerController : NetworkBehaviour
     private Quaternion _hideTargetRot;
 
     private CharacterController controller;
-private Animator animator;
-    private Vector3 velocity;
+    private Animator animator;
+    public Vector3 velocity;
+    
+    public bool isCrouching { get; private set; }
+    public bool isSprinting { get; private set; }
+    public bool isMoving { get; private set; }
+
     private float xRotation = 0f;
     
     private float originalHeight;
@@ -234,17 +239,18 @@ private Animator animator;
             }
         }
 
-        bool isCrouching = canMove && (crouchAction != null && crouchAction.IsPressed());
+        isCrouching = canMove && (crouchAction != null && crouchAction.IsPressed());
         float targetHeight = isCrouching ? crouchHeight : originalHeight;
         controller.height = Mathf.Lerp(controller.height, targetHeight, Time.deltaTime * crouchTransitionSpeed);
         controller.center = new Vector3(originalCenter.x, originalCenter.y - (originalHeight - controller.height) / 2f, originalCenter.z);
         
 
-
-        float currentSpeed = isCrouching ? crouchSpeed : (canMove && sprintAction != null && sprintAction.IsPressed() ? sprintSpeed : walkSpeed);
+        isSprinting = canMove && sprintAction != null && sprintAction.IsPressed();
+        float currentSpeed = isCrouching ? crouchSpeed : (isSprinting ? sprintSpeed : walkSpeed);
         Vector2 moveInput = (canMove && moveAction != null) ? moveAction.ReadValue<Vector2>() : Vector2.zero;
         Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
         if (move.magnitude > 1f) move.Normalize();
+        isMoving = move.magnitude > 0.1f;
 
         if (animator != null)
         {
@@ -437,6 +443,19 @@ private Animator animator;
         if (_inventoryUI != null && _inventoryUI.inventoryPanel   != null && _inventoryUI.inventoryPanel.activeSelf)   return true;
         if (_craftingUI  != null && _craftingUI.craftingPanel     != null && _craftingUI.craftingPanel.activeSelf)     return true;
         if (_chestUI     != null && _chestUI.chestPanel           != null && _chestUI.chestPanel.activeSelf)           return true;
+        
+        EscapeCipher cipher = Object.FindAnyObjectByType<EscapeCipher>();
+        if (cipher != null && cipher.IsKeypadOpen) return true;
+        
+        ExtractionSystem extraction = Object.FindAnyObjectByType<ExtractionSystem>();
+        if (extraction != null && extraction.isAssembling) return true;
+        
+        EscapeBeacon beacon = Object.FindAnyObjectByType<EscapeBeacon>();
+        if (beacon != null && beacon.isUIOpen) return true;
+        
+        EscapeReactor reactor = Object.FindAnyObjectByType<EscapeReactor>();
+        if (reactor != null && reactor.isUIOpen) return true;
+        
         return false;
     }
 }

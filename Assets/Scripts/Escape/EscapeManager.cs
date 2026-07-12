@@ -19,6 +19,7 @@ public class EscapeManager : MonoBehaviour
     // ── State ────────────────────────────────────────────────────────────────
     public EscapeMethodType CurrentMethod    { get; private set; }
     public bool             IsEscapeUnlocked { get; private set; }
+    public bool             IsReadyToAssemble { get; set; } = false;
     public string           ProgressMessage  { get; private set; } = "";
     public float            ProgressValue    { get; private set; } = 0f;
 
@@ -41,8 +42,18 @@ public class EscapeManager : MonoBehaviour
         Debug.Log($"<color=cyan>[EscapeManager] Đã random nhiệm vụ màn này: <b>{GetMethodName()}</b></color>");
     }
 
-    void Start()
+    System.Collections.IEnumerator Start()
     {
+        // Chờ đến khi Player được spawn (đặc biệt trong game Network)
+        while (GameObject.FindGameObjectWithTag("Player") == null)
+        {
+            yield return null;
+        }
+
+        // QUAN TRỌNG: Đợi thêm 2 giây để Player rơi xuống chạm đất hoàn toàn!
+        // Tránh tình trạng Player vừa spawn ở tít trên trời (Y = 9), làm đồ vật cũng bị spawn theo trên trời!
+        yield return new WaitForSeconds(2f);
+
         // Khởi tạo tự động thay vì bắt người dùng kéo thả
         switch (CurrentMethod)
         {
@@ -87,10 +98,16 @@ public class EscapeManager : MonoBehaviour
         beacon.transform.position = spawnPos + (prefab != null ? Vector3.up * 0.5f : Vector3.up * 2.5f);
 
         // Thêm BoxCollider to một chút để dễ interact (vì ăng-ten mỏng)
-        BoxCollider bc = beacon.GetComponent<BoxCollider>() ?? beacon.AddComponent<BoxCollider>();
-        bc.size = new Vector3(2f, 2f, 2f);
-        bc.center = new Vector3(0, 1f, 0);
-        bc.isTrigger = false;
+        // Lưu ý: chia cho localScale để tránh trường hợp FBX có scale 100 làm collider to bằng cả bản đồ
+        BoxCollider bc = beacon.GetComponent<BoxCollider>();
+        if (bc == null) bc = beacon.AddComponent<BoxCollider>();
+        Vector3 ls = beacon.transform.localScale;
+        bc.size = new Vector3(2f / ls.x, 2f / ls.y, 2f / ls.z);
+        bc.center = new Vector3(0, 1f / ls.y, 0);
+        bc.isTrigger = true; // Sửa thành Trigger để tuyệt đối không đẩy player đi
+        
+        Rigidbody[] rbs = beacon.GetComponentsInChildren<Rigidbody>();
+        foreach (var r in rbs) r.isKinematic = true;
 
         if (beacon.GetComponent<EscapeBeacon>() == null)
             beacon.AddComponent<EscapeBeacon>();
@@ -140,8 +157,13 @@ public class EscapeManager : MonoBehaviour
         if (bc == null)
         {
             bc = keypad.AddComponent<BoxCollider>();
-            bc.size = new Vector3(0.5f, 0.8f, 0.2f); // Size vừa đủ để dễ click
         }
+        Vector3 lsKeypad = keypad.transform.localScale;
+        bc.size = new Vector3(0.5f / lsKeypad.x, 0.8f / lsKeypad.y, 0.2f / lsKeypad.z); // Size vừa đủ để dễ click
+        bc.isTrigger = true;
+        
+        Rigidbody[] rbsKeypad = keypad.GetComponentsInChildren<Rigidbody>();
+        foreach (var r in rbsKeypad) r.isKinematic = true;
 
         if (keypad.GetComponent<EscapeCipher>() == null)
             keypad.AddComponent<EscapeCipher>();
@@ -178,10 +200,16 @@ public class EscapeManager : MonoBehaviour
         // Bù đắp độ cao (Reactor scale 2x nên cao khoảng 2m, offset 1m)
         reactor.transform.position = spawnPos + (prefab != null ? Vector3.up * 1f : Vector3.up * 3.5f);
 
-        // BoxCollider to để dễ interact
-        BoxCollider bc = reactor.GetComponent<BoxCollider>() ?? reactor.AddComponent<BoxCollider>();
-        bc.size = new Vector3(2.5f, 2.5f, 2.5f);
-        bc.center = new Vector3(0, 1.25f, 0);
+        // BoxCollider to để dễ interact (chia cho localScale để tránh phình to)
+        BoxCollider bc = reactor.GetComponent<BoxCollider>();
+        if (bc == null) bc = reactor.AddComponent<BoxCollider>();
+        Vector3 lsReactor = reactor.transform.localScale;
+        bc.size = new Vector3(2.5f / lsReactor.x, 2.5f / lsReactor.y, 2.5f / lsReactor.z);
+        bc.center = new Vector3(0, 1.25f / lsReactor.y, 0);
+        bc.isTrigger = true;
+        
+        Rigidbody[] rbsReactor = reactor.GetComponentsInChildren<Rigidbody>();
+        foreach (var r in rbsReactor) r.isKinematic = true;
 
         if (reactor.GetComponent<EscapeReactor>() == null)
             reactor.AddComponent<EscapeReactor>();
@@ -196,17 +224,38 @@ public class EscapeManager : MonoBehaviour
 
         for (int i = 0; i < 30; i++)
         {
-            Vector3 rand = Random.insideUnitSphere * radius;
-            rand.y = 0f;
+            Vector2 circle = Random.insideUnitCircle * radius;
+            Vector3 candidate = center + new Vector3(circle.x, 0f, circle.y);
+            
             // Ép xa player ít nhất 15m để không spawn ngay trước mặt
-            if (Vector3.Distance(center, center + rand) < 15f) continue; 
+            if (Vector3.Distance(center, candidate) < 15f) continue; 
 
-            if (UnityEngine.AI.NavMesh.SamplePosition(center + rand, out UnityEngine.AI.NavMeshHit hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+            // Tìm điểm NavMesh gần nhất (khoảng cách tìm kiếm rộng ra để tránh fail ở map nhỏ)
+            if (UnityEngine.AI.NavMesh.SamplePosition(candidate, out UnityEngine.AI.NavMeshHit hit, radius, UnityEngine.AI.NavMesh.AllAreas))
             {
-                return hit.position;
+                // QUAN TRỌNG: Loại bỏ những điểm nằm trên nóc nhà (Y chênh lệch quá 2 mét so với người chơi)
+                if (Mathf.Abs(hit.position.y - center.y) < 2f)
+                {
+                    // Đảm bảo không quá sát player
+                    if (Vector3.Distance(center, hit.position) > 5f)
+                    {
+                        return hit.position;
+                    }
+                }
             }
         }
-        return center;
+        
+        // Fallback nếu không tìm được điểm lý tưởng
+        if (UnityEngine.AI.NavMesh.SamplePosition(center + Vector3.forward * 15f, out UnityEngine.AI.NavMeshHit fallbackHit, 20f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            if (Vector3.Distance(center, fallbackHit.position) >= 4f)
+            {
+                return fallbackHit.position;
+            }
+        }
+        
+        // Tuyệt đối không bao giờ trả về vị trí gần player dưới 4m
+        return center + new Vector3(5f, 0f, 5f);
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -261,7 +310,7 @@ public class EscapeManager : MonoBehaviour
             EscapeMethodType.Assembly => "• Cơ chế: Hệ thống rải 3 bộ phận ngẫu nhiên trên bản đồ.\n• Mục tiêu: Tìm đủ 3 bộ phận lơ lửng phát sáng (Bánh răng, Bình nhiên liệu, Bo mạch).\n• Tương tác: Lại gần và bấm [E] để nhặt.\n• Hoàn thành: Nhặt đủ 3/3 bộ phận, cửa thoát mở.",
             EscapeMethodType.Beacon   => "• Cơ chế: Trạm Ăng-ten phát tín hiệu sinh ra ngẫu nhiên.\n• Yêu cầu: Cần 2 Circuit + 1 Battery để khởi động.\n• Mục tiêu: Nạp nguyên liệu bằng phím [E], sau đó sống sót chạy trốn Mimic trong 3 phút.\n• Hoàn thành: Đếm ngược về 0, trực thăng đến, cửa thoát mở.",
             EscapeMethodType.Cipher   => "• Cơ chế: Bàn phím số đính bên phải cửa thoát. 2 mảnh ghi chú giấu ngẫu nhiên.\n• Mục tiêu: Tìm 2 mảnh ghi chú để biết 4 số mật mã. Nhập vào bàn phím [E].\n• Hình phạt: Nhập sai sẽ bị giật điện trừ 15 HP.\n• Hoàn thành: Nhập đúng 4 số, cửa thoát mở ngay lập tức.",
-            EscapeMethodType.Reactor  => "• Cơ chế: Lò Phản Ứng khổng lồ báo động đỏ xuất hiện.\n• Yêu cầu: Cần 3 Chemical + 2 Circuit để tắt lò.\n• Mục tiêu: Lại gần lò, bấm [E] để tắt. Chờ 3 giây cho máy dừng hẳn.\n• Hoàn thành: Cửa thoát mở + Toàn bản đồ thành Safe Zone (dừng tụt Oxy).",
+            EscapeMethodType.Reactor  => "• Cơ chế: Lò Phản Ứng khổng lồ báo động đỏ xuất hiện.\n• Yêu cầu: Cần 3 Chemical + 2 Circuit để can thiệp vào lõi lò.\n• Mục tiêu: Bấm [E] để nạp nguyên liệu, gây ra chuỗi phản ứng CHẠP MẠCH quá tải.\n• Cảnh báo: Lò sẽ đếm ngược 10 giây và PHÁT NỔ. Nếu đứng trong bán kính 50m, bạn sẽ BỎ MẠNG.\n• Hoàn thành: Lò nổ tung giải phóng năng lượng → Cửa thoát mở.",
             _                         => "",
         };
     }

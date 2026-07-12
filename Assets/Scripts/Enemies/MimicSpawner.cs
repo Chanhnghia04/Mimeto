@@ -115,7 +115,7 @@ public class MimicSpawner : MonoBehaviour
         // Build a weighted, eligible list
         List<(MimicSpawnPoint point, float weight)> eligible = BuildEligibleList(playerPos);
 
-        if (eligible.Count == 0)
+        if (eligible.Count == 0 && _allSpawnPoints.Count > 0)
         {
             Debug.LogWarning("[MimicSpawner] No eligible spawn points found " +
                              "(all too close to player or off NavMesh). " +
@@ -124,44 +124,63 @@ public class MimicSpawner : MonoBehaviour
         }
 
         // Shuffle if requested (Fisher-Yates)
-        if (shuffleSpawnPoints)
+        if (shuffleSpawnPoints && eligible.Count > 0)
             ShuffleList(eligible);
 
         int spawned = 0;
         int attempts = 0;
 
-        while (spawned < mimicsToSpawn && attempts < eligible.Count)
+        while (spawned < mimicsToSpawn && attempts < 50)
         {
-            MimicSpawnPoint chosenPoint = PickWeighted(eligible);
+            Vector3 spawnPos = Vector3.zero;
+            Quaternion spawnRot = Quaternion.identity;
+            bool validPos = false;
 
-            // Try to snap to nearest NavMesh position
-            if (!NavMesh.SamplePosition(chosenPoint.transform.position,
-                                         out NavMeshHit navHit, navMeshSampleRadius, NavMesh.AllAreas))
+            if (eligible.Count > 0)
             {
-                Debug.LogWarning($"[MimicSpawner] Spawn point '{chosenPoint.name}' is too far from the NavMesh. " +
-                                 "Skipping. Increase navMeshSampleRadius or move the spawn point.");
-                // Fix: use FindIndex to remove by reference, not by value-equality
-                // which could remove the wrong tuple if multiple points share the same weight.
-                int skipIdx = eligible.FindIndex(e => e.point == chosenPoint);
-                if (skipIdx >= 0) eligible.RemoveAt(skipIdx);
-                attempts++;
-                continue;
+                MimicSpawnPoint chosenPoint = PickWeighted(eligible);
+                if (NavMesh.SamplePosition(chosenPoint.transform.position, out NavMeshHit navHit, navMeshSampleRadius, NavMesh.AllAreas))
+                {
+                    spawnPos = navHit.position;
+                    spawnRot = chosenPoint.transform.rotation;
+                    validPos = true;
+                }
+                else
+                {
+                    int skipIdx = eligible.FindIndex(e => e.point == chosenPoint);
+                    if (skipIdx >= 0) eligible.RemoveAt(skipIdx);
+                }
+
+                if (validPos)
+                {
+                    int removeIdx = eligible.FindIndex(e => e.point == chosenPoint);
+                    if (removeIdx >= 0) eligible.RemoveAt(removeIdx);
+                }
+            }
+            else
+            {
+                // FALLBACK: Hoàn toàn random trên bản đồ nếu không có điểm spawn nào
+                Vector2 randomCircle = Random.insideUnitCircle.normalized * Random.Range(globalMinDistanceFromPlayer, globalMinDistanceFromPlayer + 100f);
+                Vector3 tryPos = playerPos != Vector3.one * float.MaxValue ? playerPos : Vector3.zero;
+                tryPos += new Vector3(randomCircle.x, 0, randomCircle.y);
+                
+                if (NavMesh.SamplePosition(tryPos, out NavMeshHit navHit, 20f, NavMesh.AllAreas))
+                {
+                    spawnPos = navHit.position;
+                    spawnRot = Quaternion.Euler(0, Random.Range(0, 360), 0);
+                    validPos = true;
+                }
             }
 
-            Vector3 spawnPos = navHit.position;
-            Quaternion spawnRot = chosenPoint.transform.rotation;
+            if (validPos)
+            {
+                GameObject mimic = Instantiate(mimicPrefab, spawnPos, spawnRot);
+                mimic.name = $"Mimic_{spawned + 1}";
+                _spawnedMimics.Add(mimic);
 
-            GameObject mimic = Instantiate(mimicPrefab, spawnPos, spawnRot);
-            mimic.name = $"Mimic_{spawned + 1}";
-            _spawnedMimics.Add(mimic);
-
-            Debug.Log($"[MimicSpawner] Spawned '{mimic.name}' at {spawnPos} " +
-                      $"(spawn point: {chosenPoint.name})");
-
-            // Fix: remove by reference index, not by value equality
-            int removeIdx = eligible.FindIndex(e => e.point == chosenPoint);
-            if (removeIdx >= 0) eligible.RemoveAt(removeIdx);
-            spawned++;
+                Debug.Log($"[MimicSpawner] Spawned '{mimic.name}' at {spawnPos} (Random fallback: {eligible.Count == 0})");
+                spawned++;
+            }
             attempts++;
         }
 
