@@ -116,22 +116,42 @@ public class EscapeCipher : MonoBehaviour, IInteractable
 
     Vector3 FindValidPos(Vector3 playerPos, List<Vector3> used)
     {
-        for (int a = 0; a < 40; a++)
+        UnityEngine.AI.NavMeshTriangulation navData = UnityEngine.AI.NavMesh.CalculateTriangulation();
+        if (navData.vertices.Length == 0) return playerPos + Vector3.forward * 20f;
+
+        for (int a = 0; a < 200; a++)
         {
-            Vector3 rand = Random.insideUnitSphere * spawnRadius; rand.y = 0f;
-            Vector3 c    = playerPos + rand;
-            if (Vector3.Distance(c, playerPos) < minDistFromPlayer) continue;
+            int t = Random.Range(0, navData.indices.Length / 3);
+            int v1 = navData.indices[t * 3];
+            int v2 = navData.indices[t * 3 + 1];
+            int v3 = navData.indices[t * 3 + 2];
+
+            Vector3 pt = Vector3.Lerp(navData.vertices[v1], navData.vertices[v2], Random.value);
+            pt = Vector3.Lerp(pt, navData.vertices[v3], Random.value);
+
+            // BỘ LỌC ĐỘ CAO: Đảm bảo điểm không nằm tít trên ngọn cây hoặc nóc nhà
+            if (Mathf.Abs(pt.y - playerPos.y) > 4f) continue;
+
+            if (Vector3.Distance(pt, playerPos) < minDistFromPlayer) continue;
+
             bool tooClose = false;
-            foreach (var u in used) if (Vector3.Distance(c, u) < 12f) { tooClose = true; break; }
+            foreach (var u in used) if (Vector3.Distance(pt, u) < 12f) { tooClose = true; break; }
             if (tooClose) continue;
-            if (UnityEngine.AI.NavMesh.SamplePosition(c, out UnityEngine.AI.NavMeshHit hit, 6f, UnityEngine.AI.NavMesh.AllAreas))
-            {
-                if (Mathf.Abs(hit.position.y - playerPos.y) < 1.5f) return hit.position;
-            }
+
+            // Không rớt vào trong BoxCollider
+            if (Physics.CheckSphere(pt + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
+                continue;
+
+            return pt;
         }
-        Vector3 fb = Random.insideUnitSphere * spawnRadius; fb.y = 0f;
-        return UnityEngine.AI.NavMesh.SamplePosition(fb, out UnityEngine.AI.NavMeshHit fhit, 12f, UnityEngine.AI.NavMesh.AllAreas)
-            ? fhit.position : fb;
+        
+        for (int i = 0; i < navData.vertices.Length; i++)
+        {
+            Vector3 v = navData.vertices[Random.Range(0, navData.vertices.Length)];
+            if (!Physics.CheckSphere(v + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
+                return v;
+        }
+        return navData.vertices[Random.Range(0, navData.vertices.Length)];
     }
 
     // ── Called by CipherNote ──────────────────────────────────────────────────
@@ -274,8 +294,23 @@ public class EscapeCipher : MonoBehaviour, IInteractable
         GUI.Label(new Rect(px, py + ph - 24, pw, 22), "[ESC] Đóng", esc);
     }
 
+    private AudioSource _audioSource;
+
     void PressKey(string key)
     {
+        if (_audioSource == null)
+        {
+            _audioSource = gameObject.GetComponent<AudioSource>();
+            if (_audioSource == null) _audioSource = gameObject.AddComponent<AudioSource>();
+            _audioSource.spatialBlend = 0f; // Âm thanh 2D để nghe rõ nhất trong UI
+        }
+
+        AudioClip beep = Resources.Load<AudioClip>("Audio/button_press");
+        if (beep != null) 
+            _audioSource.PlayOneShot(beep);
+        else
+            Debug.LogError("[EscapeCipher] Không tìm thấy file âm thanh tại Resources/Audio/button_press.wav!");
+
         switch (key)
         {
             case "⌫": if (_input.Length > 0) _input.Remove(_input.Length - 1, 1); break;

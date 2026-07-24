@@ -64,6 +64,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: Scrap_PlasticPipe
       objectReference: {fileID: 0}
+    - target: {fileID: 6986169418660852254, guid: 0f685669a1cbba74e9fa04356836bcd4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 19973c682ba93904eb23300b538595df, type: 2}
+    - target: {fileID: 7749944030758854854, guid: 0f685669a1cbba74e9fa04356836bcd4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 19973c682ba93904eb23300b538595df, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

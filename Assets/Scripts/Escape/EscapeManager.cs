@@ -17,6 +17,12 @@ public class EscapeManager : MonoBehaviour
     public static EscapeManager Instance { get; private set; }
 
     // ── State ────────────────────────────────────────────────────────────────
+    [Header("DEBUG TESTING")]
+    [Tooltip("Tích vào đây nếu bạn muốn ép game luôn ra 1 nhiệm vụ nhất định để test")]
+    public bool forceSpecificMethod = false;
+    [Tooltip("Chọn nhiệm vụ bạn muốn test (chỉ có tác dụng khi tick ô trên)")]
+    public EscapeMethodType specificMethodToForce;
+
     public EscapeMethodType CurrentMethod    { get; private set; }
     public bool             IsEscapeUnlocked { get; private set; }
     public bool             IsReadyToAssemble { get; set; } = false;
@@ -39,7 +45,15 @@ public class EscapeManager : MonoBehaviour
         // Random 1 trong 4 (từ 0 đến 3)
         CurrentMethod = (EscapeMethodType)Random.Range(0, 4);
 
-        Debug.Log($"<color=cyan>[EscapeManager] Đã random nhiệm vụ màn này: <b>{GetMethodName()}</b></color>");
+        if (forceSpecificMethod)
+        {
+            CurrentMethod = specificMethodToForce;
+            Debug.Log($"<color=yellow>[EscapeManager] DEBUG MODE: Đã ép buộc vào nhiệm vụ {GetMethodName()}</color>");
+        }
+        else
+        {
+            Debug.Log($"<color=cyan>[EscapeManager] Đã random nhiệm vụ màn này: <b>{GetMethodName()}</b></color>");
+        }
     }
 
     System.Collections.IEnumerator Start()
@@ -93,9 +107,23 @@ public class EscapeManager : MonoBehaviour
             beacon.transform.localScale = new Vector3(0.3f, 2.5f, 0.3f); 
         }
 
-        Vector3 spawnPos = GetRandomNavMeshPos(35f);
-        // Bù đắp độ cao nếu dùng prefab (pivot thường ở tâm mesh)
-        beacon.transform.position = spawnPos + (prefab != null ? Vector3.up * 0.5f : Vector3.up * 2.5f);
+        Vector3 spawnPos = GetRandomNavMeshPos(25f);
+        beacon.transform.position = spawnPos;
+
+        // Tự động tính toán đáy của object để nhấc nó lên vừa khít mặt đất
+        Renderer[] renderers = beacon.GetComponentsInChildren<Renderer>();
+        if (renderers.Length > 0)
+        {
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+            float bottomY = bounds.min.y;
+            float offset = beacon.transform.position.y - bottomY;
+            beacon.transform.position = spawnPos + Vector3.up * offset;
+        }
+        else
+        {
+            beacon.transform.position = spawnPos + (prefab != null ? Vector3.up * 0.5f : Vector3.up * 2.5f);
+        }
 
         // Thêm BoxCollider to một chút để dễ interact (vì ăng-ten mỏng)
         // Lưu ý: chia cho localScale để tránh trường hợp FBX có scale 100 làm collider to bằng cả bản đồ
@@ -150,7 +178,7 @@ public class EscapeManager : MonoBehaviour
         }
         else
         {
-            keypad.transform.position = GetRandomNavMeshPos(15f) + Vector3.up * 1.2f;
+            keypad.transform.position = GetRandomNavMeshPos(20f) + Vector3.up * 1.2f;
         }
 
         BoxCollider bc = keypad.GetComponent<BoxCollider>();
@@ -196,9 +224,22 @@ public class EscapeManager : MonoBehaviour
             }
         }
 
-        Vector3 spawnPos = GetRandomNavMeshPos(45f);
-        // Bù đắp độ cao (Reactor scale 2x nên cao khoảng 2m, offset 1m)
-        reactor.transform.position = spawnPos + (prefab != null ? Vector3.up * 1f : Vector3.up * 3.5f);
+        Vector3 spawnPos = GetRandomNavMeshPos(30f);
+        reactor.transform.position = spawnPos;
+
+        Renderer[] renderers = reactor.GetComponentsInChildren<Renderer>();
+        if (renderers.Length > 0)
+        {
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+            float bottomY = bounds.min.y;
+            float offset = reactor.transform.position.y - bottomY;
+            reactor.transform.position = spawnPos + Vector3.up * offset;
+        }
+        else
+        {
+            reactor.transform.position = spawnPos + (prefab != null ? Vector3.up * 1f : Vector3.up * 3.5f);
+        }
 
         // BoxCollider to để dễ interact (chia cho localScale để tránh phình to)
         BoxCollider bc = reactor.GetComponent<BoxCollider>();
@@ -217,45 +258,57 @@ public class EscapeManager : MonoBehaviour
         Debug.Log($"[EscapeManager] Đã spawn Lò phản ứng khổng lồ tại {reactor.transform.position}");
     }
 
-    Vector3 GetRandomNavMeshPos(float radius)
+    Vector3 GetRandomNavMeshPos(float minDistance)
     {
         GameObject playerGO = GameObject.FindGameObjectWithTag("Player");
         Vector3 center = playerGO != null ? playerGO.transform.position : Vector3.zero;
 
-        for (int i = 0; i < 30; i++)
-        {
-            Vector2 circle = Random.insideUnitCircle * radius;
-            Vector3 candidate = center + new Vector3(circle.x, 0f, circle.y);
-            
-            // Ép xa player ít nhất 15m để không spawn ngay trước mặt
-            if (Vector3.Distance(center, candidate) < 15f) continue; 
+        UnityEngine.AI.NavMeshTriangulation navData = UnityEngine.AI.NavMesh.CalculateTriangulation();
+        
+        if (navData.vertices.Length == 0) 
+            return center + new Vector3(minDistance, 0, minDistance); // Fallback an toàn
 
-            // Tìm điểm NavMesh gần nhất (khoảng cách tìm kiếm rộng ra để tránh fail ở map nhỏ)
-            if (UnityEngine.AI.NavMesh.SamplePosition(candidate, out UnityEngine.AI.NavMeshHit hit, radius, UnityEngine.AI.NavMesh.AllAreas))
+        Vector3 bestPos = center;
+        float bestDist = -1f;
+
+        // Chọn ngẫu nhiên 100 lần từ TẤT CẢ các tam giác NavMesh (tức là TẤT CẢ mọi nơi trên map)
+        for (int i = 0; i < 100; i++)
+        {
+            int t = Random.Range(0, navData.indices.Length / 3);
+            int v1 = navData.indices[t * 3];
+            int v2 = navData.indices[t * 3 + 1];
+            int v3 = navData.indices[t * 3 + 2];
+
+            // Lấy 1 điểm ngẫu nhiên bên trong tam giác NavMesh này
+            Vector3 pt = Vector3.Lerp(navData.vertices[v1], navData.vertices[v2], Random.value);
+            pt = Vector3.Lerp(pt, navData.vertices[v3], Random.value);
+
+            // BỘ LỌC ĐỘ CAO: Đảm bảo điểm không nằm tít trên ngọn cây hoặc nóc nhà
+            if (Mathf.Abs(pt.y - center.y) > 4f) continue;
+
+            float dist = Vector3.Distance(center, pt);
+            
+            // Nếu đủ xa người chơi
+            if (dist >= minDistance)
             {
-                // QUAN TRỌNG: Loại bỏ những điểm nằm trên nóc nhà (Y chênh lệch quá 2 mét so với người chơi)
-                if (Mathf.Abs(hit.position.y - center.y) < 2f)
+                // KIỂM TRA VẬT LÝ: Đảm bảo điểm này không nằm chìm trong 1 BoxCollider (như ngôi nhà bị chặn)
+                // Đặt tâm sphere ở độ cao 0.5m, bán kính 0.2m (điểm thấp nhất là 0.3m, không chạm sàn)
+                if (!Physics.CheckSphere(pt + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
                 {
-                    // Đảm bảo không quá sát player
-                    if (Vector3.Distance(center, hit.position) > 5f)
-                    {
-                        return hit.position;
-                    }
+                    return pt;
                 }
             }
-        }
-        
-        // Fallback nếu không tìm được điểm lý tưởng
-        if (UnityEngine.AI.NavMesh.SamplePosition(center + Vector3.forward * 15f, out UnityEngine.AI.NavMeshHit fallbackHit, 20f, UnityEngine.AI.NavMesh.AllAreas))
-        {
-            if (Vector3.Distance(center, fallbackHit.position) >= 4f)
+
+            // Dù không đủ xa nhưng nếu không kẹt, ta vẫn lưu lại làm backup
+            if (dist > bestDist && !Physics.CheckSphere(pt + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
             {
-                return fallbackHit.position;
+                bestDist = dist;
+                bestPos = pt;
             }
         }
-        
-        // Tuyệt đối không bao giờ trả về vị trí gần player dưới 4m
-        return center + new Vector3(5f, 0f, 5f);
+
+        // Lấy điểm tốt nhất tìm được
+        return bestPos;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────

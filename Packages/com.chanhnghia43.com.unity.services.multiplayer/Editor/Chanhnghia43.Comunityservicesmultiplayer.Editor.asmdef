@@ -1,0 +1,10 @@
+{
+    "name": "Chanhnghia43.Comunityservicesmultiplayer.Editor",
+    "references": [
+      "Chanhnghia43.Comunityservicesmultiplayer"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": []
+}

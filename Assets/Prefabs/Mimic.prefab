@@ -277,7 +277,9 @@ MonoBehaviour:
   nametag: {fileID: 3887786381573454787}
   animator: {fileID: 0}
   audioSource: {fileID: 0}
-  attackClip: {fileID: 8300000, guid: f4dbab08c4b7c2c478afff2b0910615e, type: 3}
+  attackClip: {fileID: 8300000, guid: d534ec4f18a98ff458a83cb7aee4518f, type: 3}
+  ambientAudioSource: {fileID: 0}
+  creepyApproachClip: {fileID: 8300000, guid: dce46f15b40db6246a33b70f98be24d6, type: 3}
   fieldOfView: 110
   obstacleMask:
     serializedVersion: 2

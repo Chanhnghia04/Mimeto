@@ -95,6 +95,14 @@ public class PlayerSurvival : NetworkBehaviour
     {
         if (IsSpawned && !IsOwner) return; // CHỈ CẬP NHẬT MÁU/OXY CHO NHÂN VẬT CỦA MÌNH HOẶC KHI OFFLINE
 
+        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (sceneName == "StartGame" || sceneName == "Menu")
+        {
+            if (breathingSource != null && breathingSource.isPlaying)
+                breathingSource.Stop();
+            return; // Không tính toán oxy/máu trong sảnh
+        }
+
         if (inSafeZone)
         {
             // Restore oxygen and don't deplete mask or oxygen
@@ -140,6 +148,18 @@ public class PlayerSurvival : NetworkBehaviour
                 }
             }
         }
+
+        // --- BLEED LOGIC ---
+        if (Time.time < bleedEndTime && currentHealth > 0 && !isDead)
+        {
+            currentHealth -= bleedDps * Time.deltaTime;
+            if (currentHealth <= 0)
+            {
+                currentHealth = 0;
+                Die("Bled out from Mutant attack!");
+            }
+        }
+        // -------------------
 
         // Update UI Bars
         if (healthBar != null) healthBar.value = currentHealth / maxHealth;
@@ -207,14 +227,26 @@ public class PlayerSurvival : NetworkBehaviour
         // Play Hit Sound
         if (sfxSource != null && damageHitClip != null && amount > 0.1f)
         {
-            sfxSource.PlayOneShot(damageHitClip);
+            sfxSource.clip = damageHitClip;
+            sfxSource.Play();
         }
 
         if (currentHealth <= 0)
-{
+        {
             currentHealth = 0; // Bug Fix: clamp to 0 to prevent negative health display
             Die(reason);
         }
+    }
+
+    private float bleedEndTime = 0f;
+    private float bleedDps = 0f;
+
+    public bool IsBleeding => Time.time < bleedEndTime && currentHealth > 0 && !isDead;
+
+    public void ApplyBleed(float dps, float duration = 4f)
+    {
+        bleedDps = dps;
+        bleedEndTime = Time.time + duration;
     }
 
     // Bug Fix: track isDead to prevent Time.timeScale being set multiple times from double-death
@@ -230,6 +262,13 @@ public class PlayerSurvival : NetworkBehaviour
         // Slow motion effect
         Time.timeScale = 0.5f;
         Time.fixedDeltaTime = 0.02f * Time.timeScale;
+
+        // Mất hết đồ khi chết
+        PlayerInventory inv = GetComponent<PlayerInventory>();
+        if (inv != null)
+        {
+            inv.ClearInventoryOnDeath();
+        }
 
         // Disable movement
         PlayerController controller = GetComponent<PlayerController>();
@@ -252,10 +291,17 @@ public class PlayerSurvival : NetworkBehaviour
                 if (pc != null) pc.enabled = false;
             }
         }
-        else
-        {
-            Respawn();
-        }
+
+        // Tự động về WaitingRoom sau 4 giây thực tế
+        StartCoroutine(LoadWaitingRoomOnDeath(4f));
+    }
+
+    private System.Collections.IEnumerator LoadWaitingRoomOnDeath(float delay)
+    {
+        yield return new WaitForSecondsRealtime(delay);
+        Time.timeScale = 1f;
+        Time.fixedDeltaTime = 0.02f;
+        UnityEngine.SceneManagement.SceneManager.LoadScene("WaitingRoom");
     }
 
     public void Respawn()
@@ -309,7 +355,7 @@ public class PlayerSurvival : NetworkBehaviour
     private float[] _ekgHistory = new float[120];
     private float _ekgTimer = 0f;
 
-    void InitHUD()
+    private void InitHUD()
     {
         if (_hudBgTex != null) return;
         _hudBgTex = MakeTex(new Color(0.02f, 0.05f, 0.08f, 0.85f)); 
@@ -321,15 +367,14 @@ public class PlayerSurvival : NetworkBehaviour
         _scanlineTex = new Texture2D(2, 4);
         for(int y=0; y<4; y++) 
             for(int x=0; x<2; x++) 
-                _scanlineTex.SetPixel(x, y, y % 2 == 0 ? new Color(0,0,0,0) : new Color(0,0,0,0.5f));
-        _scanlineTex.filterMode = FilterMode.Point;
+                _scanlineTex.SetPixel(x, y, (y % 2 == 0) ? new Color(0,0,0,0.1f) : new Color(1,1,1,0.02f));
         _scanlineTex.Apply();
     }
 
-    Texture2D MakeTex(Color c)
+    Texture2D MakeTex(Color col)
     {
         Texture2D t = new Texture2D(1, 1);
-        t.SetPixel(0, 0, c);
+        t.SetPixel(0, 0, col);
         t.Apply();
         return t;
     }
@@ -368,6 +413,11 @@ public class PlayerSurvival : NetworkBehaviour
         if (IsSpawned && !IsOwner) return;
         if (isDead) return;
 
+        // Tắt HUD hiển thị trong các scene menu để không đè lên RoomInfoPanel
+        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (sceneName == "StartGame" || sceneName == "Menu") 
+            return;
+
         InitHUD();
         _noiseOffset += Time.deltaTime * 15f;
 
@@ -375,13 +425,18 @@ public class PlayerSurvival : NetworkBehaviour
         
         float panelW = 460f;
         float panelH = 180f;
-        float panelX = 20f;
-        // Đặt ở góc trái bên dưới (cách đáy 20px, tính cả scale 0.75)
-        float panelY = Screen.height - (panelH * 0.75f) - 20f;
+        
+        // Dịch sang phải thêm 40px (từ 100f thành 140f)
+        float panelX = 140f; 
+        
+        // Nhỏ lại thêm 20% (từ 0.8 xuống 0.6)
+        float scale = 0.6f;
+        
+        // Dịch xuống 10px (từ 80f xuống 70f cách đáy)
+        float panelY = Screen.height - (panelH * scale) - 70f;
 
-        // Thu nhỏ toàn bộ giao diện xuống còn 75% và xoay nghiêng 1 chút, với tâm (pivot) nằm ở góc Panel
-        GUIUtility.ScaleAroundPivot(new Vector2(0.75f, 0.75f), new Vector2(panelX, panelY));
-        GUIUtility.RotateAroundPivot(-1f, new Vector2(panelX, panelY));
+        // Thu nhỏ UI xuống 60% tại vị trí mới
+        GUIUtility.ScaleAroundPivot(new Vector2(scale, scale), new Vector2(panelX, panelY));
         
         // Draw Main Hologram Box
         GUI.color = new Color(1f, 1f, 1f, 0.9f);

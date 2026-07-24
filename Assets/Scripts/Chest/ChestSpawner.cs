@@ -184,6 +184,9 @@ public class ChestSpawner : MonoBehaviour
         Quaternion rot   = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
         GameObject chest = Instantiate(chestPrefab, position, rot);
         chest.name       = "Chest_" + Random.Range(1000, 9999);
+        
+        // Snap the chest to the ground so it doesn't sink halfway
+        SpawnUtils.SnapToGround(chest, position);
     }
 
 

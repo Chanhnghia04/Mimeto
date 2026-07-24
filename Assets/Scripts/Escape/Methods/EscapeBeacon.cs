@@ -108,6 +108,14 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
         if (_pulseTimer >= 5f)
         {
             _pulseTimer = 0f;
+            
+            // Phát âm thanh ping
+            if (audioSource != null)
+            {
+                AudioClip pingClip = Resources.Load<AudioClip>("Audio/ping");
+                if (pingClip != null) audioSource.PlayOneShot(pingClip);
+            }
+
             MimicAI[] mimics = FindObjectsByType<MimicAI>(FindObjectsSortMode.None);
             foreach (var m in mimics)
             {

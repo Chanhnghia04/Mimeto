@@ -10,15 +10,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 2235344344dc36042820f37aded231b8, type: 3}
       propertyPath: m_LocalScale.x
-      value: 2
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 2235344344dc36042820f37aded231b8, type: 3}
       propertyPath: m_LocalScale.y
-      value: 2
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 2235344344dc36042820f37aded231b8, type: 3}
       propertyPath: m_LocalScale.z
-      value: 2
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 2235344344dc36042820f37aded231b8, type: 3}
       propertyPath: m_LocalPosition.x
@@ -60,10 +60,30 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -6973670796840448229, guid: 2235344344dc36042820f37aded231b8, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 19a8eaadd7bcd8848bbe96274390ec36, type: 2}
+    - target: {fileID: -4322941041792820141, guid: 2235344344dc36042820f37aded231b8, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 19a8eaadd7bcd8848bbe96274390ec36, type: 2}
+    - target: {fileID: -4067547454302091272, guid: 2235344344dc36042820f37aded231b8, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 19a8eaadd7bcd8848bbe96274390ec36, type: 2}
+    - target: {fileID: 80272115898512536, guid: 2235344344dc36042820f37aded231b8, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 19a8eaadd7bcd8848bbe96274390ec36, type: 2}
     - target: {fileID: 919132149155446097, guid: 2235344344dc36042820f37aded231b8, type: 3}
       propertyPath: m_Name
       value: Scrap_Battery
       objectReference: {fileID: 0}
+    - target: {fileID: 2866723447182246742, guid: 2235344344dc36042820f37aded231b8, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 19a8eaadd7bcd8848bbe96274390ec36, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -95,6 +115,7 @@ MonoBehaviour:
   scrapType: battery
   amount: 1
   rootObject: {fileID: 5261773584678734491}
+  interactHint: Press [E] to pick up
 --- !u!65 &7394370632799986400
 BoxCollider:
   m_ObjectHideFlags: 0

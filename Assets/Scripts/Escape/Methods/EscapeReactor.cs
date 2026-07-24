@@ -135,13 +135,24 @@ public class EscapeReactor : MonoBehaviour, IInteractable
         if (audioSource != null && shutdownClip != null)
             audioSource.PlayOneShot(shutdownClip);
 
+        AudioClip alarmClip = Resources.Load<AudioClip>("Audio/alarm");
+        float nextBeep = _meltdownTimer;
+        
         // Chờ đếm ngược
         while (_meltdownTimer > 0)
         {
+            if (_meltdownTimer <= nextBeep)
+            {
+                if (audioSource != null && alarmClip != null) audioSource.PlayOneShot(alarmClip);
+                nextBeep -= 1f; // kêu mỗi 1 giây
+            }
             yield return null;
         }
 
         // --- BÙM! PHÁT NỔ ---
+        AudioClip explosionClip = Resources.Load<AudioClip>("Audio/explosion");
+        if (audioSource != null && explosionClip != null) audioSource.PlayOneShot(explosionClip);
+
         _isMeltdown = false;
         _isShutdown = true;
         

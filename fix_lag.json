@@ -1,0 +1,6 @@
+{
+  "isMethodBody": false,
+  "className": "FixLag",
+  "methodName": "Execute",
+  "csharpCode": "using UnityEngine;\nusing UnityEditor;\n\npublic class FixLag {\n    public static void Execute() {\n        Lightmapping.giWorkflowMode = Lightmapping.GIWorkflowMode.OnDemand;\n        Debug.Log(\"Turned off Auto Generate Lighting to reduce lag!\");\n    }\n}"
+}

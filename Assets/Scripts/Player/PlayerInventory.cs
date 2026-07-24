@@ -10,6 +10,9 @@ public class PlayerInventory : NetworkBehaviour
     public int chemicals = 0;
     public int plasticPipes = 0;
     public int scrapBatteries = 0;
+    
+    [Header("Currency")]
+    public int credits = 0;
 
     public int basicGasMasks = 0;
     public int advancedGasMasks = 0;
@@ -20,12 +23,62 @@ public class PlayerInventory : NetworkBehaviour
     public bool hasAxe = false;
     public bool hasBat = false;
 
+    [Header("Shop Consumables")]
+    public int healthPacks = 0;
+    public int oxygenTanks = 0;
+
     [Header("Escape & Loot")]
     public bool hasEscapeKey = false;
     public int rareLootCount = 0;
 
     void Start()
     {
+        if (GlobalPlayerData.hasSavedData)
+        {
+            circuits = GlobalPlayerData.circuits;
+            metalPipes = GlobalPlayerData.metalPipes;
+            ironPlates = GlobalPlayerData.ironPlates;
+            chemicals = GlobalPlayerData.chemicals;
+            plasticPipes = GlobalPlayerData.plasticPipes;
+            scrapBatteries = GlobalPlayerData.scrapBatteries;
+            credits = GlobalPlayerData.credits;
+            basicGasMasks = GlobalPlayerData.basicGasMasks;
+            advancedGasMasks = GlobalPlayerData.advancedGasMasks;
+            hasUVFlashlight = GlobalPlayerData.hasUVFlashlight;
+            hasCrowbar = GlobalPlayerData.hasCrowbar;
+            hasShovel = GlobalPlayerData.hasShovel;
+            hasMachete = GlobalPlayerData.hasMachete;
+            hasAxe = GlobalPlayerData.hasAxe;
+            hasBat = GlobalPlayerData.hasBat;
+            rareLootCount = GlobalPlayerData.rareLootCount;
+            healthPacks = GlobalPlayerData.healthPacks;
+            oxygenTanks = GlobalPlayerData.oxygenTanks;
+        }
+    }
+
+    public override void OnDestroy()
+    {
+        base.OnDestroy(); // NetworkBehaviour requires base.OnDestroy()
+        
+        GlobalPlayerData.circuits = circuits;
+        GlobalPlayerData.metalPipes = metalPipes;
+        GlobalPlayerData.ironPlates = ironPlates;
+        GlobalPlayerData.chemicals = chemicals;
+        GlobalPlayerData.plasticPipes = plasticPipes;
+        GlobalPlayerData.scrapBatteries = scrapBatteries;
+        GlobalPlayerData.credits = credits;
+        GlobalPlayerData.basicGasMasks = basicGasMasks;
+        GlobalPlayerData.advancedGasMasks = advancedGasMasks;
+        GlobalPlayerData.hasUVFlashlight = hasUVFlashlight;
+        GlobalPlayerData.hasCrowbar = hasCrowbar;
+        GlobalPlayerData.hasShovel = hasShovel;
+        GlobalPlayerData.hasMachete = hasMachete;
+        GlobalPlayerData.hasAxe = hasAxe;
+        GlobalPlayerData.hasBat = hasBat;
+        GlobalPlayerData.rareLootCount = rareLootCount;
+        GlobalPlayerData.healthPacks = healthPacks;
+        GlobalPlayerData.oxygenTanks = oxygenTanks;
+        GlobalPlayerData.hasSavedData = true;
     }
 
     public void AddScrap(string type, int amount)
@@ -98,5 +151,142 @@ public class PlayerInventory : NetworkBehaviour
         if (advanced) advancedGasMasks++;
         else basicGasMasks++;
         Debug.Log($"Added {(advanced ? "Advanced" : "Basic")} Gas Mask. Total BGM={basicGasMasks}, AGM={advancedGasMasks}");
+    }
+
+    public void SellAllScrap()
+    {
+        if (IsSpawned && !IsOwner && !IsServer) return;
+        
+        int totalValue = 0;
+        totalValue += circuits * ShopData.CircuitSellPrice;
+        totalValue += metalPipes * ShopData.MetalPipeSellPrice;
+        totalValue += ironPlates * ShopData.IronPlateSellPrice;
+        totalValue += chemicals * ShopData.ChemicalSellPrice;
+        totalValue += plasticPipes * ShopData.PlasticPipeSellPrice;
+        totalValue += scrapBatteries * ShopData.BatterySellPrice;
+        
+        circuits = 0;
+        metalPipes = 0;
+        ironPlates = 0;
+        chemicals = 0;
+        plasticPipes = 0;
+        scrapBatteries = 0;
+        
+        credits += totalValue;
+        Debug.Log($"[Store] Sold all scrap for {totalValue} Energy Cells! Total Energy Cells: {credits}");
+        
+        if (ItemNotificationManager.Instance != null)
+        {
+            ItemNotificationManager.Instance.ShowNotification("Energy Cells", totalValue);
+        }
+    }
+
+    /// <summary>
+    /// Trừ credits nếu đủ tiền. Trả về true nếu thành công.
+    /// </summary>
+    public bool SpendCredits(int amount)
+    {
+        if (credits >= amount)
+        {
+            credits -= amount;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Thêm credits vào ví.
+    /// </summary>
+    public void AddCredits(int amount)
+    {
+        credits += amount;
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestLoadSceneServerRpc(string sceneName)
+    {
+        if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.SceneManager != null)
+        {
+            Unity.Netcode.NetworkManager.Singleton.SceneManager.LoadScene(sceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
+        }
+        else
+        {
+            UnityEngine.SceneManagement.SceneManager.LoadScene(sceneName);
+        }
+    }
+
+    public void ClearInventoryOnDeath()
+    {
+        circuits = 0;
+        metalPipes = 0;
+        ironPlates = 0;
+        chemicals = 0;
+        plasticPipes = 0;
+        scrapBatteries = 0;
+        rareLootCount = 0;
+        hasEscapeKey = false;
+        
+        basicGasMasks = 0;
+        advancedGasMasks = 0;
+        hasUVFlashlight = false;
+        hasCrowbar = false;
+        hasShovel = false;
+        hasMachete = false;
+        hasAxe = false;
+        hasBat = false;
+
+        healthPacks = 0;
+        oxygenTanks = 0;
+        
+        Debug.Log("<color=red>[Inventory]</color> All items lost due to death.");
+    }
+
+    private Texture2D _currencyBgTex;
+
+    void OnGUI()
+    {
+        if (IsSpawned && !IsOwner) return;
+        
+        // CHỈ HIỆN TRONG SCENE WaitingRoom
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "WaitingRoom") return;
+
+        if (_currencyBgTex == null)
+        {
+            _currencyBgTex = new Texture2D(1, 1);
+            _currencyBgTex.SetPixel(0, 0, new Color(0.04f, 0.05f, 0.07f, 0.90f));
+            _currencyBgTex.Apply();
+        }
+
+        // Vẽ UI ở góc TRÊN CÙNG BÊN PHẢI (Top-Right)
+        float panelW = 160f;
+        float panelH = 45f;
+        float px = Screen.width - panelW - 20f;
+        float py = 20f; // Cách mép trên 20px
+
+        GUI.DrawTexture(new Rect(px, py, panelW, panelH), _currencyBgTex);
+        
+        Color colAmber = new Color(1.000f, 0.702f, 0.000f);
+        GUI.color = colAmber;
+        Texture2D tex = Texture2D.whiteTexture;
+        float len = 8f; float thick = 2f;
+        
+        // Vẽ góc trang trí Sci-fi
+        GUI.DrawTexture(new Rect(px, py, len, thick), tex);
+        GUI.DrawTexture(new Rect(px, py, thick, len), tex);
+        GUI.DrawTexture(new Rect(px + panelW - len, py, len, thick), tex);
+        GUI.DrawTexture(new Rect(px + panelW - thick, py, thick, len), tex);
+        GUI.DrawTexture(new Rect(px, py + panelH - thick, len, thick), tex);
+        GUI.DrawTexture(new Rect(px, py + panelH - len, thick, len), tex);
+        GUI.DrawTexture(new Rect(px + panelW - len, py + panelH - thick, len, thick), tex);
+        GUI.DrawTexture(new Rect(px + panelW - thick, py + panelH - len, thick, len), tex);
+        GUI.color = Color.white;
+
+        GUIStyle style = new GUIStyle();
+        style.fontSize = 18;
+        style.fontStyle = FontStyle.Bold;
+        style.normal.textColor = colAmber;
+        style.alignment = TextAnchor.MiddleCenter;
+
+        GUI.Label(new Rect(px, py, panelW, panelH), $"◈  EC: {credits}  ◈", style);
     }
 }
