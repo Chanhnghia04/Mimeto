@@ -62,6 +62,15 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
         Time.timeScale = 0.1f; // Slow motion lúc win cho ngầu
         
         Debug.Log($"<color=green>[CHIẾN THẮNG]</color> Cửa thoát hiểm mở! Bạn đã trốn thoát thành công!");
+
+        StartCoroutine(LoadWaitingRoomAfterDelay(3f));
+    }
+
+    private System.Collections.IEnumerator LoadWaitingRoomAfterDelay(float delayRealtime)
+    {
+        yield return new WaitForSecondsRealtime(delayRealtime);
+        Time.timeScale = 1f; // Reset timescale trước khi load scene mới
+        UnityEngine.SceneManagement.SceneManager.LoadScene("WaitingRoom");
     }
 
     void Update()

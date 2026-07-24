@@ -24,9 +24,15 @@ public class InventoryUISetup : MonoBehaviour
             canvasGo.AddComponent<GraphicRaycaster>();
         }
 
+#if UNITY_EDITOR
         Sprite panelSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/UI_Panel_Industrial_Clean.png");
         Sprite btnSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/UI_Button_Hazard_Clean.png");
         Sprite slotSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/UI_Slot_Frame.png");
+#else
+        Sprite panelSprite = null;
+        Sprite btnSprite = null;
+        Sprite slotSprite = null;
+#endif
 
         // --- CLEANUP OLD UI ---
 List<GameObject> toDestroy = new List<GameObject>();

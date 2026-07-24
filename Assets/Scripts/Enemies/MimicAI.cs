@@ -38,6 +38,11 @@ public class MimicAI : MonoBehaviour
     public AudioSource audioSource;
     public AudioClip attackClip;
 
+    [Header("Creepy Audio")]
+    public AudioSource ambientAudioSource;
+    public AudioClip creepyApproachClip;
+    private bool hasPlayedCreepySound = false;
+
     [Header("Detection Settings")]
     public float fieldOfView = 110f;
     public LayerMask obstacleMask;
@@ -61,6 +66,12 @@ private Color originalLightColor;
         if (flashlight != null) originalLightColor = flashlight.color;
         if (animator == null) animator = GetComponentInChildren<Animator>();
         if (audioSource == null) audioSource = GetComponent<AudioSource>();
+        if (ambientAudioSource == null) {
+            ambientAudioSource = gameObject.AddComponent<AudioSource>();
+            ambientAudioSource.spatialBlend = 1f;
+            ambientAudioSource.maxDistance = 15f;
+            ambientAudioSource.rolloffMode = AudioRolloffMode.Linear;
+        }
         
         // Sửa lỗi 2: Ép cứng sát thương bằng 20 (ghi đè Inspector cũ)
         attackDamage = 20f;
@@ -254,6 +265,14 @@ private Color originalLightColor;
         }
 
         float distanceToTarget = Vector3.Distance(transform.position, targetPlayer.transform.position);
+
+        if (distanceToTarget < 15f && !hasPlayedCreepySound && ambientAudioSource != null && creepyApproachClip != null)
+        {
+            hasPlayedCreepySound = true;
+            ambientAudioSource.clip = creepyApproachClip;
+            ambientAudioSource.Play();
+        }
+
         if (distanceToTarget > loseTargetRadius)
         {
             targetPlayer = null;
@@ -400,6 +419,10 @@ private Color originalLightColor;
     {
         currentState = newState;
         Debug.Log("Mimic state changed to: " + newState);
+        if (newState == MimicState.Stalking || newState == MimicState.HumanForm)
+        {
+            hasPlayedCreepySound = false;
+        }
         switch (newState)
         {
             case MimicState.Stalking:
@@ -446,7 +469,10 @@ private Color originalLightColor;
         if (animator != null) animator.SetTrigger("Attack");
 
         if (audioSource != null && attackClip != null)
-            audioSource.PlayOneShot(attackClip);
+        {
+            audioSource.clip = attackClip;
+            audioSource.Play();
+        }
 
         StartCoroutine(DelayedDamage(survival, player));
     }

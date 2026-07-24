@@ -22,7 +22,10 @@ public class InteractionSystem : MonoBehaviour
     // Fix: cache UI references in Start() instead of calling FindAnyObjectByType every frame
     private InventoryUI _inventoryUI;
     private CraftingUI  _craftingUI;
-    private ChestUI     _chestUI;
+    private ChestUI          _chestUI;
+    private ShopStation      _shopStation;
+    private ScrapSellStation _sellStation;
+    private BlackjackStation _blackjackStation;
 
     private UnityEngine.InputSystem.InputAction _interactAction;
     
@@ -57,6 +60,9 @@ public class InteractionSystem : MonoBehaviour
         _inventoryUI = FindAnyObjectByType<InventoryUI>();
         _craftingUI  = FindAnyObjectByType<CraftingUI>();
         _chestUI     = FindAnyObjectByType<ChestUI>();
+        _shopStation = FindAnyObjectByType<ShopStation>();
+        _sellStation = FindAnyObjectByType<ScrapSellStation>();
+        _blackjackStation = FindAnyObjectByType<BlackjackStation>();
 
         // Bug Fix: disable gracefully if no Camera is found
         if (playerCamera == null)
@@ -80,6 +86,9 @@ public class InteractionSystem : MonoBehaviour
         if (_inventoryUI != null && _inventoryUI.inventoryPanel != null && _inventoryUI.inventoryPanel.activeSelf) return true;
         if (_craftingUI  != null && _craftingUI.craftingPanel  != null && _craftingUI.craftingPanel.activeSelf)  return true;
         if (_chestUI     != null && _chestUI.chestPanel        != null && _chestUI.chestPanel.activeSelf)        return true;
+        if (_shopStation != null && _shopStation.isOpen)                                                         return true;
+        if (_sellStation != null && _sellStation.isOpen)                                                         return true;
+        if (_blackjackStation != null && _blackjackStation.isOpen)                                               return true;
         return false;
     }
 

@@ -8,6 +8,9 @@ using UnityEngine.AI;
 public class EscapeRandomizer : MonoBehaviour
 {
     [Header("Random Settings")]
+    [Tooltip("Bật/tắt việc random cửa. Nếu tắt, cửa sẽ nằm cố định ở vị trí bạn đặt trong Scene.")]
+    public bool randomizeDoor = false;
+
     [Tooltip("Bán kính tối đa của bản đồ (m) để script tìm rìa")]
     public float mapRadius = 50f;
 
@@ -19,7 +22,7 @@ public class EscapeRandomizer : MonoBehaviour
     {
         // 1. Random vị trí Cửa Thoát Hiểm
         ExtractionSystem door = Object.FindAnyObjectByType<ExtractionSystem>();
-        if (door != null)
+        if (door != null && randomizeDoor)
         {
             MoveDoorToEdge(door.gameObject);
         }

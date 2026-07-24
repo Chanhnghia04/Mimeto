@@ -14,12 +14,38 @@ public class ScrapItem : MonoBehaviour, IInteractable
     [Header("Interaction Hint")]
     public string interactHint = "Press [E] to pick up";
 
+    [Header("Visual Effects")]
+    [Tooltip("Bật hiệu ứng sáng màu xung quanh item")]
+    public bool enableGlowEffect = true;
+    public Color glowColor = new Color(0.2f, 0.8f, 1f, 1f); // Màu xanh lơ (cyan) mặc định
+    public float glowIntensity = 2f;
+    public float glowRange = 1.5f;
+
     // ── Runtime rotation + collider auto-fix ─────────────────────────────────
 
     void Awake()
     {
         FixRotation();
         RebuildCollider();
+    }
+
+    void Start()
+    {
+        if (enableGlowEffect)
+        {
+            // Tạo một GameObject con để chứa hiệu ứng đèn (màu xung quanh)
+            GameObject glowObj = new GameObject("ItemGlow");
+            glowObj.transform.SetParent(this.transform, false);
+            // Đẩy nhẹ lên trên một chút để đèn toả đều
+            glowObj.transform.localPosition = new Vector3(0f, 0.2f, 0f);
+
+            Light glowLight = glowObj.AddComponent<Light>();
+            glowLight.type = LightType.Point;
+            glowLight.color = glowColor;
+            glowLight.intensity = glowIntensity;
+            glowLight.range = glowRange;
+            glowLight.renderMode = LightRenderMode.ForcePixel; // Đảm bảo luôn sáng đẹp
+        }
     }
 
     /// <summary>

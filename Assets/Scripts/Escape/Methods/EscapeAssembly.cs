@@ -15,9 +15,9 @@ public class EscapeAssembly : MonoBehaviour
 {
     [Header("Spawn Config")]
     public int   totalParts          = 3;
-    public float spawnRadius         = 5f; // FOR TESTING (was 40f)
-    public float minDistFromPlayer   = 1f; // FOR TESTING (was 18f)
-    public float minDistBetweenParts = 1f; // FOR TESTING (was 14f)
+    public float spawnRadius         = 40f; 
+    public float minDistFromPlayer   = 25f; 
+    public float minDistBetweenParts = 15f; 
 
     private int _collected = 0;
 
@@ -122,31 +122,50 @@ public class EscapeAssembly : MonoBehaviour
 
     Vector3 FindValidPos(Vector3 playerPos, List<Vector3> usedPos)
     {
-        for (int attempt = 0; attempt < 40; attempt++)
-        {
-            Vector2 circle = Random.insideUnitCircle * spawnRadius;
-            Vector3 candidate = playerPos + new Vector3(circle.x, 0f, circle.y);
+        UnityEngine.AI.NavMeshTriangulation navData = UnityEngine.AI.NavMesh.CalculateTriangulation();
+        if (navData.vertices.Length == 0) return playerPos + Vector3.forward * 20f; // Fallback an toàn
 
-            if (Vector3.Distance(candidate, playerPos) < minDistFromPlayer) continue;
+        Vector3 bestPos = playerPos;
+        float bestDist = -1f;
+
+        for (int attempt = 0; attempt < 200; attempt++)
+        {
+            // Chọn ngẫu nhiên 1 tam giác trên toàn bộ NavMesh
+            int t = Random.Range(0, navData.indices.Length / 3);
+            int v1 = navData.indices[t * 3];
+            int v2 = navData.indices[t * 3 + 1];
+            int v3 = navData.indices[t * 3 + 2];
+
+            // Lấy 1 điểm ngẫu nhiên bên trong tam giác đó
+            Vector3 pt = Vector3.Lerp(navData.vertices[v1], navData.vertices[v2], Random.value);
+            pt = Vector3.Lerp(pt, navData.vertices[v3], Random.value);
+
+            // BỘ LỌC ĐỘ CAO: Đảm bảo điểm không nằm tít trên ngọn cây hoặc nóc nhà
+            if (Mathf.Abs(pt.y - playerPos.y) > 4f) continue;
+
+            if (Vector3.Distance(pt, playerPos) < minDistFromPlayer) continue;
 
             bool tooClose = false;
             foreach (var u in usedPos)
-                if (Vector3.Distance(candidate, u) < minDistBetweenParts) { tooClose = true; break; }
+                if (Vector3.Distance(pt, u) < minDistBetweenParts) { tooClose = true; break; }
             if (tooClose) continue;
 
-            // Tìm điểm NavMesh gần nhất
-            if (UnityEngine.AI.NavMesh.SamplePosition(candidate, out UnityEngine.AI.NavMeshHit hit, 4f, UnityEngine.AI.NavMesh.AllAreas))
-            {
-                // QUAN TRỌNG: Loại bỏ những điểm nằm trên nóc nhà (Y chênh lệch quá 1.5 mét so với người chơi)
-                if (Mathf.Abs(hit.position.y - playerPos.y) < 1.5f)
-                {
-                    return hit.position;
-                }
-            }
+            // KIỂM TRA VẬT LÝ: Không chui vào trong BoxCollider khối đặc
+            if (Physics.CheckSphere(pt + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
+                continue;
+
+            // Đạt mọi điều kiện thì trả về ngay!
+            return pt;
         }
 
-        // Fallback: Quăng ngay trước mặt Player, giữ nguyên độ cao của Player
-        return playerPos + GameObject.FindGameObjectWithTag("Player").transform.forward * 2f;
+        // Nếu quá khó tìm, nới lỏng điều kiện (chọn bừa 1 đỉnh không bị kẹt)
+        for (int i = 0; i < navData.vertices.Length; i++)
+        {
+            Vector3 v = navData.vertices[Random.Range(0, navData.vertices.Length)];
+            if (!Physics.CheckSphere(v + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
+                return v;
+        }
+        return navData.vertices[Random.Range(0, navData.vertices.Length)];
     }
 
     // ── Called by EscapePart when collected ──────────────────────────────────
@@ -206,6 +225,16 @@ public class EscapePart : MonoBehaviour, IInteractable
 
     public void Interact(GameObject interactor)
     {
+        AudioClip clip = Resources.Load<AudioClip>("Audio/assemble");
+        if (clip != null)
+        {
+            GameObject tempAudio = new GameObject("TempAssembleAudio");
+            AudioSource src = tempAudio.AddComponent<AudioSource>();
+            src.spatialBlend = 0f; // Âm thanh 2D để nghe rõ 100%
+            src.PlayOneShot(clip);
+            Destroy(tempAudio, clip.length + 0.1f);
+        }
+        
         parentAssembly?.OnPartCollected(partName);
         Destroy(gameObject);
     }

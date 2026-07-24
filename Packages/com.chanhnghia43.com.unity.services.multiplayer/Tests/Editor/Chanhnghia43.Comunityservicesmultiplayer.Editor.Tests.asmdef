@@ -1,0 +1,14 @@
+{
+    "name": "Chanhnghia43.Comunityservicesmultiplayer.Editor.Tests",
+    "references": [
+        "Chanhnghia43.Comunityservicesmultiplayer.Editor",
+        "Chanhnghia43.Comunityservicesmultiplayer"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": []
+}

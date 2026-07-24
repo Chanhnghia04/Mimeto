@@ -179,6 +179,7 @@ GameObject:
   - component: {fileID: 8458132902521818565}
   - component: {fileID: 2213295620602334515}
   - component: {fileID: 1110349559404036167}
+  - component: {fileID: 4813576773242687807}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -250,7 +251,7 @@ CharacterController:
   m_StepOffset: 0.3
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 0, z: 0}
+  m_Center: {x: 0, y: 1, z: 0}
 --- !u!114 &-4471780607728732771
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -263,7 +264,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 4050134824
+  GlobalObjectIdHash: 379144309
   InScenePlacedSourceGlobalObjectIdHash: 4001900879
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
@@ -293,6 +294,12 @@ MonoBehaviour:
   fallMultiplier: 1.5
   crouchHeight: 1
   crouchTransitionSpeed: 10
+  interactRange: 3
+  interactableLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  netXRotation:
+    m_InternalValue: 0
   punchRange: 2
   punchDamage: 20
   punchCooldown: 0.5
@@ -311,6 +318,8 @@ MonoBehaviour:
   landDipAmount: 0.1
   landDipSpeed: 10
   isHiding: 0
+  isShopMode: 0
+  velocity: {x: 0, y: 0, z: 0}
 --- !u!114 &8340760422518348896
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -329,6 +338,7 @@ MonoBehaviour:
   chemicals: 0
   plasticPipes: 0
   scrapBatteries: 0
+  credits: 0
   basicGasMasks: 0
   advancedGasMasks: 0
   hasUVFlashlight: 0
@@ -337,6 +347,8 @@ MonoBehaviour:
   hasMachete: 0
   hasAxe: 0
   hasBat: 0
+  healthPacks: 0
+  oxygenTanks: 0
   hasEscapeKey: 0
   rareLootCount: 0
 --- !u!114 &1961056957831625758
@@ -497,6 +509,23 @@ MonoBehaviour:
   inventory: {fileID: 8340760422518348896}
   survival: {fileID: 1961056957831625758}
   craftingPanel: {fileID: 0}
+  mainCanvasGroup: {fileID: 0}
+  observationDeck: {fileID: 0}
+  scanningGrid: {fileID: 0}
+  holographicBrackets: []
+  screenFlash: {fileID: 0}
+  detailsPane: {fileID: 0}
+  detailsTitleText: {fileID: 0}
+  detailsDescriptionText: {fileID: 0}
+  detailsIcon: {fileID: 0}
+  mainCraftButton: {fileID: 0}
+  materialRequirementUI: []
+  materialRequirementIcons: []
+  materialRequirementTexts: []
+  materialGlows: []
+  recipeSelectionButtons: []
+  recipeSelectionSelectionGlows: []
+  statusText: {fileID: 0}
   craftBasicButton: {fileID: 0}
   craftAdvancedButton: {fileID: 0}
   craftUVButton: {fileID: 0}
@@ -505,7 +534,6 @@ MonoBehaviour:
   craftMacheteButton: {fileID: 0}
   craftAxeButton: {fileID: 0}
   craftBatButton: {fileID: 0}
-  statusText: {fileID: 0}
   basicRecipeIcons:
   - {fileID: 0}
   - {fileID: 0}
@@ -544,6 +572,15 @@ MonoBehaviour:
   plasticSprite: {fileID: 21300000, guid: 37605ae5a9629264a905456bb402bf67, type: 3}
   batterySprite: {fileID: 21300000, guid: cb44366bbcffba949ba650fe34b6aa5f, type: 3}
   ironPlateSprite: {fileID: 21300000, guid: 2c7287db812deae46abbfe6268846b6c, type: 3}
+  missingIconSprite: {fileID: 0}
+  basicMaskSprite: {fileID: 0}
+  advancedMaskSprite: {fileID: 0}
+  flashlightSprite: {fileID: 0}
+  crowbarSprite: {fileID: 0}
+  shovelSprite: {fileID: 0}
+  macheteSprite: {fileID: 0}
+  axeSprite: {fileID: 0}
+  batSprite: {fileID: 0}
 --- !u!114 &2213295620602334515
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -596,6 +633,37 @@ MonoBehaviour:
   batPrefab: {fileID: 830386771058642035, guid: 817f4c330d751784d8d0e2513450c81d, type: 3}
   flashlightPrefab: {fileID: 919132149155446097, guid: dee047d3aa6ab544191c6b5f2d1b0af1, type: 3}
   gasMaskPrefab: {fileID: 919132149155446097, guid: 447a638761bfa644eb9bbb01c6d6e70d, type: 3}
+--- !u!114 &4813576773242687807
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1863494784221845881}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da52bf8bbc1de48cfb221a6ff30f7972, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Multiplayer.Center.NetcodeForGameObjectsExample::Unity.Multiplayer.Center.NetcodeForGameObjectsExample.ClientNetworkTransform
+  UseUnreliableDeltas: 0
+  SyncPositionX: 1
+  SyncPositionY: 1
+  SyncPositionZ: 1
+  SyncRotAngleX: 1
+  SyncRotAngleY: 1
+  SyncRotAngleZ: 1
+  SyncScaleX: 1
+  SyncScaleY: 1
+  SyncScaleZ: 1
+  PositionThreshold: 0.001
+  RotAngleThreshold: 0.01
+  ScaleThreshold: 0.01
+  UseQuaternionSynchronization: 0
+  UseQuaternionCompression: 0
+  UseHalfFloatPrecision: 0
+  InLocalSpace: 0
+  Interpolate: 1
+  SlerpPosition: 0
 --- !u!1 &4181633472087541533
 GameObject:
   m_ObjectHideFlags: 0
@@ -655,7 +723,7 @@ Transform:
   m_GameObject: {fileID: 4611454920195319944}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.056, z: -0.06}
+  m_LocalPosition: {x: 0, y: 1.6, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -671,7 +739,7 @@ Camera:
   m_GameObject: {fileID: 4611454920195319944}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 1
+  m_ClearFlags: 4
   m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
@@ -810,7 +878,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 9590dec8ee8807348acdda696ff502f2, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -1.36
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 9590dec8ee8807348acdda696ff502f2, type: 3}
       propertyPath: m_LocalPosition.z
