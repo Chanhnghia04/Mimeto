@@ -85,10 +85,10 @@ public static class MutantAutoSetup
         MutantSpawner spawner = spawnerGo.AddComponent<MutantSpawner>();
         spawner.mutantPrefab                = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
         spawner.mutantsToSpawn              = 1;
-        spawner.autoFindSpawnPoints         = true;
-        spawner.shuffleSpawnPoints          = true;
+        //spawner.autoFindSpawnPoints         = true;
+        //spawner.shuffleSpawnPoints          = true;
         spawner.globalMinDistanceFromPlayer = 20f;
-        spawner.navMeshSampleRadius         = 5f;
+        //spawner.navMeshSampleRadius         = 5f;
         spawner.playerTag                   = "Player";
 
         EditorUtility.SetDirty(spawnerGo);

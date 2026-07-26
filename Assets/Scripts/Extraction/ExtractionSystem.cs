@@ -43,11 +43,11 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
                 // Báo lỗi lên màn hình
                 string methodIns = EscapeManager.Instance != null 
                     ? EscapeManager.Instance.GetMethodInstruction() 
-                    : "Hoàn thành nhiệm vụ thoát hiểm trước!";
+                    : "Complete the escape objective first!";
                 
-                errorMessage = $"Cửa bị khóa!\n{methodIns}";
+                errorMessage = $"Door locked!\n{methodIns}";
                 errorDisplayTimer = 3f; // Hiện thông báo trong 3 giây
-                Debug.Log("<color=red>Cửa bị khóa!</color> Chưa hoàn thành điều kiện tẩu thoát.");
+                Debug.Log("<color=red>Door locked!</color> Escape conditions not met.");
             }
         }
     }
@@ -61,16 +61,27 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
         // Tùy chọn: Tạm dừng game hoặc vô hiệu hóa điều khiển ở đây
         Time.timeScale = 0.1f; // Slow motion lúc win cho ngầu
         
-        Debug.Log($"<color=green>[CHIẾN THẮNG]</color> Cửa thoát hiểm mở! Bạn đã trốn thoát thành công!");
+        Debug.Log($"<color=green>[VICTORY]</color> Escape door opened! You successfully escaped!");
 
-        StartCoroutine(LoadWaitingRoomAfterDelay(3f));
+        PlayerSurvival ps = inventory.GetComponent<PlayerSurvival>();
+        if (ps != null)
+        {
+            ps.DeclareVictoryServerRpc();
+        }
     }
 
     private System.Collections.IEnumerator LoadWaitingRoomAfterDelay(float delayRealtime)
     {
         yield return new WaitForSecondsRealtime(delayRealtime);
         Time.timeScale = 1f; // Reset timescale trước khi load scene mới
-        UnityEngine.SceneManagement.SceneManager.LoadScene("WaitingRoom");
+        if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.IsServer)
+        {
+            Unity.Netcode.NetworkManager.Singleton.SceneManager.LoadScene("Waiting", UnityEngine.SceneManagement.LoadSceneMode.Single);
+        }
+        else if (Unity.Netcode.NetworkManager.Singleton == null || !Unity.Netcode.NetworkManager.Singleton.IsClient)
+        {
+            UnityEngine.SceneManagement.SceneManager.LoadScene("Waiting");
+        }
     }
 
     void Update()
@@ -85,12 +96,7 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
     // OnGUI vẽ trực tiếp chữ lên màn hình mà không cần tốn công setup Canvas
     void OnGUI()
     {
-        if (isActivated)
-        {
-            DrawTextWithShadow($"BẠN ĐÃ TẨU THOÁT THÀNH CÔNG!\n\nSố Đồ Hiếm Thu Được: {finalRareLoot}", 
-                60, Color.green, TextAnchor.MiddleCenter);
-        }
-        else if (isAssembling)
+        if (isAssembling)
         {
             DrawAssemblyUI();
         }
@@ -128,7 +134,7 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
         titleStyle.alignment = TextAnchor.UpperCenter;
         titleStyle.normal.textColor = new Color(0f, 0.8f, 1f);
 
-        GUI.Label(new Rect(windowRect.x, windowRect.y + 20, windowRect.width, 40), "LẮP RÁP CỬA THOÁT HIỂM", titleStyle);
+        GUI.Label(new Rect(windowRect.x, windowRect.y + 20, windowRect.width, 40), "ASSEMBLE ESCAPE DOOR", titleStyle);
 
         GUIStyle descStyle = new GUIStyle(GUI.skin.label);
         descStyle.fontSize = 18;
@@ -137,8 +143,8 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
         bool isReady = EscapeManager.Instance != null && EscapeManager.Instance.IsReadyToAssemble;
         
         string desc = isReady 
-            ? "Đã thu thập đủ: Bánh răng, Bình nhiên liệu, Bo mạch.\nNhấn nút dưới đây để lắp ráp vào hệ thống cửa." 
-            : "Bạn chưa thu thập đủ bộ phận!\nHãy tìm thêm trên bản đồ (Bánh răng, Bình nhiên liệu, Bo mạch).";
+            ? "Collected all parts: Gear, Fuel Tank, Circuit Board.\nPress the button below to assemble." 
+            : "You haven't collected enough parts!\nFind them on the map (Gear, Fuel Tank, Circuit Board).";
 
         GUI.Label(new Rect(windowRect.x + 50, windowRect.y + 80, windowRect.width - 100, 60), desc, descStyle);
 
@@ -149,7 +155,7 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
 
         GUI.enabled = isReady;
 
-        if (GUI.Button(new Rect(windowRect.x + 150, windowRect.y + 160, 300, 60), "LẮP RÁP BỘ PHẬN", btnStyle))
+        if (GUI.Button(new Rect(windowRect.x + 150, windowRect.y + 160, 300, 60), "ASSEMBLE PARTS", btnStyle))
         {
             assemblyProgress += 33.4f;
             if (assemblyProgress >= 100f)
@@ -192,7 +198,7 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
         GUI.enabled = true; // Trả lại GUI.enabled cho nút đóng
 
         // Nút Đóng
-        if (GUI.Button(new Rect(windowRect.x + 250, windowRect.y + 320, 100, 40), "ĐÓNG", GUI.skin.button))
+        if (GUI.Button(new Rect(windowRect.x + 250, windowRect.y + 320, 100, 40), "CLOSE", GUI.skin.button))
         {
             isAssembling = false;
         }

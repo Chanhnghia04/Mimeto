@@ -180,6 +180,9 @@ GameObject:
   - component: {fileID: 2213295620602334515}
   - component: {fileID: 1110349559404036167}
   - component: {fileID: 4813576773242687807}
+  - component: {fileID: -4097166130733289245}
+  - component: {fileID: -3784368437777255836}
+  - component: {fileID: 4342159897611725707}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -264,7 +267,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 379144309
+  GlobalObjectIdHash: 4001900879
   InScenePlacedSourceGlobalObjectIdHash: 4001900879
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
@@ -664,6 +667,75 @@ MonoBehaviour:
   InLocalSpace: 0
   Interpolate: 1
   SlerpPosition: 0
+--- !u!114 &-4097166130733289245
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1863494784221845881}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85555c3e50bce6749bdc674f01e52de3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerSpawnHandler
+--- !u!95 &-3784368437777255836
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1863494784221845881}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 0}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &4342159897611725707
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1863494784221845881}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3e234f95b9f64049a48b0cede795618, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ClientNetworkAnimator
+  TransitionStateInfoList:
+  - IsCrossFadeExit: 0
+    Layer: 0
+    OriginatingState: -2089788878
+    DestinationState: -431958271
+    TransitionDuration: 0.25
+    TriggerNameHash: -504573385
+    TransitionIndex: 1
+  - IsCrossFadeExit: 0
+    Layer: 0
+    OriginatingState: -431958271
+    DestinationState: 2135525051
+    TransitionDuration: 0.25
+    TriggerNameHash: 2028307341
+    TransitionIndex: 0
+  - IsCrossFadeExit: 0
+    Layer: 0
+    OriginatingState: 2135525051
+    DestinationState: -431958271
+    TransitionDuration: 0.25
+    TriggerNameHash: -504573385
+    TransitionIndex: 0
+  m_Animator: {fileID: 5072377951627017906}
 --- !u!1 &4181633472087541533
 GameObject:
   m_ObjectHideFlags: 0

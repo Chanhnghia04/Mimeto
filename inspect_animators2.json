@@ -1,0 +1,6 @@
+{
+  "csharpCode": "using UnityEngine; using Unity.Netcode; public class InspectAnimators2 { public static string Run() { NetworkManager nm = Object.FindObjectOfType<NetworkManager>(true); if (nm == null) return \"No NM\"; GameObject prefab = nm.NetworkConfig.PlayerPrefab; Animator[] anims = prefab.GetComponentsInChildren<Animator>(true); string res = \"\"; foreach(var a in anims) { res += $\"- {a.name}: Controller={a.runtimeAnimatorController?.name ?? \"NULL\"}, Avatar={a.avatar?.name ?? \"NULL\"}\\n\"; } return res; } }",
+  "className": "InspectAnimators2",
+  "methodName": "Run",
+  "isMethodBody": false
+}

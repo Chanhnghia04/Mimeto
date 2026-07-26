@@ -1,0 +1,6 @@
+{
+  "csharpCode": "using UnityEngine; using Unity.Netcode; public class InspectSurvival { public static string Run() { NetworkManager nm = Object.FindObjectOfType<NetworkManager>(true); if (nm == null || nm.NetworkConfig.PlayerPrefab == null) return \"No PlayerPrefab\"; GameObject prefab = nm.NetworkConfig.PlayerPrefab; PlayerSurvival ps = prefab.GetComponent<PlayerSurvival>(); if (ps == null) return \"No PlayerSurvival\"; return $\"Depletion: {ps.oxygenDepletionRate}, Max: {ps.maxOxygen}, inSafeZone: {ps.inSafeZone}, mask: {ps.activeMaskType}\"; } }",
+  "className": "InspectSurvival",
+  "methodName": "Run",
+  "isMethodBody": false
+}

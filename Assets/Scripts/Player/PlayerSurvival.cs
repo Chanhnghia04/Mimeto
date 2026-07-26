@@ -11,6 +11,66 @@ public class PlayerSurvival : NetworkBehaviour
     public float currentHealth;
     public float toxicDamagePerSecond = 5f;
 
+    public NetworkVariable<bool> isGhost = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+    private static bool isGameOver = false;
+    private static bool showGameOver = false;
+    private static bool isWinResult = false;
+    private static bool pendingSceneLoad = false;
+    private static float serverLoadSceneTimer = -1f;
+
+    public static bool IsGameOverUIOpen()
+    {
+        return showGameOver;
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (sceneName == "Map" || sceneName == "PollutedZone")
+        {
+            isGameOver = false;
+            showGameOver = false;
+            pendingSceneLoad = false;
+        }
+
+        isGhost.OnValueChanged += (oldVal, newVal) => { ApplyGhostVisuals(newVal); };
+        if (isGhost.Value) ApplyGhostVisuals(true);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void SetGhostServerRpc(bool ghost)
+    {
+        isGhost.Value = ghost;
+        if (ghost && IsServer)
+        {
+            CheckTeamWipe();
+        }
+    }
+
+    private void ApplyGhostVisuals(bool ghost)
+    {
+        // Hide/Show Model
+        Transform model = transform.Find("Model");
+        if (model != null) model.gameObject.SetActive(!ghost);
+
+        // Hide/Show Nametag
+        var nametag = GetComponentInChildren<TMPro.TextMeshPro>();
+        if (nametag != null) nametag.enabled = !ghost;
+
+        // Disable CharacterController for everyone to avoid invisible collisions
+        var cc = GetComponent<CharacterController>();
+        if (cc != null) cc.enabled = !ghost;
+        
+        // Hide held items
+        EquipmentManager em = GetComponent<EquipmentManager>();
+        if (em != null)
+        {
+            if (em.rightHandSocket != null) em.rightHandSocket.gameObject.SetActive(!ghost);
+            if (em.leftHandSocket != null) em.leftHandSocket.gameObject.SetActive(!ghost);
+            if (em.faceSocket != null) em.faceSocket.gameObject.SetActive(!ghost);
+        }
+    }
     // Bug Fix: expose a spawn point so Respawn() doesn't always teleport to (0,2,0)
     [Header("Spawn Settings")]
     public Transform spawnPoint;
@@ -93,14 +153,31 @@ public class PlayerSurvival : NetworkBehaviour
 
     void Update()
     {
+        if (IsServer && pendingSceneLoad)
+        {
+            pendingSceneLoad = false;
+            Time.timeScale = 1f;
+            Debug.Log("[PlayerSurvival] Loading Waiting scene via NetworkManager...");
+            if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.SceneManager != null)
+            {
+                Unity.Netcode.NetworkManager.Singleton.SceneManager.LoadScene("Waiting", UnityEngine.SceneManagement.LoadSceneMode.Single);
+            }
+        }
+
         if (IsSpawned && !IsOwner) return; // CHỈ CẬP NHẬT MÁU/OXY CHO NHÂN VẬT CỦA MÌNH HOẶC KHI OFFLINE
 
         string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        if (sceneName == "StartGame" || sceneName == "Menu")
+        if (sceneName != "Map" && sceneName != "PollutedZone")
         {
             if (breathingSource != null && breathingSource.isPlaying)
                 breathingSource.Stop();
             return; // Không tính toán oxy/máu trong sảnh
+        }
+
+        // Reset inSafeZone if it got stuck from previous scenes
+        if (Time.frameCount % 60 == 0 && inSafeZone)
+        {
+            // Optional: fallback check if not colliding with any safe zone
         }
 
         if (inSafeZone)
@@ -216,6 +293,57 @@ public class PlayerSurvival : NetworkBehaviour
         {
             em.UnequipSlot(EquipmentSlot.Face);
         }
+
+        if (IsServer)
+        {
+            CheckTeamWipe();
+        }
+    }
+
+    private void CheckTeamWipe()
+    {
+        if (isGameOver) return;
+        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (sceneName != "Map" && sceneName != "PollutedZone") return;
+
+        PlayerSurvival[] players = FindObjectsByType<PlayerSurvival>(FindObjectsSortMode.None);
+        if (players.Length == 0) return;
+
+        bool allDead = true;
+        foreach (var p in players)
+        {
+            if (!p.isGhost.Value)
+            {
+                allDead = false;
+                break;
+            }
+        }
+
+        if (allDead)
+        {
+            isGameOver = true;
+            ShowGameOverClientRpc(false);
+        }
+    }
+
+    [ClientRpc]
+    public void ShowGameOverClientRpc(bool win)
+    {
+        showGameOver = true;
+        isWinResult = win;
+        
+        if (!win && IsOwner)
+        {
+            GetComponent<PlayerInventory>().ClearInventoryOnDeath();
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void DeclareVictoryServerRpc()
+    {
+        if (isGameOver) return;
+        isGameOver = true;
+        ShowGameOverClientRpc(true);
     }
 
     public void TakeDamage(float amount, string reason = "Toxicity! Health reached 0.")
@@ -259,68 +387,93 @@ public class PlayerSurvival : NetworkBehaviour
 
         Debug.Log($"<color=red>DEATH: {reason}</color>");
         
-        // Slow motion effect
-        Time.timeScale = 0.5f;
-        Time.fixedDeltaTime = 0.02f * Time.timeScale;
-
-        // Mất hết đồ khi chết
-        PlayerInventory inv = GetComponent<PlayerInventory>();
-        if (inv != null)
+        // Spectator / Ghost mode setup
+        if (IsOwner)
         {
-            inv.ClearInventoryOnDeath();
+            SetGhostServerRpc(true);
+            PlayerController controller = GetComponent<PlayerController>();
+            if (controller != null) controller.isGhostMode = true;
         }
 
-        // Disable movement
-        PlayerController controller = GetComponent<PlayerController>();
-        if (controller != null) controller.enabled = false;
-
+        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         if (deathPanel != null)
         {
-            deathPanel.SetActive(true);
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            if (sceneName != "Map" && sceneName != "PollutedZone")
+            {
+                deathPanel.SetActive(true);
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+            else
+            {
+                // In Map, just hide the panel so they can see while flying as a ghost
+                deathPanel.SetActive(false);
+            }
 
             if (deathCamera != null)
             {
-                deathCamera.gameObject.SetActive(true);
-                // Position camera slightly further and higher for dramatic view
-                deathCamera.transform.position = transform.position + new Vector3(2, 4, -5);
-                deathCamera.transform.LookAt(transform.position + Vector3.up);
-                
-                Camera pc = GetComponentInChildren<Camera>();
-                if (pc != null) pc.enabled = false;
+                deathCamera.gameObject.SetActive(false); // Make sure it's off so we can use player camera
             }
         }
 
-        // Tự động về WaitingRoom sau 4 giây thực tế
-        StartCoroutine(LoadWaitingRoomOnDeath(4f));
+        // Don't auto respawn in Map. They stay as ghosts until team wipe or extract.
+        if (sceneName != "Map" && sceneName != "PollutedZone")
+        {
+            StartCoroutine(RespawnAfterDelay(4f));
+        }
+        else
+        {
+            if (IsServer) CheckTeamWipe();
+        }
     }
 
-    private System.Collections.IEnumerator LoadWaitingRoomOnDeath(float delay)
+    private System.Collections.IEnumerator RespawnAfterDelay(float delay)
     {
         yield return new WaitForSecondsRealtime(delay);
-        Time.timeScale = 1f;
-        Time.fixedDeltaTime = 0.02f;
-        UnityEngine.SceneManagement.SceneManager.LoadScene("WaitingRoom");
+        Respawn();
     }
 
     public void Respawn()
     {
         isDead = false; // Allow dying again after respawn
+        isGameOver = false;
+        showGameOver = false;
 
         Time.timeScale = 1.0f;
         Time.fixedDeltaTime = 0.02f;
+        
+        if (IsOwner)
+        {
+            SetGhostServerRpc(false);
+            PlayerController pc = GetComponent<PlayerController>();
+            if (pc != null) pc.isGhostMode = false;
+        }
 
         // Reset Stats
         currentHealth = maxHealth;
         currentOxygen = maxOxygen;
         
-        // Re-enable movement
+        // Re-enable movement script
         PlayerController controller = GetComponent<PlayerController>();
         if (controller != null) controller.enabled = true;
 
-        // Bug Fix: use assigned spawnPoint if available, else fallback to (0,2,0)
-        transform.position = (spawnPoint != null) ? spawnPoint.position : Vector3.up * 2f;
+        // Cố gắng tìm vị trí an toàn trên NavMesh để hồi sinh
+        Vector3 safePos = Vector3.up * 2f;
+        if (spawnPoint != null) 
+        {
+            safePos = spawnPoint.position;
+        }
+        else
+        {
+            if (UnityEngine.AI.NavMesh.SamplePosition(new Vector3(0, 10f, 0), out UnityEngine.AI.NavMeshHit hit, 50f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                safePos = hit.position + Vector3.up * 2f;
+            }
+        }
+        
+        if (controller != null && controller.TryGetComponent(out CharacterController cc)) cc.enabled = false;
+        transform.position = safePos;
+        if (controller != null && controller.TryGetComponent(out CharacterController cc2)) cc2.enabled = true;
         
         // Remove mask on death
         activeMaskType = GasMaskType.None;
@@ -335,8 +488,6 @@ public class PlayerSurvival : NetworkBehaviour
             if (deathCamera != null)
             {
                 deathCamera.gameObject.SetActive(false);
-                Camera pc = GetComponentInChildren<Camera>();
-                if (pc != null) pc.enabled = true;
             }
         }
     }
@@ -410,12 +561,79 @@ public class PlayerSurvival : NetworkBehaviour
 
     void OnGUI()
     {
+        if (showGameOver && IsOwner)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            
+            GUI.color = new Color(0, 0, 0, 0.85f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+            
+            GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
+            titleStyle.fontSize = 80;
+            titleStyle.fontStyle = FontStyle.Bold;
+            titleStyle.alignment = TextAnchor.MiddleCenter;
+            
+            Color textColor = isWinResult ? new Color(0f, 1f, 0.5f) : new Color(1f, 0.2f, 0.2f);
+            
+            string title = isWinResult ? "MISSION SUCCESS" : "MISSION FAILED";
+            string sub = isWinResult ? "All members survived and escaped successfully!\nSell your loot and prepare for the next mission." 
+                                     : "";
+
+            // Draw shadow
+            titleStyle.normal.textColor = Color.black;
+            GUI.Label(new Rect(4, Screen.height / 2 - 120 + 4, Screen.width, 100), title, titleStyle);
+            // Draw text
+            titleStyle.normal.textColor = textColor;
+            GUI.Label(new Rect(0, Screen.height / 2 - 120, Screen.width, 100), title, titleStyle);
+            
+            GUIStyle subStyle = new GUIStyle(GUI.skin.label);
+            subStyle.fontSize = 28;
+            subStyle.alignment = TextAnchor.MiddleCenter;
+            
+            // Draw shadow
+            subStyle.normal.textColor = Color.black;
+            GUI.Label(new Rect(2, Screen.height / 2 + 20 + 2, Screen.width, 100), sub, subStyle);
+            // Draw text
+            subStyle.normal.textColor = Color.white;
+            GUI.Label(new Rect(0, Screen.height / 2 + 20, Screen.width, 100), sub, subStyle);
+            
+            // Draw return button for Host
+            if (IsServer)
+            {
+                GUIStyle btnStyle = new GUIStyle(GUI.skin.button);
+                btnStyle.fontSize = 24;
+                btnStyle.fontStyle = FontStyle.Bold;
+                string btnText = pendingSceneLoad ? "LOADING..." : "CONTINUE";
+                
+                GUI.enabled = !pendingSceneLoad;
+                if (GUI.Button(new Rect(Screen.width / 2 - 150, Screen.height / 2 + 120, 300, 60), btnText, btnStyle))
+                {
+                    Debug.Log("[PlayerSurvival] Continue button clicked!");
+                    pendingSceneLoad = true;
+                }
+                GUI.enabled = true;
+            }
+            else
+            {
+                GUIStyle waitStyle = new GUIStyle(GUI.skin.label);
+                waitStyle.fontSize = 20;
+                waitStyle.fontStyle = FontStyle.Italic;
+                waitStyle.alignment = TextAnchor.MiddleCenter;
+                waitStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
+                GUI.Label(new Rect(0, Screen.height / 2 + 120, Screen.width, 50), "Waiting for Host to continue...", waitStyle);
+            }
+
+            return;
+        }
+
         if (IsSpawned && !IsOwner) return;
         if (isDead) return;
 
         // Tắt HUD hiển thị trong các scene menu để không đè lên RoomInfoPanel
         string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        if (sceneName == "StartGame" || sceneName == "Menu") 
+        if (sceneName != "Map" && sceneName != "PollutedZone") 
             return;
 
         InitHUD();

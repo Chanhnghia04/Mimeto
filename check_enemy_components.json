@@ -1,0 +1,6 @@
+{
+  "csharpCode": "using UnityEngine; using Unity.Netcode; using UnityEditor; public class CheckEnemyComps2 { public static string Run() { string log = \"\"; GameObject mutant = AssetDatabase.LoadAssetAtPath<GameObject>(\"Assets/AI Toolkit/Enami/EnamiMutant.prefab\"); if (mutant != null) { log += \"Mutant:\\n\"; log += \"- NetworkObject: \" + (mutant.GetComponent<NetworkObject>() != null) + \"\\n\"; log += \"- NetworkTransform: \" + (mutant.GetComponent<Unity.Netcode.Components.NetworkTransform>() != null) + \"\\n\"; } return log; } }",
+  "className": "CheckEnemyComps2",
+  "methodName": "Run",
+  "isMethodBody": false
+}

@@ -16,7 +16,7 @@ public static class ScrapResourcesSetup
     // Maps Resources.Load key → source prefab filename
     private static readonly (string key, string srcFile)[] ScrapMap = new[]
     {
-        ("circuit",    "Scrap_Circuit.prefab"),
+        ("circuit",    "Scrap_electrical-circuit.prefab"),
         ("chemical",   "Scrap_Chemical.prefab"),
         ("pipe",       "Scrap_PlasticPipe.prefab"),
         ("metal pipe", "Scrap_MetalPipe.prefab"),

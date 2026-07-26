@@ -1,0 +1,6 @@
+{
+  "csharpCode": "using UnityEngine; using Unity.Netcode; public class InspectAnimators { public static string Run() { NetworkManager nm = Object.FindObjectOfType<NetworkManager>(true); if (nm == null || nm.NetworkConfig.PlayerPrefab == null) return \"No PlayerPrefab\"; GameObject prefab = nm.NetworkConfig.PlayerPrefab; Animator[] anims = prefab.GetComponentsInChildren<Animator>(true); string res = $\"Found {anims.Length} Animators:\\n\"; foreach(var a in anims) { res += $\"- {a.gameObject.name} (Root: {a.gameObject == prefab})\\n\"; } var cna = prefab.GetComponent<Unity.Netcode.Components.NetworkAnimator>(); if (cna != null) res += $\"\\nNetworkAnimator points to: {(cna.Animator != null ? cna.Animator.gameObject.name : \"NULL\")}\"; return res; } }",
+  "className": "InspectAnimators",
+  "methodName": "Run",
+  "isMethodBody": false
+}

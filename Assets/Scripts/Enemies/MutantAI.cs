@@ -291,11 +291,12 @@ public class MutantAI : MonoBehaviour
         
         // Cập nhật Speed để chuyển đổi Idle/Walk
         float currentSpeed = agent.velocity.magnitude;
-        animator.SetFloat("Speed", currentSpeed);
-        
-        // Cập nhật các trạng thái Bool
-        animator.SetBool("IsRunning", currentState == MutantState.Charge);
-        animator.SetBool("IsConfuse", currentState == MutantState.Confused);
+        if (animator != null && animator.runtimeAnimatorController != null)
+        {
+            animator.SetFloat("Speed", currentSpeed);
+            animator.SetBool("IsRunning", currentState == MutantState.Charge);
+            animator.SetBool("IsConfuse", currentState == MutantState.Confused);
+        }
     }
 
     public void TakeDamage(float amount)

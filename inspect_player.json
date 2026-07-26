@@ -1,0 +1,6 @@
+{
+  "csharpCode": "using UnityEngine; using Unity.Netcode; public class InspectPlayer { public static string Run() { NetworkManager nm = Object.FindObjectOfType<NetworkManager>(true); if (nm == null || nm.NetworkConfig.PlayerPrefab == null) return \"No PlayerPrefab\"; GameObject prefab = nm.NetworkConfig.PlayerPrefab; string res = \"Components: \"; foreach (var comp in prefab.GetComponents<Component>()) { res += comp.GetType().Name + \", \"; } return res; } }",
+  "className": "InspectPlayer",
+  "methodName": "Run",
+  "isMethodBody": false
+}

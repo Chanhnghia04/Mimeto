@@ -62,10 +62,12 @@ public class PlayerController : NetworkBehaviour
     public bool isHiding = false;
     private Vector3 _hideTargetPos;
     [HideInInspector] public bool isShopMode = false;
+    [HideInInspector] public bool isGhostMode = false;
     private Quaternion _hideTargetRot;
 
     private CharacterController controller;
     private Animator animator;
+    private ClientNetworkAnimator networkAnimator;
     public Vector3 velocity;
     
     public bool isCrouching { get; private set; }
@@ -126,7 +128,7 @@ public class PlayerController : NetworkBehaviour
         {
             // Chỉ tắt Main Camera của Scene và bật Camera của Player nếu đang ở trong Map hoặc Waiting
             string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-            if (currentScene == "Map" || currentScene == "Waiting")
+            if (currentScene == "Map" || currentScene == "Waiting" || currentScene == "PollutedZone")
             {
                 if (Camera.main != null && Camera.main.transform.root != transform)
                 {
@@ -147,6 +149,7 @@ public class PlayerController : NetworkBehaviour
     {
         controller = GetComponent<CharacterController>();
         animator = GetComponentInChildren<Animator>();
+        networkAnimator = GetComponentInChildren<ClientNetworkAnimator>();
         if (animator != null) animator.applyRootMotion = false;
 
         playerInput = GetComponent<UnityEngine.InputSystem.PlayerInput>();
@@ -211,7 +214,7 @@ public class PlayerController : NetworkBehaviour
 
         // TẮT TOÀN BỘ HOẠT ĐỘNG CỦA PLAYER NẾU KHÔNG Ở TRONG MAP SCENE VÀ WAITING SCENE
         string activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        if (activeScene != "Map" && activeScene != "Waiting")
+        if (activeScene != "Map" && activeScene != "Waiting" && activeScene != "PollutedZone")
         {
             if (Cursor.lockState != CursorLockMode.None)
             {
@@ -244,6 +247,12 @@ public class PlayerController : NetworkBehaviour
             HandleHidingState();
             return;
         }
+        
+        if (isGhostMode)
+        {
+            HandleGhostMovement();
+            return;
+        }
 
         // Landing Dip logic
         if (!wasGrounded && controller.isGrounded)
@@ -253,7 +262,7 @@ public class PlayerController : NetworkBehaviour
         wasGrounded = controller.isGrounded;
         landDipOffset = Mathf.Lerp(landDipOffset, 0, Time.deltaTime * landDipSpeed);
 
-        bool canMove = !IsUIOpen();
+        bool canMove = !IsUIOpen() && !PlayerSurvival.IsGameOverUIOpen();
         UpdateVisualHeldItem();
         
         // Gọi Camera Effects ở cuối Update để tránh độ trễ 1 frame
@@ -272,9 +281,10 @@ public class PlayerController : NetworkBehaviour
         }
 
         // Chỉ lock cursor khi không có UI nào đang mở
-        if (!IsUIOpen())
+        if (!IsUIOpen() && !PlayerSurvival.IsGameOverUIOpen())
         {
-            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Map")
+            string sName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            if (sName == "Map" || sName == "PollutedZone" || sName == "Waiting")
             {
                 if (Cursor.lockState != CursorLockMode.Locked)
                 {
@@ -315,9 +325,17 @@ public class PlayerController : NetworkBehaviour
 
                     if (animator != null)
                     {
-                        // Dùng SetTrigger vì tên State trong Animator có thể không giống tên Trigger ("Punch1")
-                        if (punchStep == 1) animator.SetTrigger("Punch1");
-                        else if (punchStep == 2) animator.SetTrigger("Punch2");
+                        // Dùng ClientNetworkAnimator để đồng bộ Trigger qua mạng
+                        if (networkAnimator != null)
+                        {
+                            if (punchStep == 1) networkAnimator.SetTrigger("Punch1");
+                            else if (punchStep == 2) networkAnimator.SetTrigger("Punch2");
+                        }
+                        else
+                        {
+                            if (punchStep == 1) animator.SetTrigger("Punch1");
+                            else if (punchStep == 2) animator.SetTrigger("Punch2");
+                        }
                     }
 
                     // Hủy các lệnh đấm cũ (nếu có bấm quá nhanh) và hẹn giờ đấm mới
@@ -342,7 +360,7 @@ public class PlayerController : NetworkBehaviour
         if (move.magnitude > 1f) move.Normalize();
         isMoving = move.magnitude > 0.1f;
 
-        if (animator != null)
+        if (animator != null && animator.runtimeAnimatorController != null)
         {
             float targetInputX = controller.isGrounded ? moveInput.x * (isCrouching ? 0.5f : (sprintAction != null && sprintAction.IsPressed() ? 1.5f : 1f)) : 0;
             float targetInputY = controller.isGrounded ? moveInput.y * (isCrouching ? 0.5f : (sprintAction != null && sprintAction.IsPressed() ? 1.5f : 1f)) : 0;
@@ -356,7 +374,8 @@ public class PlayerController : NetworkBehaviour
         if (canMove && jumpAction != null && jumpAction.WasPressedThisFrame() && controller.isGrounded && !isCrouching)
         {
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-            if (animator != null) animator.SetTrigger("Jump");
+            if (networkAnimator != null) networkAnimator.SetTrigger("Jump");
+            else if (animator != null) animator.SetTrigger("Jump");
         }
         velocity.y += (velocity.y < 0 ? gravity * fallMultiplier : gravity) * Time.deltaTime;
         finalMove.y = velocity.y;
@@ -543,8 +562,14 @@ public class PlayerController : NetworkBehaviour
     {
         // 1. Kiểm tra nhanh (fast path) bằng cờ bool hoặc tham chiếu đã có sẵn
         if (isShopMode) return true;
+        
+        if (_inventoryUI == null) _inventoryUI = Object.FindAnyObjectByType<InventoryUI>();
         if (_inventoryUI != null && _inventoryUI.inventoryPanel   != null && _inventoryUI.inventoryPanel.activeSelf)   return true;
+        
+        if (_craftingUI == null) _craftingUI = Object.FindAnyObjectByType<CraftingUI>();
         if (_craftingUI  != null && _craftingUI.craftingPanel     != null && _craftingUI.craftingPanel.activeSelf)     return true;
+        
+        if (_chestUI == null) _chestUI = Object.FindAnyObjectByType<ChestUI>();
         if (_chestUI     != null && _chestUI.chestPanel           != null && _chestUI.chestPanel.activeSelf)           return true;
         
         // 2. Kiểm tra chậm (slow path): Quét toàn Scene 4 lần/giây thay vì 60 lần/giây để chống giật lag (Optimize)
@@ -601,5 +626,120 @@ public class PlayerController : NetworkBehaviour
         }
 
         return _cachedUiOpen;
+    }
+
+    private Transform spectateTarget = null;
+    private int spectateIndex = -1;
+
+    private void HandleGhostMovement()
+    {
+        // Simple fly movement ignoring gravity and collisions
+        bool canMove = !IsUIOpen() && !PlayerSurvival.IsGameOverUIOpen();
+        if (!canMove) return;
+
+        // Cho phép chuyển mục tiêu spectate bằng phím chuột trái (hoặc phím đánh)
+        if (attackAction != null && attackAction.WasPressedThisFrame())
+        {
+            CycleSpectateTarget();
+        }
+
+        Vector2 moveInput = (moveAction != null) ? moveAction.ReadValue<Vector2>() : Vector2.zero;
+        float upDown = 0;
+        if (jumpAction != null && jumpAction.IsPressed()) upDown = 1;
+        if (crouchAction != null && crouchAction.IsPressed()) upDown = -1;
+        
+        // Nếu người chơi bấm phím di chuyển, sẽ thoát khỏi chế độ spectate và bay tự do
+        if (moveInput.sqrMagnitude > 0.01f || upDown != 0)
+        {
+            spectateTarget = null;
+        }
+
+        if (spectateTarget != null)
+        {
+            // Đi theo mục tiêu spectate
+            PlayerController targetController = spectateTarget.GetComponent<PlayerController>();
+            if (targetController != null)
+            {
+                transform.position = spectateTarget.position + Vector3.up * 1.6f;
+                transform.rotation = spectateTarget.rotation;
+                xRotation = targetController.netXRotation.Value;
+                playerCamera.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+            }
+            return;
+        }
+
+        float moveSpeed = sprintSpeed * 1.5f;
+        Vector3 move = playerCamera.right * moveInput.x + playerCamera.forward * moveInput.y;
+        move += Vector3.up * upDown;
+        
+        transform.position += move * moveSpeed * Time.deltaTime;
+        
+        // Look around
+        if (lookAction != null)
+        {
+            Vector2 lookValue = lookAction.ReadValue<Vector2>();
+            float mouseX = lookValue.x * mouseSensitivity * 0.1f;
+            float mouseY = lookValue.y * mouseSensitivity * 0.1f;
+
+            xRotation -= mouseY;
+            xRotation = Mathf.Clamp(xRotation, -90f, 90f);
+            playerCamera.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+            if (IsSpawned) netXRotation.Value = xRotation;
+
+            transform.Rotate(Vector3.up * mouseX);
+        }
+        
+        // Lock cursor
+        if (!IsUIOpen() && !PlayerSurvival.IsGameOverUIOpen())
+        {
+            string sName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            if (sName == "Map" || sName == "PollutedZone" || sName == "Waiting")
+            {
+                if (Cursor.lockState != CursorLockMode.Locked)
+                {
+                    Cursor.lockState = CursorLockMode.Locked;
+                    Cursor.visible   = false;
+                }
+            }
+        }
+    }
+
+    private void CycleSpectateTarget()
+    {
+        PlayerSurvival[] allPlayers = Object.FindObjectsByType<PlayerSurvival>(FindObjectsSortMode.None);
+        System.Collections.Generic.List<PlayerSurvival> alivePlayers = new System.Collections.Generic.List<PlayerSurvival>();
+        
+        foreach (var p in allPlayers)
+        {
+            // Chỉ thêm những người còn sống và không phải bản thân
+            if (p != GetComponent<PlayerSurvival>() && p.currentHealth > 0 && !p.isGhost.Value)
+            {
+                alivePlayers.Add(p);
+            }
+        }
+
+        if (alivePlayers.Count == 0)
+        {
+            spectateTarget = null;
+            return;
+        }
+
+        spectateIndex++;
+        if (spectateIndex >= alivePlayers.Count)
+        {
+            spectateIndex = 0;
+        }
+
+        spectateTarget = alivePlayers[spectateIndex].transform;
+        
+        // Cập nhật góc nhìn ngay lập tức
+        PlayerController targetController = spectateTarget.GetComponent<PlayerController>();
+        if (targetController != null)
+        {
+            transform.position = spectateTarget.position + Vector3.up * 1.6f;
+            transform.rotation = spectateTarget.rotation;
+            xRotation = targetController.netXRotation.Value;
+            playerCamera.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+        }
     }
 }
