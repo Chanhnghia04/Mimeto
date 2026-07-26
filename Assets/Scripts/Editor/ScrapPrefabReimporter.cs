@@ -13,7 +13,7 @@ public static class ScrapPrefabReimporter
 {
     private static readonly string[] TargetPrefabs = new[]
     {
-        "Assets/Prefabs/Items/Scrap_Circuit.prefab",
+        "Assets/Prefabs/Items/Scrap_electrical-circuit.prefab",
         "Assets/Prefabs/Items/Scrap_IronPlate.prefab",
         "Assets/Prefabs/Items/Scrap_Battery.prefab",
         "Assets/Prefabs/Items/Scrap_Chemical.prefab",

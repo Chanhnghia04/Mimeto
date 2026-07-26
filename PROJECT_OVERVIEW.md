@@ -25,13 +25,14 @@ Người chơi sẽ trải qua vòng lặp cốt lõi chia thành các giai đo�
 
 ## 3. Các Hệ Thống Lõi (Core Systems)
 
-### A. Quái vật AI (MimicAI.cs) & Sinh Vật Địch
+### A. Quái vật AI & Sinh Vật Địch (MimicAI.cs, MutantAI.cs)
 - **MimicAI:** Trí tuệ nhân tạo cực kỳ nguy hiểm, có khả năng giả dạng người chơi.
   - `HumanForm`: Giả làm người chơi, cầm đèn pin (đôi lúc chớp đỏ để nhận diện), đi lại như thật.
   - `Stalking`: Rình rập theo dõi từ xa (khoảng cách ~20m). Tự động phát âm thanh rùng rợn khi vào bán kính 15m.
   - `Revealed`: Hiện nguyên hình quái vật.
   - `Chasing`: Truy đuổi tốc độ cao, có khả năng tiêu diệt người chơi cực nhanh.
-  - **Lẩn trốn:** Người chơi có thể sử dụng `HidingSpot` để trốn tránh sự truy đuổi.
+- **MutantAI (Mới):** Một loại quái vật biến dị bổ sung thêm rủi ro cho khu vực thám hiểm, được quản lý sinh ra bởi `MutantSpawner`.
+  - **Lẩn trốn:** Người chơi có thể sử dụng `HidingSpot` để trốn tránh sự truy đuổi của các loại quái vật.
 - **Train Hazard (`TrainMovement.cs`):** Một đoàn tàu di chuyển theo lộ trình, sẵn sàng tông chết cả người chơi lẫn Mimic nếu đứng trên đường ray.
 
 ### B. Hệ Thống Trốn Thoát Ngẫu Nhiên (EscapeManager.cs)
@@ -76,3 +77,7 @@ Người chơi sẽ trải qua vòng lặp cốt lõi chia thành các giai đo�
   - Fix lỗi âm thanh Mimic đánh và tiếng Player bị đau chồng chéo liên tục. Mọi âm thanh UI/tương tác được ép về **2D** (`spatialBlend = 0f`) để đảm bảo người chơi nghe to, rõ bất kể khoảng cách Camera.
   - Thêm hiệu ứng âm thanh rùng rợn mỗi khi Mimic ở gần (15m).
   - Hoàn thiện âm thanh đặc trưng cho 4 Nhiệm vụ Trốn thoát: tiếng lắp ráp `assemble.wav`, tiếng radar `ping.wav`, tiếng gõ phím `button_press.wav`, và tiếng còi/nổ `alarm.wav` / `explosion.wav` của Lò phản ứng.
+- **Sửa lỗi Multiplayer & Tối ưu Hệ thống (Netcode Fixes):**
+  - **Đồng bộ hóa Scene (Scene Sync):** Giải quyết triệt để lỗi Client không thấy quái vật (Mimic, Mutant) khi chuyển cảnh bằng cách delay hàm `OnNetworkSpawn` (2 giây) đợi Client tải xong Map.
+  - **Đăng ký NetworkPrefab (Hard-Registration):** Viết script Editor tự động bơm (inject) GUID của các Prefab quái vật vào thẳng file tài nguyên `DefaultNetworkPrefabs.asset` để đảm bảo khi Build game ra `.exe`, danh sách Prefab không bị trống.
+  - *(Đang chờ xử lý)* Lỗi Spam Console: Cần fix `PlayerController` chưa gán Animator để tránh tụt FPS trên Client.

@@ -1,0 +1,6 @@
+{
+  "csharpCode": "using UnityEngine; using Unity.Netcode.Components; using UnityEditor; public class CheckClientNetAnim { public static string Run() { string log = \"\"; GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(\"Assets/Prefabs/Player.prefab\"); if (prefab == null) return \"No player prefab\"; NetworkAnimator netAnim = prefab.GetComponentInChildren<NetworkAnimator>(); if (netAnim != null) { log += \"Component Type: \" + netAnim.GetType().Name; if (netAnim.GetType().Name != \"ClientNetworkAnimator\") { log += \"\\nReplacing with ClientNetworkAnimator...\"; GameObject go = netAnim.gameObject; Animator anim = netAnim.Animator; Object.DestroyImmediate(netAnim, true); var clientAnim = go.AddComponent<ClientNetworkAnimator>(); clientAnim.Animator = anim; EditorUtility.SetDirty(prefab); PrefabUtility.SavePrefabAsset(prefab); log += \"\\nReplaced.\"; } } return log; } }",
+  "className": "CheckClientNetAnim",
+  "methodName": "Run",
+  "isMethodBody": false
+}

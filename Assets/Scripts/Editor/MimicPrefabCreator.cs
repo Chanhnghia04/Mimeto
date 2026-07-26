@@ -128,8 +128,8 @@ public static class MimicPrefabCreator
         MimicSpawner spawner = spawnerGo.AddComponent<MimicSpawner>();
         spawner.mimicPrefab          = prefab; // may be null if not created yet
         spawner.mimicsToSpawn        = 1;
-        spawner.autoFindSpawnPoints  = true;
-        spawner.shuffleSpawnPoints   = true;
+        //spawner.autoFindSpawnPoints  = true;
+        //spawner.shuffleSpawnPoints   = true;
         spawner.globalMinDistanceFromPlayer = 20f;
 
         Selection.activeGameObject = spawnerGo;

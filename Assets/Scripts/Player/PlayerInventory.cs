@@ -114,12 +114,12 @@ public class PlayerInventory : NetworkBehaviour
             case "key":
             case "escape_key":
                 hasEscapeKey = true;
-                Debug.Log("<color=yellow>Lấy được Chìa Khóa Thoát Hiểm!</color>");
+                Debug.Log("<color=yellow>Obtained Escape Key!</color>");
                 break;
             case "rare_loot":
             case "relic":
                 rareLootCount += amount;
-                Debug.Log($"<color=cyan>Lấy được Đồ Hiếm! Tổng: {rareLootCount}</color>");
+                Debug.Log($"<color=cyan>Obtained Rare Loot! Total: {rareLootCount}</color>");
                 break;
         }
         if (ItemNotificationManager.Instance != null)
@@ -172,13 +172,26 @@ public class PlayerInventory : NetworkBehaviour
         plasticPipes = 0;
         scrapBatteries = 0;
         
-        credits += totalValue;
-        Debug.Log($"[Store] Sold all scrap for {totalValue} Energy Cells! Total Energy Cells: {credits}");
+        AddCreditsServerRpc(totalValue);
+        Debug.Log($"[Store] Sold all scrap for {totalValue} Energy Cells!");
         
         if (ItemNotificationManager.Instance != null)
         {
             ItemNotificationManager.Instance.ShowNotification("Energy Cells", totalValue);
         }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void AddCreditsServerRpc(int amount)
+    {
+        UpdateCreditsClientRpc(amount);
+    }
+
+    [ClientRpc]
+    private void UpdateCreditsClientRpc(int amount)
+    {
+        credits += amount;
+        GlobalPlayerData.credits = credits;
     }
 
     /// <summary>
@@ -188,18 +201,15 @@ public class PlayerInventory : NetworkBehaviour
     {
         if (credits >= amount)
         {
-            credits -= amount;
+            AddCreditsServerRpc(-amount);
             return true;
         }
         return false;
     }
 
-    /// <summary>
-    /// Thêm credits vào ví.
-    /// </summary>
     public void AddCredits(int amount)
     {
-        credits += amount;
+        AddCreditsServerRpc(amount);
     }
 
     [ServerRpc(RequireOwnership = false)]

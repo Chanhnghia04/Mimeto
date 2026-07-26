@@ -1,0 +1,6 @@
+{
+  "csharpCode": "using UnityEngine; using Unity.Netcode; using UnityEditor; public class FixEnemyPrefabs { public static string Run() { string log = \"\"; string[] paths = { \"Assets/Prefabs/Mimic.prefab\", \"Assets/AI Toolkit/Enami/EnamiMutant.prefab\" }; foreach (string path in paths) { GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path); if (prefab == null) continue; bool changed = false; if (prefab.GetComponent<NetworkObject>() == null) { prefab.AddComponent<NetworkObject>(); log += path + \" added NetworkObject.\\n\"; changed = true; } if (prefab.GetComponent<Unity.Netcode.Components.NetworkTransform>() == null) { prefab.AddComponent<Unity.Netcode.Components.NetworkTransform>(); log += path + \" added NetworkTransform.\\n\"; changed = true; } if (changed) { EditorUtility.SetDirty(prefab); PrefabUtility.SavePrefabAsset(prefab); } } return log + \"Done.\"; } }",
+  "className": "FixEnemyPrefabs",
+  "methodName": "Run",
+  "isMethodBody": false
+}

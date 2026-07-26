@@ -204,10 +204,10 @@ public static class MimicAutoSetup
         MimicSpawner spawner = spawnerGo.AddComponent<MimicSpawner>();
         spawner.mimicPrefab                 = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
         spawner.mimicsToSpawn               = 1;
-        spawner.autoFindSpawnPoints         = true;
-        spawner.shuffleSpawnPoints          = true;
+        //spawner.autoFindSpawnPoints         = true;
+        //spawner.shuffleSpawnPoints          = true;
         spawner.globalMinDistanceFromPlayer = 20f;
-        spawner.navMeshSampleRadius         = 5f;
+        //spawner.navMeshSampleRadius         = 5f;
         spawner.playerTag                   = "Player";
 
         EditorUtility.SetDirty(spawnerGo);

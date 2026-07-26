@@ -111,8 +111,10 @@ private Color originalLightColor;
 
         if (animator != null)
         {
+        if (animator != null && animator.runtimeAnimatorController != null)
+        {
             animator.SetFloat("Speed", agent.velocity.magnitude);
-        }
+        }        }
 
         switch (currentState)
         {

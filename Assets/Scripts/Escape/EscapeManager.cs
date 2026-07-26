@@ -318,7 +318,7 @@ public class EscapeManager : MonoBehaviour
     {
         if (IsEscapeUnlocked) return;
         IsEscapeUnlocked = true;
-        ReportProgress("✓ Điều kiện thoát đã xong! Đến Cửa Thoát Hiểm ngay!", 1f);
+        ReportProgress("✓ Escape conditions met! Head to the Escape Door now!", 1f);
         Debug.Log("<color=lime>[EscapeManager] ✓ ESCAPE UNLOCKED!</color>");
         OnEscapeUnlocked?.Invoke();
     }
@@ -336,10 +336,10 @@ public class EscapeManager : MonoBehaviour
     {
         return CurrentMethod switch
         {
-            EscapeMethodType.Assembly => "Lắp Ráp Cửa Thoát",
-            EscapeMethodType.Beacon   => "Phát Tín Hiệu Cứu Hộ",
-            EscapeMethodType.Cipher   => "Giải Mã Cửa Thoát",
-            EscapeMethodType.Reactor  => "Tắt Lò Phản Ứng",
+            EscapeMethodType.Assembly => "Assemble Escape Door",
+            EscapeMethodType.Beacon   => "Activate Rescue Beacon",
+            EscapeMethodType.Cipher   => "Decode Escape Door",
+            EscapeMethodType.Reactor  => "Disable Reactor",
             _                         => "???",
         };
     }
@@ -348,10 +348,10 @@ public class EscapeManager : MonoBehaviour
     {
         return CurrentMethod switch
         {
-            EscapeMethodType.Assembly => "Thu thập 3 bộ phận rải trên bản đồ",
-            EscapeMethodType.Beacon   => "Bấm [E] vào Beacon → Sống sót 3 phút",
-            EscapeMethodType.Cipher   => "Tìm 2 mảnh ghi chú → Nhập mật mã vào bàn phím",
-            EscapeMethodType.Reactor  => "Bấm [E] vào Lò Phản Ứng để tắt nó",
+            EscapeMethodType.Assembly => "Collect 3 parts scattered on the map",
+            EscapeMethodType.Beacon   => "Press [E] on Beacon → Survive for 3 minutes",
+            EscapeMethodType.Cipher   => "Find 2 notes → Enter passcode on keypad",
+            EscapeMethodType.Reactor  => "Press [E] on the Reactor to disable it",
             _                         => "",
         };
     }
@@ -360,10 +360,10 @@ public class EscapeManager : MonoBehaviour
     {
         return CurrentMethod switch
         {
-            EscapeMethodType.Assembly => "• Cơ chế: Hệ thống rải 3 bộ phận ngẫu nhiên trên bản đồ.\n• Mục tiêu: Tìm đủ 3 bộ phận lơ lửng phát sáng (Bánh răng, Bình nhiên liệu, Bo mạch).\n• Tương tác: Lại gần và bấm [E] để nhặt.\n• Hoàn thành: Nhặt đủ 3/3 bộ phận, cửa thoát mở.",
-            EscapeMethodType.Beacon   => "• Cơ chế: Trạm Ăng-ten phát tín hiệu sinh ra ngẫu nhiên.\n• Yêu cầu: Cần 2 Circuit + 1 Battery để khởi động.\n• Mục tiêu: Nạp nguyên liệu bằng phím [E], sau đó sống sót chạy trốn Mimic trong 3 phút.\n• Hoàn thành: Đếm ngược về 0, trực thăng đến, cửa thoát mở.",
-            EscapeMethodType.Cipher   => "• Cơ chế: Bàn phím số đính bên phải cửa thoát. 2 mảnh ghi chú giấu ngẫu nhiên.\n• Mục tiêu: Tìm 2 mảnh ghi chú để biết 4 số mật mã. Nhập vào bàn phím [E].\n• Hình phạt: Nhập sai sẽ bị giật điện trừ 15 HP.\n• Hoàn thành: Nhập đúng 4 số, cửa thoát mở ngay lập tức.",
-            EscapeMethodType.Reactor  => "• Cơ chế: Lò Phản Ứng khổng lồ báo động đỏ xuất hiện.\n• Yêu cầu: Cần 3 Chemical + 2 Circuit để can thiệp vào lõi lò.\n• Mục tiêu: Bấm [E] để nạp nguyên liệu, gây ra chuỗi phản ứng CHẠP MẠCH quá tải.\n• Cảnh báo: Lò sẽ đếm ngược 10 giây và PHÁT NỔ. Nếu đứng trong bán kính 50m, bạn sẽ BỎ MẠNG.\n• Hoàn thành: Lò nổ tung giải phóng năng lượng → Cửa thoát mở.",
+            EscapeMethodType.Assembly => "• Mechanic: 3 parts are scattered randomly on the map.\n• Goal: Find 3 glowing floating parts (Gear, Fuel Tank, Circuit Board).\n• Interact: Approach and press [E] to pick up.\n• Completion: Collect 3/3 parts, escape door opens.",
+            EscapeMethodType.Beacon   => "• Mechanic: Rescue Antenna spawns randomly.\n• Requirement: Needs 2 Circuits + 1 Battery to start.\n• Goal: Insert materials with [E], then survive against the Mimic for 3 minutes.\n• Completion: Timer reaches 0, helicopter arrives, escape door opens.",
+            EscapeMethodType.Cipher   => "• Mechanic: Numpad attached to the right of the escape door. 2 notes hidden randomly.\n• Goal: Find 2 notes to reveal a 4-digit code. Enter it into the keypad [E].\n• Penalty: Wrong code will shock you for -15 HP.\n• Completion: Enter correct 4 digits, escape door opens instantly.",
+            EscapeMethodType.Reactor  => "• Mechanic: Giant red-alert Reactor appears.\n• Requirement: Needs 3 Chemicals + 2 Circuits to access the core.\n• Goal: Press [E] to insert materials, causing a meltdown overload reaction.\n• Warning: Reactor counts down 10s and EXPLODES. If you are within 50m, you DIE.\n• Completion: Reactor explodes releasing energy → Escape door opens.",
             _                         => "",
         };
     }

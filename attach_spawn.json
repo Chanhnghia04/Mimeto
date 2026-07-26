@@ -1,0 +1,6 @@
+{
+  "csharpCode": "using UnityEngine; using Unity.Netcode; public class AttachSpawnHandler { public static string Run() { NetworkManager nm = Object.FindObjectOfType<NetworkManager>(true); if (nm == null || nm.NetworkConfig.PlayerPrefab == null) return \"No PlayerPrefab\"; GameObject prefab = nm.NetworkConfig.PlayerPrefab; if (prefab.GetComponent<PlayerSpawnHandler>() == null) { prefab.AddComponent<PlayerSpawnHandler>(); UnityEditor.EditorUtility.SetDirty(prefab); UnityEditor.AssetDatabase.SaveAssets(); return \"Added PlayerSpawnHandler to Player prefab!\"; } return \"Player prefab already has PlayerSpawnHandler!\"; } }",
+  "className": "AttachSpawnHandler",
+  "methodName": "Run",
+  "isMethodBody": false
+}
