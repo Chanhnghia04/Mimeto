@@ -31,7 +31,7 @@ public class UITweenAnimator : MonoBehaviour
         // Bounce effect
         while (timer < animationDuration)
         {
-            timer += Time.deltaTime;
+            timer += Time.unscaledDeltaTime;
             float normalizedTime = timer / animationDuration;
             
             // Ease out back calculation

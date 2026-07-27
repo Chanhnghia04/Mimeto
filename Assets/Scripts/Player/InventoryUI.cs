@@ -43,20 +43,95 @@ public class InventoryUI : MonoBehaviour
         }
         else
         {
-            _inventoryAction = InputSystem.actions.FindAction("Inventory");
+            _inventoryAction = InputSystem.actions?.FindAction("Inventory");
+        }
+
+        // Tự động tìm InventoryPanel bằng phương pháp tuyệt đối
+        if (inventoryPanel == null)
+        {
+            GameObject[] allObjs = Resources.FindObjectsOfTypeAll<GameObject>();
+            foreach (var obj in allObjs)
+            {
+                // Chỉ lấy object nằm trong Scene (bỏ qua Prefab trong project) và phải có GridContainer (tránh nhầm panel bị hỏng)
+                if (obj.name == "InventoryPanel" && obj.scene.IsValid() && obj.transform.Find("GridContainer") != null)
+                {
+                    inventoryPanel = obj;
+                    break;
+                }
+            }
         }
 
         if (inventoryPanel != null)
+        {
             inventoryPanel.SetActive(isVisible);
+        }
+        else
+        {
+            Debug.LogError("[InventoryUI] Không tìm thấy InventoryPanel trong Scene! Hãy chắc chắn bạn đã tạo Canvas chứa InventoryPanel.");
+        }
     }
 
     void Update()
     {
+        // CHỈ xử lý UI cho người chơi local (tránh xung đột với các player khác qua mạng)
+        if (inventory != null && inventory.IsSpawned && !inventory.IsOwner) return;
+
+        bool inventoryPressed = false;
+        
         if (_inventoryAction != null && _inventoryAction.WasPressedThisFrame())
         {
+            inventoryPressed = true;
+        }
+        else if (Keyboard.current != null && Keyboard.current.iKey.wasPressedThisFrame)
+        {
+            inventoryPressed = true;
+        }
+
+        if (inventoryPressed)
+        {
+            if (inventoryPanel == null)
+            {
+                GameObject[] allObjs = Resources.FindObjectsOfTypeAll<GameObject>();
+                foreach (var obj in allObjs)
+                {
+                    if (obj.name == "InventoryPanel" && obj.scene.IsValid() && obj.transform.Find("GridContainer") != null)
+                    {
+                        inventoryPanel = obj;
+                        break;
+                    }
+                }
+            }
+
+            // Rebuild gridSlots if they were lost during prefab instantiation
+            if (inventoryPanel != null && (gridSlots == null || gridSlots.Count == 0 || gridSlots[0].bgObj == null))
+            {
+                gridSlots = new List<GridSlot>();
+                Transform gridGo = inventoryPanel.transform.Find("GridContainer");
+                if (gridGo != null)
+                {
+                    foreach (Transform slotBg in gridGo)
+                    {
+                        if (slotBg.name.StartsWith("Slot_"))
+                        {
+                            GridSlot slot = new GridSlot();
+                            slot.bgObj = slotBg.gameObject;
+                            Transform iconT = slotBg.Find("Icon");
+                            if (iconT != null) slot.icon = iconT.GetComponent<Image>();
+                            Transform amtT = slotBg.Find("Amount");
+                            if (amtT != null) slot.amountText = amtT.GetComponent<TextMeshProUGUI>();
+                            gridSlots.Add(slot);
+                        }
+                    }
+                }
+            }
+
             isVisible = !isVisible;
+            Debug.Log($"[InventoryUI] Đã bấm I. Trạng thái bật: {isVisible}");
+            
             if (inventoryPanel != null)
                 inventoryPanel.SetActive(isVisible);
+            else
+                Debug.LogError("[InventoryUI] Lỗi: inventoryPanel bị NULL!");
 
             if (isVisible)
             {

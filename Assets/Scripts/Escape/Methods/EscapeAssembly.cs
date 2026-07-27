@@ -20,6 +20,7 @@ public class EscapeAssembly : MonoBehaviour
     public float minDistBetweenParts = 15f; 
 
     private int _collected = 0;
+    private System.Random _rng;
 
     // Định nghĩa bộ phận: (tên, màu)
     private static readonly (string name, Color color)[] PartDefs =
@@ -31,8 +32,14 @@ public class EscapeAssembly : MonoBehaviour
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    void Start()
+    System.Collections.IEnumerator Start()
     {
+        while (PlayerInventory.GlobalMatchSeed == 0) yield return null;
+        _rng = new System.Random(PlayerInventory.GlobalMatchSeed + 2001);
+        
+        // Chờ Player spawn
+        while (GameObject.FindGameObjectWithTag("Player") == null) yield return null;
+        
         SpawnAllParts();
         UpdateHUD();
     }
@@ -69,18 +76,15 @@ public class EscapeAssembly : MonoBehaviour
         {
             go = Instantiate(prefab);
             go.name = $"EscapePart_{PartDefs[index].name}";
-            // Bù đắp độ cao thật thấp (sát mặt đất)
             go.transform.position = worldPos + Vector3.up * 0.15f;
         }
         else
         {
-            // Fallback to primitive
             go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = $"EscapePart_{PartDefs[index].name}_Fallback";
             go.transform.position = worldPos + Vector3.up * 0.15f;
             go.transform.localScale = Vector3.one * 0.32f;
             
-            // Material màu + emissive glow
             Renderer rend = go.GetComponent<Renderer>();
             if (rend != null)
             {
@@ -98,22 +102,20 @@ public class EscapeAssembly : MonoBehaviour
             l.range = 4f;
         }
 
-        go.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+        // Dùng _rng thay vì Random.Range
+        go.transform.rotation = Quaternion.Euler(0f, (float)_rng.NextDouble() * 360f, 0f);
 
-        // Component xử lý tương tác
         EscapePart ep = go.GetComponent<EscapePart>();
         if (ep == null) ep = go.AddComponent<EscapePart>();
         ep.partName = PartDefs[index].name;
         ep.parentAssembly = this;
 
-        // Add collider if missing
         if (go.GetComponent<Collider>() == null)
         {
             BoxCollider bc = go.AddComponent<BoxCollider>();
             bc.size = new Vector3(1f, 1f, 1f);
         }
 
-        // Bỏ Rigidbody đi vì mình sẽ cho nó lơ lửng lại
         Rigidbody rb = go.GetComponent<Rigidbody>();
         if (rb != null) Destroy(rb);
 
@@ -123,26 +125,42 @@ public class EscapeAssembly : MonoBehaviour
     Vector3 FindValidPos(Vector3 playerPos, List<Vector3> usedPos)
     {
         UnityEngine.AI.NavMeshTriangulation navData = UnityEngine.AI.NavMesh.CalculateTriangulation();
-        if (navData.vertices.Length == 0) return playerPos + Vector3.forward * 20f; // Fallback an toàn
+        if (navData.vertices.Length == 0) return playerPos + Vector3.forward * 20f;
 
-        Vector3 bestPos = playerPos;
-        float bestDist = -1f;
+        int triCount = navData.indices.Length / 3;
 
-        for (int attempt = 0; attempt < 200; attempt++)
+        // PRE-COMPUTE tất cả random values => chuỗi random không bao giờ bị lệch bởi Physics
+        int maxAttempts = 200;
+        int[] triIndices = new int[maxAttempts];
+        float[] lerpA    = new float[maxAttempts];
+        float[] lerpB    = new float[maxAttempts];
+        for (int i = 0; i < maxAttempts; i++)
         {
-            // Chọn ngẫu nhiên 1 tam giác trên toàn bộ NavMesh
-            int t = Random.Range(0, navData.indices.Length / 3);
+            triIndices[i] = _rng.Next(0, triCount);
+            lerpA[i]      = (float)_rng.NextDouble();
+            lerpB[i]      = (float)_rng.NextDouble();
+        }
+
+        // Fallback randoms
+        int fallbackCount = Mathf.Min(navData.vertices.Length, 50);
+        int[] fallbackIndices = new int[fallbackCount];
+        for (int i = 0; i < fallbackCount; i++)
+        {
+            fallbackIndices[i] = _rng.Next(0, navData.vertices.Length);
+        }
+
+        // Tìm vị trí hợp lệ
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            int t = triIndices[attempt];
             int v1 = navData.indices[t * 3];
             int v2 = navData.indices[t * 3 + 1];
             int v3 = navData.indices[t * 3 + 2];
 
-            // Lấy 1 điểm ngẫu nhiên bên trong tam giác đó
-            Vector3 pt = Vector3.Lerp(navData.vertices[v1], navData.vertices[v2], Random.value);
-            pt = Vector3.Lerp(pt, navData.vertices[v3], Random.value);
+            Vector3 pt = Vector3.Lerp(navData.vertices[v1], navData.vertices[v2], lerpA[attempt]);
+            pt = Vector3.Lerp(pt, navData.vertices[v3], lerpB[attempt]);
 
-            // BỘ LỌC ĐỘ CAO: Đảm bảo điểm không nằm tít trên ngọn cây hoặc nóc nhà
             if (Mathf.Abs(pt.y - playerPos.y) > 4f) continue;
-
             if (Vector3.Distance(pt, playerPos) < minDistFromPlayer) continue;
 
             bool tooClose = false;
@@ -150,22 +168,20 @@ public class EscapeAssembly : MonoBehaviour
                 if (Vector3.Distance(pt, u) < minDistBetweenParts) { tooClose = true; break; }
             if (tooClose) continue;
 
-            // KIỂM TRA VẬT LÝ: Không chui vào trong BoxCollider khối đặc
             if (Physics.CheckSphere(pt + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
                 continue;
 
-            // Đạt mọi điều kiện thì trả về ngay!
             return pt;
         }
 
-        // Nếu quá khó tìm, nới lỏng điều kiện (chọn bừa 1 đỉnh không bị kẹt)
-        for (int i = 0; i < navData.vertices.Length; i++)
+        // Fallback
+        for (int i = 0; i < fallbackCount; i++)
         {
-            Vector3 v = navData.vertices[Random.Range(0, navData.vertices.Length)];
+            Vector3 v = navData.vertices[fallbackIndices[i]];
             if (!Physics.CheckSphere(v + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
                 return v;
         }
-        return navData.vertices[Random.Range(0, navData.vertices.Length)];
+        return navData.vertices[fallbackIndices[0]];
     }
 
     // ── Called by EscapePart when collected ──────────────────────────────────
@@ -235,6 +251,13 @@ public class EscapePart : MonoBehaviour, IInteractable
             Destroy(tempAudio, clip.length + 0.1f);
         }
         
+        PlayerInventory inv = interactor.GetComponentInParent<PlayerInventory>()
+                           ?? interactor.GetComponentInChildren<PlayerInventory>();
+        if (inv != null && inv.IsOwner)
+        {
+            inv.SyncAssemblyPartServerRpc(partName, transform.position);
+        }
+
         parentAssembly?.OnPartCollected(partName);
         Destroy(gameObject);
     }

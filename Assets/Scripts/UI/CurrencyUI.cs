@@ -52,22 +52,34 @@ public class CurrencyUI : MonoBehaviour
             _bgTex.Apply();
         }
 
-        // Vẽ UI 
-        float panelW = 144f; // Nhỏ lại 20% (từ 180f)
-        float panelH = 36f;  // Nhỏ lại 20% (từ 45f)
-        float px = (Screen.width - panelW) * 0.5f + 430f; // Dịch sang phải thêm 30px (tổng 430px)
-        float py = 100f; // Dịch xuống 30px (từ 70f -> 100f)
+        // Tự động Scale phóng to theo màn hình khi kéo giãn cửa sổ (Giống Map và StartGame)
+        Matrix4x4 oldMatrix = GUI.matrix;
+        float scale = Screen.height / 1080f;
+        if (scale < 0.4f) scale = 0.4f;
+        
+        GUIUtility.ScaleAroundPivot(new Vector2(scale, scale), Vector2.zero);
+
+        // Vẽ UI to gấp đôi (200%)
+        float panelW = 288f; // 144 * 2
+        float panelH = 72f;  // 36 * 2
+        
+        // Tính toán toạ độ ảo (virtual coordinates) dựa trên scale
+        float virtualWidth = Screen.width / scale;
+        float px = (virtualWidth - panelW) * 0.5f + 755f; // Sang phải 5px nữa (750 -> 755)
+        float py = 90f; // Xuống dưới 20px (70 -> 90)
 
         GUI.DrawTexture(new Rect(px, py, panelW, panelH), _bgTex);
-        DrawTechCorners(px, py, panelW, panelH, COL_AMBER, 8f, 2f);
+        DrawTechCorners(px, py, panelW, panelH, COL_AMBER, 16f, 4f); // 8*2, 2*2
 
         GUIStyle style = new GUIStyle();
-        style.fontSize = 16; // Nhỏ lại 20% (từ 20)
+        style.fontSize = 32; // 16 * 2
         style.fontStyle = FontStyle.Bold;
         style.normal.textColor = COL_AMBER;
         style.alignment = TextAnchor.MiddleCenter;
 
         GUI.Label(new Rect(px, py, panelW, panelH), $"◈  EC: {_localInventory.credits}  ◈", style);
+        
+        GUI.matrix = oldMatrix;
     }
     
     void DrawTechCorners(float x, float y, float w, float h, Color color, float len, float thick)

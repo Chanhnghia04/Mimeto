@@ -27,4 +27,127 @@ public static class GlobalPlayerData
     // Shop consumables
     public static int healthPacks = 0;
     public static int oxygenTanks = 0;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    public static void Initialize()
+    {
+        Load();
+    }
+
+    public static void Save()
+    {
+        PlayerDataSave data = new PlayerDataSave
+        {
+            circuits = circuits,
+            metalPipes = metalPipes,
+            ironPlates = ironPlates,
+            chemicals = chemicals,
+            plasticPipes = plasticPipes,
+            scrapBatteries = scrapBatteries,
+            credits = credits,
+            basicGasMasks = basicGasMasks,
+            advancedGasMasks = advancedGasMasks,
+            hasUVFlashlight = hasUVFlashlight,
+            hasCrowbar = hasCrowbar,
+            hasShovel = hasShovel,
+            hasMachete = hasMachete,
+            hasAxe = hasAxe,
+            hasBat = hasBat,
+            rareLootCount = rareLootCount,
+            healthPacks = healthPacks,
+            oxygenTanks = oxygenTanks
+        };
+
+        string json = JsonUtility.ToJson(data);
+        PlayerPrefs.SetString("Mimeto_SaveData", json);
+        PlayerPrefs.Save();
+        hasSavedData = true;
+        Debug.Log("[GlobalPlayerData] Dữ liệu đã được LƯU vào ổ cứng.");
+    }
+
+    public static void Load()
+    {
+        if (PlayerPrefs.HasKey("Mimeto_SaveData"))
+        {
+            string json = PlayerPrefs.GetString("Mimeto_SaveData");
+            PlayerDataSave data = JsonUtility.FromJson<PlayerDataSave>(json);
+
+            circuits = data.circuits;
+            metalPipes = data.metalPipes;
+            ironPlates = data.ironPlates;
+            chemicals = data.chemicals;
+            plasticPipes = data.plasticPipes;
+            scrapBatteries = data.scrapBatteries;
+            credits = data.credits;
+            basicGasMasks = data.basicGasMasks;
+            advancedGasMasks = data.advancedGasMasks;
+            hasUVFlashlight = data.hasUVFlashlight;
+            hasCrowbar = data.hasCrowbar;
+            hasShovel = data.hasShovel;
+            hasMachete = data.hasMachete;
+            hasAxe = data.hasAxe;
+            hasBat = data.hasBat;
+            rareLootCount = data.rareLootCount;
+            healthPacks = data.healthPacks;
+            oxygenTanks = data.oxygenTanks;
+            
+            hasSavedData = true;
+            Debug.Log("[GlobalPlayerData] Dữ liệu đã được TẢI từ ổ cứng.");
+        }
+        else
+        {
+            Debug.Log("[GlobalPlayerData] Chưa có dữ liệu cũ, bắt đầu mới.");
+        }
+    }
+
+    public static void ClearData()
+    {
+        PlayerPrefs.DeleteKey("Mimeto_SaveData");
+        PlayerPrefs.Save();
+        hasSavedData = false;
+        
+        circuits = 0;
+        metalPipes = 0;
+        ironPlates = 0;
+        chemicals = 0;
+        plasticPipes = 0;
+        scrapBatteries = 0;
+        credits = 0;
+        basicGasMasks = 0;
+        advancedGasMasks = 0;
+        hasUVFlashlight = false;
+        hasCrowbar = false;
+        hasShovel = false;
+        hasMachete = false;
+        hasAxe = false;
+        hasBat = false;
+        rareLootCount = 0;
+        healthPacks = 0;
+        oxygenTanks = 0;
+        
+        Debug.Log("[GlobalPlayerData] Đã XÓA toàn bộ dữ liệu lưu trữ.");
+    }
+}
+
+[System.Serializable]
+public class PlayerDataSave
+{
+    public int circuits;
+    public int metalPipes;
+    public int ironPlates;
+    public int chemicals;
+    public int plasticPipes;
+    public int scrapBatteries;
+    public int credits;
+    public int basicGasMasks;
+    public int advancedGasMasks;
+    public bool hasUVFlashlight;
+    public bool hasCrowbar;
+    public bool hasShovel;
+    public bool hasMachete;
+    public bool hasAxe;
+    public bool hasBat;
+    public int rareLootCount;
+    public int healthPacks;
+    public int oxygenTanks;
 }

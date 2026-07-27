@@ -1,6 +1,0 @@
-{
-  "csharpCode": "using UnityEngine; using Unity.Netcode; public class FixPlayerSpawn { public static string Run() { var oldSpawns = Object.FindObjectsOfType<NetworkStartPosition>(); if (oldSpawns.Length > 0) return \"Already has NetworkStartPosition: \" + oldSpawns[0].transform.position; GameObject go = new GameObject(\"PlayerSpawnPoint\"); NetworkStartPosition nsp = go.AddComponent<NetworkStartPosition>(); UnityEngine.AI.NavMeshHit hit; if (UnityEngine.AI.NavMesh.SamplePosition(Vector3.zero, out hit, 500f, UnityEngine.AI.NavMesh.AllAreas)) { go.transform.position = hit.position + Vector3.up * 2f; } else { go.transform.position = new Vector3(0, 10f, 0); } UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene()); return \"Created NetworkStartPosition at \" + go.transform.position; } }",
-  "className": "FixPlayerSpawn",
-  "methodName": "Run",
-  "isMethodBody": false
-}

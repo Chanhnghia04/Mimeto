@@ -38,16 +38,26 @@ public class ChestSpawner : MonoBehaviour
     // ── Runtime ───────────────────────────────────────────────────────────────
     private List<Vector3> _navMeshPoints = new List<Vector3>();
     private List<Vector3> _usedPositions  = new List<Vector3>();
+    private System.Random _rng;
 
     void Start()
     {
+        StartCoroutine(WaitAndSpawn());
+    }
+
+    System.Collections.IEnumerator WaitAndSpawn()
+    {
+        while (PlayerInventory.GlobalMatchSeed == 0) yield return null;
+        
+        _rng = new System.Random(PlayerInventory.GlobalMatchSeed + 4001);
+
         // Lấy toàn bộ điểm trên NavMesh từ triangulation
         BuildNavMeshPointPool();
 
         if (_navMeshPoints.Count == 0)
         {
             Debug.LogError("[ChestSpawner] Không tìm thấy NavMesh! Hãy bake NavMesh trước khi chạy.");
-            return;
+            yield break;
         }
 
         SpawnAllChests();
@@ -95,7 +105,7 @@ public class ChestSpawner : MonoBehaviour
         for (int s = 0; s < sampleCount; s++)
         {
             // Chọn tam giác ngẫu nhiên theo diện tích
-            float roll = Random.value * totalArea;
+            float roll = (float)_rng.NextDouble() * totalArea;
             int   ti   = System.Array.BinarySearch(cumulative, roll);
             if (ti < 0) ti = ~ti;
             ti = Mathf.Clamp(ti, 0, triCount - 1);
@@ -105,11 +115,12 @@ public class ChestSpawner : MonoBehaviour
             Vector3 vc = tri.vertices[tri.indices[ti * 3 + 2]];
 
             // Điểm ngẫu nhiên trong tam giác (barycentric)
-            float r1 = Mathf.Sqrt(Random.value);
-            float r2 = Random.value;
+            float r1 = Mathf.Sqrt((float)_rng.NextDouble());
+            float r2 = (float)_rng.NextDouble();
             Vector3 point = (1 - r1) * va + (r1 * (1 - r2)) * vb + (r1 * r2) * vc;
 
-            // Snap về NavMesh để đảm bảo nằm đúng mặt đường
+            // PRE-COMPUTE để tránh lệch chuỗi vì SamplePosition
+            // _rng được gọi xong xuôi ở trên rồi
             if (NavMesh.SamplePosition(point, out NavMeshHit hit, 1.5f, NavMesh.AllAreas))
             {
                 _navMeshPoints.Add(hit.position);
@@ -181,9 +192,9 @@ public class ChestSpawner : MonoBehaviour
 
     void SpawnChest(Vector3 position)
     {
-        Quaternion rot   = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+        Quaternion rot   = Quaternion.Euler(0f, (float)_rng.NextDouble() * 360f, 0f);
         GameObject chest = Instantiate(chestPrefab, position, rot);
-        chest.name       = "Chest_" + Random.Range(1000, 9999);
+        chest.name       = "Chest_" + _rng.Next(1000, 9999);
         
         // Snap the chest to the ground so it doesn't sink halfway
         SpawnUtils.SnapToGround(chest, position);
@@ -202,7 +213,7 @@ public class ChestSpawner : MonoBehaviour
     {
         for (int i = list.Count - 1; i > 0; i--)
         {
-            int j    = Random.Range(0, i + 1);
+            int j    = _rng.Next(0, i + 1);
             T   tmp  = list[i];
             list[i]  = list[j];
             list[j]  = tmp;

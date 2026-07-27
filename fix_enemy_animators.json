@@ -1,6 +1,0 @@
-{
-  "csharpCode": "using UnityEngine; using Unity.Netcode.Components; using UnityEditor; public class FixEnemyAnimators { public static string Run() { string log = \"\"; string[] paths = { \"Assets/Prefabs/Mimic.prefab\", \"Assets/AI Toolkit/Enami/EnamiMutant.prefab\" }; foreach (string path in paths) { GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path); if (prefab == null) continue; bool changed = false; if (prefab.GetComponent<NetworkAnimator>() == null) { var na = prefab.AddComponent<NetworkAnimator>(); na.Animator = prefab.GetComponentInChildren<Animator>(); log += path + \" added NetworkAnimator.\\n\"; changed = true; } if (changed) { EditorUtility.SetDirty(prefab); PrefabUtility.SavePrefabAsset(prefab); } } return log + \"Done.\"; } }",
-  "className": "FixEnemyAnimators",
-  "methodName": "Run",
-  "isMethodBody": false
-}

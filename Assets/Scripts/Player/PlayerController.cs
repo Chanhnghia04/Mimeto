@@ -73,6 +73,7 @@ public class PlayerController : NetworkBehaviour
     public bool isCrouching { get; private set; }
     public bool isSprinting { get; private set; }
     public bool isMoving { get; private set; }
+    [HideInInspector] public bool isExhausted = false;
 
     private float xRotation = 0f;
     
@@ -178,9 +179,28 @@ public class PlayerController : NetworkBehaviour
         originalCameraLocalPos = playerCamera != null ? playerCamera.localPosition : Vector3.zero;
         defaultPosY = originalCameraLocalPos.y;
 
-        _inventoryUI = Object.FindAnyObjectByType<InventoryUI>();
-        _craftingUI  = Object.FindAnyObjectByType<CraftingUI>();
+        _inventoryUI = GetComponent<InventoryUI>();
+        _craftingUI  = GetComponent<CraftingUI>();
         _chestUI     = Object.FindAnyObjectByType<ChestUI>();
+
+        // Chuyển UI từ Camera sang Overlay giống như Scene StartGame
+        UnityEngine.Canvas[] canvasses = FindObjectsByType<UnityEngine.Canvas>(FindObjectsSortMode.None);
+        foreach (var canvas in canvasses)
+        {
+            // Chỉ chỉnh những Canvas đang dính vào Camera (VD: túi đồ, máu me)
+            if (canvas.renderMode == UnityEngine.RenderMode.ScreenSpaceCamera || canvas.renderMode == UnityEngine.RenderMode.ScreenSpaceOverlay)
+            {
+                canvas.renderMode = UnityEngine.RenderMode.ScreenSpaceOverlay;
+                UnityEngine.UI.CanvasScaler scaler = canvas.GetComponent<UnityEngine.UI.CanvasScaler>();
+                if (scaler != null)
+                {
+                    scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                    scaler.referenceResolution = new Vector2(1920, 1080);
+                    scaler.screenMatchMode = UnityEngine.UI.CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+                    scaler.matchWidthOrHeight = 0f; // Match Width giống hệt StartGame
+                }
+            }
+        }
 
         UpdateVisualHeldItem();
     }
@@ -196,8 +216,8 @@ public class PlayerController : NetworkBehaviour
             animator = GetComponentInChildren<Animator>();
             Camera cam = GetComponentInChildren<Camera>();
             if (cam != null) playerCamera = cam.transform;
-            _inventoryUI = Object.FindAnyObjectByType<InventoryUI>();
-            _craftingUI  = Object.FindAnyObjectByType<CraftingUI>();
+            _inventoryUI = GetComponent<InventoryUI>();
+            _craftingUI  = GetComponent<CraftingUI>();
             _chestUI     = Object.FindAnyObjectByType<ChestUI>();
         }
 
@@ -353,7 +373,9 @@ public class PlayerController : NetworkBehaviour
         controller.center = new Vector3(originalCenter.x, originalCenter.y - (originalHeight - controller.height) / 2f, originalCenter.z);
         
 
-        isSprinting = canMove && sprintAction != null && sprintAction.IsPressed();
+        PlayerSurvival survival = GetComponent<PlayerSurvival>();
+        bool hasStamina = survival != null && survival.currentStamina > 0 && !isExhausted;
+        isSprinting = canMove && sprintAction != null && sprintAction.IsPressed() && hasStamina;
         float currentSpeed = isCrouching ? crouchSpeed : (isSprinting ? sprintSpeed : walkSpeed);
         Vector2 moveInput = (canMove && moveAction != null) ? moveAction.ReadValue<Vector2>() : Vector2.zero;
         Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
@@ -438,16 +460,59 @@ public class PlayerController : NetworkBehaviour
             MimicAI mimic = h.collider.GetComponentInParent<MimicAI>();
             if (mimic != null)
             {
-                mimic.TakeDamage(actualDamage);
+                NetworkObject netObj = mimic.GetComponent<NetworkObject>();
+                if (netObj != null && IsSpawned)
+                {
+                    DealDamageToEnemyServerRpc(netObj.NetworkObjectId, actualDamage, true);
+                }
+                else
+                {
+                    mimic.TakeDamage(actualDamage); // Fallback offline
+                }
                 break; // Chỉ gây sát thương cho 1 con mỗi lần đấm
             }
+            
             MutantAI mutant = h.collider.GetComponentInParent<MutantAI>();
             if (mutant != null)
             {
-                mutant.TakeDamage(actualDamage);
-                // Báo cho mutant biết mục tiêu
-                mutant.ForceTarget(this);
+                NetworkObject netObj = mutant.GetComponent<NetworkObject>();
+                if (netObj != null && IsSpawned)
+                {
+                    DealDamageToEnemyServerRpc(netObj.NetworkObjectId, actualDamage, false);
+                }
+                else
+                {
+                    mutant.TakeDamage(actualDamage);
+                    mutant.ForceTarget(this); // Fallback offline
+                }
                 break;
+            }
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void DealDamageToEnemyServerRpc(ulong enemyNetworkObjectId, float damage, bool isMimic, ServerRpcParams rpcParams = default)
+    {
+        if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(enemyNetworkObjectId, out NetworkObject enemyObj))
+        {
+            if (isMimic)
+            {
+                MimicAI mimic = enemyObj.GetComponent<MimicAI>();
+                if (mimic != null) mimic.TakeDamage(damage);
+            }
+            else
+            {
+                MutantAI mutant = enemyObj.GetComponent<MutantAI>();
+                if (mutant != null)
+                {
+                    mutant.TakeDamage(damage);
+                    // Find the player who dealt damage to force target
+                    if (NetworkManager.Singleton.ConnectedClients.TryGetValue(rpcParams.Receive.SenderClientId, out var client))
+                    {
+                        PlayerController attacker = client.PlayerObject.GetComponent<PlayerController>();
+                        if (attacker != null) mutant.ForceTarget(attacker);
+                    }
+                }
             }
         }
     }
@@ -563,14 +628,17 @@ public class PlayerController : NetworkBehaviour
         // 1. Kiểm tra nhanh (fast path) bằng cờ bool hoặc tham chiếu đã có sẵn
         if (isShopMode) return true;
         
-        if (_inventoryUI == null) _inventoryUI = Object.FindAnyObjectByType<InventoryUI>();
+        if (_inventoryUI == null) _inventoryUI = GetComponent<InventoryUI>();
         if (_inventoryUI != null && _inventoryUI.inventoryPanel   != null && _inventoryUI.inventoryPanel.activeSelf)   return true;
         
-        if (_craftingUI == null) _craftingUI = Object.FindAnyObjectByType<CraftingUI>();
+        if (_craftingUI == null) _craftingUI = GetComponent<CraftingUI>();
         if (_craftingUI  != null && _craftingUI.craftingPanel     != null && _craftingUI.craftingPanel.activeSelf)     return true;
         
         if (_chestUI == null) _chestUI = Object.FindAnyObjectByType<ChestUI>();
         if (_chestUI     != null && _chestUI.chestPanel           != null && _chestUI.chestPanel.activeSelf)           return true;
+
+        SettingsUI settingsUI = Object.FindAnyObjectByType<SettingsUI>();
+        if (settingsUI != null && settingsUI.settingsPanel != null && settingsUI.settingsPanel.activeSelf) return true;
         
         // 2. Kiểm tra chậm (slow path): Quét toàn Scene 4 lần/giây thay vì 60 lần/giây để chống giật lag (Optimize)
         _uiCheckTimer -= Time.deltaTime;

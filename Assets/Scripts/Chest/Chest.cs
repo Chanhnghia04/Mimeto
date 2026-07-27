@@ -58,11 +58,25 @@ public class Chest : MonoBehaviour, IInteractable
 
     // ── Cached reference tới ChestUI (tìm một lần) ──────────────────────────
     private static ChestUI _chestUI;
+    private System.Random _rng;
 
     void Awake()
     {
         _animator = GetComponentInChildren<Animator>();
         if (audioSource == null) audioSource = GetComponent<AudioSource>();
+        // Bỏ GenerateLoot() khỏi Awake
+    }
+
+    System.Collections.IEnumerator Start()
+    {
+        // Đợi cho đến khi nhận được MatchSeed từ mạng (nếu là host thì sẽ nhận ngay lập tức, client cũng nhận qua NetworkVariable)
+        while (PlayerInventory.GlobalMatchSeed == 0) yield return null;
+        
+        // Tạo RNG với seed dựa trên GlobalMatchSeed và VỊ TRÍ của rương.
+        // Vì ChestSpawner đã sinh rương ở cùng tọa độ trên cả Host & Client, seed này sẽ hoàn toàn giống nhau!
+        int posHash = (int)(transform.position.x * 100f) + (int)(transform.position.z * 10f);
+        _rng = new System.Random(PlayerInventory.GlobalMatchSeed + posHash + 5001);
+
         GenerateLoot();
     }
 
@@ -71,7 +85,7 @@ public class Chest : MonoBehaviour, IInteractable
     void GenerateLoot()
     {
         items.Clear();
-        int slotCount = Random.Range(minSlots, maxSlots + 1);
+        int slotCount = _rng.Next(minSlots, maxSlots + 1);
 
         for (int i = 0; i < slotCount; i++)
         {
@@ -96,7 +110,7 @@ public class Chest : MonoBehaviour, IInteractable
         int totalWeight = 0;
         foreach (int w in ItemWeights) totalWeight += w;
 
-        int roll = Random.Range(0, totalWeight);
+        int roll = _rng.Next(0, totalWeight);
         int cumulative = 0;
         for (int i = 0; i < ItemWeights.Length; i++)
         {
@@ -111,9 +125,9 @@ public class Chest : MonoBehaviour, IInteractable
     {
         switch (type)
         {
-            case "metal_pipe": return Random.Range(1, 4);
-            case "circuit":    return Random.Range(1, 3);
-            default:           return Random.Range(1, 3);
+            case "metal_pipe": return _rng.Next(1, 4);
+            case "circuit":    return _rng.Next(1, 3);
+            default:           return _rng.Next(1, 3);
         }
     }
 

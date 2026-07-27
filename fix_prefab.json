@@ -1,6 +1,0 @@
-{
-  "csharpCode": "using UnityEngine; using Unity.Netcode; using UnityEditor; public class FixPlayerPrefab { public static string Run() { NetworkManager nm = Object.FindAnyObjectByType<NetworkManager>(FindObjectsInactive.Include); if (nm == null) return \"No NM\"; GameObject prefab = nm.NetworkConfig.PlayerPrefab; string log = \"\"; ClientNetworkAnimator rootCNA = prefab.GetComponent<ClientNetworkAnimator>(); if (rootCNA != null) { Object.DestroyImmediate(rootCNA, true); log += \"Removed Root CNA\\n\"; } Animator rootAnim = prefab.GetComponent<Animator>(); if (rootAnim != null) { Object.DestroyImmediate(rootAnim, true); log += \"Removed Root Animator\\n\"; } Animator[] anims = prefab.GetComponentsInChildren<Animator>(true); if (anims.Length > 0) { Animator realAnim = anims[0]; ClientNetworkAnimator childCNA = realAnim.gameObject.GetComponent<ClientNetworkAnimator>(); if (childCNA == null) { childCNA = realAnim.gameObject.AddComponent<ClientNetworkAnimator>(); childCNA.Animator = realAnim; log += $\"Added CNA to {realAnim.gameObject.name}\\n\"; } } EditorUtility.SetDirty(prefab); AssetDatabase.SaveAssets(); return log; } }",
-  "className": "FixPlayerPrefab",
-  "methodName": "Run",
-  "isMethodBody": false
-}

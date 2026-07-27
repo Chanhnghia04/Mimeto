@@ -136,6 +136,7 @@ public class ScrapItem : MonoBehaviour, IInteractable
         }
 
         inventory.AddScrap(scrapType, amount);
+        inventory.SyncDestroyItemServerRpc(transform.position, scrapType);
         Debug.Log($"[ScrapItem] Picked up: {scrapType} x{amount}");
 
         GameObject toDestroy = (rootObject != null) ? rootObject : gameObject;

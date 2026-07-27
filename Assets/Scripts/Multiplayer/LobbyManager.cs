@@ -368,6 +368,23 @@ public class LobbyManager : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// Chủ động cập nhật thông tin lobby ngay lập tức thay vì đợi timer
+    /// </summary>
+    public async Task ForceRefreshLobby()
+    {
+        if (CurrentLobby == null) return;
+        try
+        {
+            CurrentLobby = await Lobbies.Instance.GetLobbyAsync(CurrentLobby.Id);
+            OnLobbyUpdated?.Invoke(CurrentLobby);
+        }
+        catch (LobbyServiceException e)
+        {
+            Debug.LogWarning($"[LobbyManager] Force refresh failed: {e.Message}");
+        }
+    }
+
     private Player GetPlayer()
     {
         return new Player

@@ -78,9 +78,15 @@ public class PlayerSurvival : NetworkBehaviour
     [Header("Oxygen Settings")]
     public float maxOxygen = 100f;
     public float currentOxygen;
-    public float oxygenDepletionRate = 2f; // Oxygen drops by 2 per second
-    public float oxygenRestoreRate = 10f; // Oxygen restores by 10 per second in Safe Zone
+    public float oxygenDepletionRate = 0.3333f; // 3s mất 1 oxy
+    public float oxygenRestoreRate = 10f; 
     public bool inSafeZone = false;
+
+    [Header("Stamina Settings")]
+    public float maxStamina = 100f;
+    public float currentStamina;
+    public float staminaDepletionRate = 20f; // Chạy 5s là hết lực
+    public float staminaRestoreRate = 15f;
 
     [Header("Mask Settings")]
     public GasMaskType activeMaskType = GasMaskType.None;
@@ -119,6 +125,10 @@ public class PlayerSurvival : NetworkBehaviour
 
         currentHealth = maxHealth;
         currentOxygen = maxOxygen;
+        currentStamina = maxStamina;
+        
+        // Ghi đè chỉ số bằng code để tránh việc Unity Inspector lưu lại giá trị cũ
+        oxygenDepletionRate = 0.3333f; 
         
         // Setup AudioSources if missing
         if (breathingSource == null) breathingSource = gameObject.AddComponent<AudioSource>();
@@ -206,10 +216,14 @@ public class PlayerSurvival : NetworkBehaviour
             if (currentOxygen <= 0)
             {
                 currentOxygen = 0;
-                // Lose 5 health per second when oxygen is 0
-                TakeDamage(5f * Time.deltaTime);
+                // Trừ máu trực tiếp khi hết Oxy thay vì dùng TakeDamage để tránh spam RPC
+                currentHealth -= 5f * Time.deltaTime;
+                if (currentHealth <= 0)
+                {
+                    currentHealth = 0;
+                    Die("Suffocated!");
+                }
                 
-                // Fix: use a timer variable instead of Time.time % interval to avoid FPS-dependent spam
                 if (Time.time >= nextWarningTime)
                 {
                     Debug.LogWarning("DANGER: OUT OF OXYGEN! Taking suffocation damage.");
@@ -223,6 +237,29 @@ public class PlayerSurvival : NetworkBehaviour
                     Debug.LogWarning("DANGER: NO GAS MASK EQUIPPED! Oxygen depleting.");
                     nextWarningTime = Time.time + 2f;
                 }
+            }
+        }
+
+        // --- STAMINA LOGIC ---
+        PlayerController pc = GetComponent<PlayerController>();
+        if (pc != null && pc.isSprinting)
+        {
+            currentStamina -= staminaDepletionRate * Time.deltaTime;
+            if (currentStamina <= 0) 
+            {
+                currentStamina = 0;
+                pc.isExhausted = true; // Đánh dấu là đã kiệt sức
+            }
+        }
+        else
+        {
+            currentStamina += staminaRestoreRate * Time.deltaTime;
+            if (currentStamina > maxStamina) currentStamina = maxStamina;
+            
+            // Hồi lại ít nhất 20% lực mới cho phép chạy tiếp để tránh bị giật khựng
+            if (currentStamina >= maxStamina * 0.2f && pc != null)
+            {
+                pc.isExhausted = false;
             }
         }
 
@@ -242,8 +279,8 @@ public class PlayerSurvival : NetworkBehaviour
         if (healthBar != null) healthBar.value = currentHealth / maxHealth;
         if (oxygenBar != null) oxygenBar.value = currentOxygen / maxOxygen;
 
-        // Handle Breathing Audio
-        if (currentOxygen < lowOxygenThreshold && !isDead)
+        // Handle Breathing Audio (Hết oxy hoặc hết thể lực đều thở dốc)
+        if ((currentOxygen < lowOxygenThreshold || currentStamina <= 5f) && !isDead)
         {
             if (breathingSource != null && !breathingSource.isPlaying && heavyBreathingClip != null)
             {
@@ -350,6 +387,30 @@ public class PlayerSurvival : NetworkBehaviour
     {
         if (currentHealth <= 0) return;
 
+        // Nếu Server gọi hàm này (do AI đánh trúng)
+        if (IsServer && !IsOwner)
+        {
+            TakeDamageClientRpc(amount, reason);
+        }
+        else if (IsOwner) // Nếu là Client tự mất oxy/chảy máu
+        {
+            ApplyDamageLocally(amount, reason);
+        }
+    }
+
+    [ClientRpc]
+    private void TakeDamageClientRpc(float amount, string reason)
+    {
+        if (IsOwner)
+        {
+            ApplyDamageLocally(amount, reason);
+        }
+    }
+
+    private void ApplyDamageLocally(float amount, string reason)
+    {
+        if (currentHealth <= 0) return;
+
         currentHealth -= amount;
 
         // Play Hit Sound
@@ -364,6 +425,15 @@ public class PlayerSurvival : NetworkBehaviour
             currentHealth = 0; // Bug Fix: clamp to 0 to prevent negative health display
             Die(reason);
         }
+
+        // Báo cho Server biết máu hiện tại để AI (chạy trên Server) không cắn xác chết
+        UpdateHealthServerRpc(currentHealth);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void UpdateHealthServerRpc(float newHealth)
+    {
+        currentHealth = newHealth;
     }
 
     private float bleedEndTime = 0f;
@@ -387,44 +457,54 @@ public class PlayerSurvival : NetworkBehaviour
 
         Debug.Log($"<color=red>DEATH: {reason}</color>");
         
+        // Cập nhật lên server trạng thái máu = 0 để chắc chắn
+        if (IsOwner) UpdateHealthServerRpc(0f);
+        
         // Spectator / Ghost mode setup
         if (IsOwner)
         {
             SetGhostServerRpc(true);
             PlayerController controller = GetComponent<PlayerController>();
             if (controller != null) controller.isGhostMode = true;
-        }
 
-        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        if (deathPanel != null)
-        {
+            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            if (deathPanel != null)
+            {
+                if (sceneName != "Map" && sceneName != "PollutedZone")
+                {
+                    deathPanel.SetActive(true);
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
+                }
+                else
+                {
+                    // In Map, just hide the panel so they can see while flying as a ghost
+                    deathPanel.SetActive(false);
+                }
+
+                if (deathCamera != null)
+                {
+                    deathCamera.gameObject.SetActive(false); // Make sure it's off so we can use player camera
+                }
+            }
+
+            // Don't auto respawn in Map. They stay as ghosts until team wipe or extract.
             if (sceneName != "Map" && sceneName != "PollutedZone")
             {
-                deathPanel.SetActive(true);
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
+                StartCoroutine(RespawnAfterDelay(4f));
             }
             else
             {
-                // In Map, just hide the panel so they can see while flying as a ghost
-                deathPanel.SetActive(false);
-            }
-
-            if (deathCamera != null)
-            {
-                deathCamera.gameObject.SetActive(false); // Make sure it's off so we can use player camera
+                // Báo cho Server kiểm tra xem cả team đã chết hết chưa
+                NotifyTeamWipeCheckServerRpc();
             }
         }
+    }
 
-        // Don't auto respawn in Map. They stay as ghosts until team wipe or extract.
-        if (sceneName != "Map" && sceneName != "PollutedZone")
-        {
-            StartCoroutine(RespawnAfterDelay(4f));
-        }
-        else
-        {
-            if (IsServer) CheckTeamWipe();
-        }
+    [ServerRpc(RequireOwnership = false)]
+    private void NotifyTeamWipeCheckServerRpc()
+    {
+        CheckTeamWipe();
     }
 
     private System.Collections.IEnumerator RespawnAfterDelay(float delay)
@@ -452,6 +532,8 @@ public class PlayerSurvival : NetworkBehaviour
         // Reset Stats
         currentHealth = maxHealth;
         currentOxygen = maxOxygen;
+        bleedEndTime = 0f;
+        bleedDps = 0f;
         
         // Re-enable movement script
         PlayerController controller = GetComponent<PlayerController>();
@@ -499,6 +581,7 @@ public class PlayerSurvival : NetworkBehaviour
     private Texture2D _hpTexYellow;
     private Texture2D _hpTexRed;
     private Texture2D _oxyTex;
+    private Texture2D _stamTex;
     private Texture2D _scanlineTex;
     private float _noiseOffset = 0f;
 
@@ -514,6 +597,7 @@ public class PlayerSurvival : NetworkBehaviour
         _hpTexYellow = MakeTex(new Color(1f, 0.9f, 0.1f, 1f));
         _hpTexRed = MakeTex(new Color(1f, 0.1f, 0.2f, 1f));
         _oxyTex = MakeTex(new Color(0f, 0.8f, 1f, 1f));
+        _stamTex = MakeTex(new Color(1f, 0.6f, 0f, 1f)); // Màu cam cho Stamina
         
         _scanlineTex = new Texture2D(2, 4);
         for(int y=0; y<4; y++) 
@@ -642,18 +726,17 @@ public class PlayerSurvival : NetworkBehaviour
         Matrix4x4 oldMatrix = GUI.matrix;
         
         float panelW = 460f;
-        float panelH = 180f;
+        float panelH = 210f; // Tăng chiều cao để chứa thanh Stamina
         
-        // Dịch sang phải thêm 40px (từ 100f thành 140f)
-        float panelX = 140f; 
+        float panelX = 120f; // Dịch sang trái 20px (từ 140f thành 120f) theo yêu cầu
         
-        // Nhỏ lại thêm 20% (từ 0.8 xuống 0.6)
-        float scale = 0.6f;
+        // Tự động Scale phóng to theo màn hình khi kéo giãn cửa sổ
+        // Đã tăng 50% kích thước so với trước (từ 0.6f lên 0.9f)
+        float scale = 0.9f * (Screen.height / 1080f);
+        if (scale < 0.6f) scale = 0.6f;
         
-        // Dịch xuống 10px (từ 80f xuống 70f cách đáy)
-        float panelY = Screen.height - (panelH * scale) - 70f;
+        float panelY = Screen.height - (panelH * scale) - (70f * (Screen.height / 1080f));
 
-        // Thu nhỏ UI xuống 60% tại vị trí mới
         GUIUtility.ScaleAroundPivot(new Vector2(scale, scale), new Vector2(panelX, panelY));
         
         // Draw Main Hologram Box
@@ -688,19 +771,20 @@ public class PlayerSurvival : NetworkBehaviour
         float currentBpm = (currentHealth / maxHealth) * 50f + 40f + (currentOxygen < lowOxygenThreshold ? 40f : 0f);
         GUI.Label(new Rect(panelX + 15f, panelY + 90f, hpBoxW, 20f), $"BPM: {currentBpm:F1}", bpmStyle);
 
-        // 2. SEGMENTED BARS (MÁU VÀ OXY)
+        // 2. SEGMENTED BARS (MÁU, OXY, STAMINA)
         float barStartX = panelX + 120f;
         float barWidth = panelW - 140f;
         
-        DrawSciFiBar(barStartX, panelY + 30f, barWidth, 14f, "INTEGRITY", currentHealth, maxHealth, GetHealthTex(), currentHealth <= 25f, 30);
-        DrawSciFiBar(barStartX, panelY + 75f, barWidth, 14f, "OXYGEN", currentOxygen, maxOxygen, _oxyTex, currentOxygen < lowOxygenThreshold, 30);
+        DrawSciFiBar(barStartX, panelY + 20f, barWidth, 14f, "INTEGRITY", currentHealth, maxHealth, GetHealthTex(), currentHealth <= 25f, 30);
+        DrawSciFiBar(barStartX, panelY + 60f, barWidth, 14f, "OXYGEN", currentOxygen, maxOxygen, _oxyTex, currentOxygen < lowOxygenThreshold, 30);
+        DrawSciFiBar(barStartX, panelY + 100f, barWidth, 14f, "STAMINA", currentStamina, maxStamina, _stamTex, currentStamina <= 15f, 30);
 
         // 3. REAL-TIME EKG GRAPH (ĐỒ THỊ NHỊP TIM)
-        DrawEKG(panelX + 15f, panelY + 120f, 180f, 45f);
+        DrawEKG(panelX + 15f, panelY + 145f, 180f, 45f);
 
         // 4. GPS & STATUS INFO
         float infoX = panelX + 210f;
-        float infoY = panelY + 125f;
+        float infoY = panelY + 150f;
         GUIStyle infoStyle = new GUIStyle();
         infoStyle.fontSize = 12;
         infoStyle.fontStyle = FontStyle.Bold;
