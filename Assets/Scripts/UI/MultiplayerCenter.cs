@@ -445,7 +445,10 @@ public class MultiplayerCenter : MonoBehaviour
     /// </summary>
     private async void OnJoinByCodeClicked()
     {
-        string code = joinCodeInput != null ? joinCodeInput.text.Trim() : "";
+        string code = joinCodeInput != null ? joinCodeInput.text : "";
+        // TextMeshPro đôi khi dính ký tự zero-width \u200B, hoặc lúc copy bị dính ký tự xuống dòng
+        code = code.Replace("\u200B", "").Replace("\r", "").Replace("\n", "").Trim().ToUpper();
+
         if (string.IsNullOrEmpty(code))
         {
             UpdateClientStatus("Vui lòng nhập mã phòng!");
@@ -474,6 +477,17 @@ public class MultiplayerCenter : MonoBehaviour
     private async Task ConnectToRelay()
     {
         string relayCode = LobbyManager.Instance.GetRelayCodeFromLobby();
+        int attempts = 0;
+        
+        // Loop retry in case Host is still generating/uploading the Relay code
+        while (string.IsNullOrEmpty(relayCode) && attempts < 10)
+        {
+            UpdateClientStatus("Đang đồng bộ mạng...");
+            await Task.Delay(1000); // Đợi 1 giây
+            await LobbyManager.Instance.ForceRefreshLobby(); // Ép cập nhật lobby ngay lập tức
+            relayCode = LobbyManager.Instance.GetRelayCodeFromLobby();
+            attempts++;
+        }
 
         if (string.IsNullOrEmpty(relayCode))
         {
@@ -486,7 +500,9 @@ public class MultiplayerCenter : MonoBehaviour
         // Join Relay
         JoinAllocation joinAllocation = await RelayService.Instance.JoinAllocationAsync(relayCode);
         RelayServerData relayServerData = new RelayServerData(joinAllocation, "dtls");
-        NetworkManager.Singleton.GetComponent<UnityTransport>().SetRelayServerData(relayServerData);
+        
+        var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        transport.SetRelayServerData(relayServerData);
 
         if (NetworkManager.Singleton.StartClient())
         {

@@ -4,6 +4,9 @@ using Unity.Netcode;
 
 public class PlayerInventory : NetworkBehaviour
 {
+    public NetworkVariable<int> MatchSeed = new NetworkVariable<int>(0);
+    public static int GlobalMatchSeed = 0;
+
     public int circuits = 0;
     public int metalPipes = 0;
     public int ironPlates = 0;
@@ -56,6 +59,24 @@ public class PlayerInventory : NetworkBehaviour
         }
     }
 
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+        if (IsServer && IsOwner)
+        {
+            MatchSeed.Value = (int)(System.DateTime.Now.Ticks % 100000000);
+        }
+    }
+
+    void Update()
+    {
+        if (GlobalMatchSeed == 0 && MatchSeed.Value != 0)
+        {
+            GlobalMatchSeed = MatchSeed.Value;
+            Debug.Log($"[MapSync] GlobalMatchSeed set to: {GlobalMatchSeed}");
+        }
+    }
+
     public override void OnDestroy()
     {
         base.OnDestroy(); // NetworkBehaviour requires base.OnDestroy()
@@ -79,6 +100,9 @@ public class PlayerInventory : NetworkBehaviour
         GlobalPlayerData.healthPacks = healthPacks;
         GlobalPlayerData.oxygenTanks = oxygenTanks;
         GlobalPlayerData.hasSavedData = true;
+
+        // Lưu xuống ổ cứng
+        GlobalPlayerData.Save();
     }
 
     public void AddScrap(string type, int amount)
@@ -130,6 +154,139 @@ public class PlayerInventory : NetworkBehaviour
         Debug.Log($"Added {amount} {type}. Inventory: C={circuits}, MP={metalPipes}, IP={ironPlates}, Ch={chemicals}, Pl={plasticPipes}, Bat={scrapBatteries}");
     }
 
+    [ServerRpc(RequireOwnership = false)]
+    public void SyncDestroyItemServerRpc(Vector3 pos, string itemType)
+    {
+        SyncDestroyItemClientRpc(pos, itemType);
+    }
+
+    [ClientRpc]
+    private void SyncDestroyItemClientRpc(Vector3 pos, string itemType)
+    {
+        // Ignore on the client that actually picked it up (they destroyed it locally already)
+        if (IsOwner) return;
+
+        // Tăng bán kính tìm kiếm lên 2.0f để bù trừ sai lệch vị trí qua mạng
+        Collider[] colls = Physics.OverlapSphere(pos, 2.0f);
+        foreach (var col in colls)
+        {
+            ScrapItem scrap = col.GetComponent<ScrapItem>();
+            // Phải check thêm scrapType để tránh xóa nhầm đồ nằm gần nhau
+            if (scrap != null && scrap.scrapType == itemType)
+            {
+                Destroy(scrap.rootObject != null ? scrap.rootObject : scrap.gameObject);
+                break;
+            }
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void SyncLootChestItemServerRpc(Vector3 chestPos, string itemType)
+    {
+        SyncLootChestItemClientRpc(chestPos, itemType);
+    }
+
+    [ClientRpc]
+    private void SyncLootChestItemClientRpc(Vector3 chestPos, string itemType)
+    {
+        if (IsOwner) return; // The one who looted it already removed it locally
+
+        // Find the chest at chestPos
+        Collider[] colls = Physics.OverlapSphere(chestPos, 1.0f);
+        foreach (var col in colls)
+        {
+            Chest chest = col.GetComponent<Chest>();
+            if (chest != null)
+            {
+                // Remove the item from this chest
+                var entry = chest.items.Find(e => e.itemType == itemType);
+                if (entry != null)
+                {
+                    chest.RemoveItem(entry);
+                }
+                break;
+            }
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void SyncEscapeEventServerRpc(int eventId)
+    {
+        SyncEscapeEventClientRpc(eventId);
+    }
+
+    [ClientRpc]
+    private void SyncEscapeEventClientRpc(int eventId)
+    {
+        if (eventId == 0) // Unlock Escape Door
+        {
+            EscapeManager.Instance?.UnlockEscape();
+        }
+        else if (eventId == 1) // Beacon Build
+        {
+            EscapeBeacon beacon = Object.FindAnyObjectByType<EscapeBeacon>();
+            if (beacon != null) beacon.ForceBuild();
+        }
+        else if (eventId == 2) // Reactor Meltdown
+        {
+            EscapeReactor reactor = Object.FindAnyObjectByType<EscapeReactor>();
+            if (reactor != null) reactor.ForceShutdown();
+        }
+        else if (eventId == 3) // Extraction System Assemble step
+        {
+            ExtractionSystem ex = Object.FindAnyObjectByType<ExtractionSystem>();
+            if (ex != null) ex.ForceAssembleStep();
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void SyncAssemblyPartServerRpc(string partName, Vector3 pos)
+    {
+        SyncAssemblyPartClientRpc(partName, pos);
+    }
+
+    [ClientRpc]
+    private void SyncAssemblyPartClientRpc(string partName, Vector3 pos)
+    {
+        if (IsOwner) return; // Người nhặt tự xử lý local
+        
+        Collider[] colls = Physics.OverlapSphere(pos, 0.5f);
+        foreach (var col in colls)
+        {
+            EscapePart part = col.GetComponent<EscapePart>();
+            if (part != null)
+            {
+                part.parentAssembly?.OnPartCollected(part.partName);
+                Destroy(part.gameObject);
+                break;
+            }
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void SyncCipherNoteServerRpc(int noteIndex, string digits, Vector3 pos)
+    {
+        SyncCipherNoteClientRpc(noteIndex, digits, pos);
+    }
+
+    [ClientRpc]
+    private void SyncCipherNoteClientRpc(int noteIndex, string digits, Vector3 pos)
+    {
+        if (IsOwner) return; // Người nhặt tự xử lý local
+        
+        Collider[] colls = Physics.OverlapSphere(pos, 0.5f);
+        foreach (var col in colls)
+        {
+            CipherNote note = col.GetComponent<CipherNote>();
+            if (note != null)
+            {
+                note.parentCipher?.OnNoteFound(note.noteIndex, note.digits);
+                Destroy(note.gameObject);
+                break;
+            }
+        }
+    }
+
     public bool HasResources(int c, int mp, int ch, int pl = 0, int bgm = 0, int bat = 0, int ip = 0)
     {
         return circuits >= c && metalPipes >= mp && chemicals >= ch && plasticPipes >= pl && basicGasMasks >= bgm && scrapBatteries >= bat && ironPlates >= ip;
@@ -172,7 +329,16 @@ public class PlayerInventory : NetworkBehaviour
         plasticPipes = 0;
         scrapBatteries = 0;
         
-        AddCreditsServerRpc(totalValue);
+        if (IsSpawned)
+        {
+            AddCreditsServerRpc(totalValue);
+        }
+        else
+        {
+            credits += totalValue;
+            GlobalPlayerData.credits = credits;
+        }
+        
         Debug.Log($"[Store] Sold all scrap for {totalValue} Energy Cells!");
         
         if (ItemNotificationManager.Instance != null)
@@ -201,7 +367,15 @@ public class PlayerInventory : NetworkBehaviour
     {
         if (credits >= amount)
         {
-            AddCreditsServerRpc(-amount);
+            if (IsSpawned)
+            {
+                AddCreditsServerRpc(-amount);
+            }
+            else
+            {
+                credits -= amount;
+                GlobalPlayerData.credits = credits;
+            }
             return true;
         }
         return false;
@@ -209,7 +383,15 @@ public class PlayerInventory : NetworkBehaviour
 
     public void AddCredits(int amount)
     {
-        AddCreditsServerRpc(amount);
+        if (IsSpawned)
+        {
+            AddCreditsServerRpc(amount);
+        }
+        else
+        {
+            credits += amount;
+            GlobalPlayerData.credits = credits;
+        }
     }
 
     [ServerRpc(RequireOwnership = false)]

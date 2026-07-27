@@ -1,6 +1,0 @@
-{
-  "csharpCode": "using UnityEngine; using Unity.Netcode.Components; public class AttachAnimator { public static string Run() { Unity.Netcode.NetworkManager nm = Object.FindObjectOfType<Unity.Netcode.NetworkManager>(true); if (nm == null || nm.NetworkConfig.PlayerPrefab == null) return \"No PlayerPrefab\"; GameObject prefab = nm.NetworkConfig.PlayerPrefab; ClientNetworkAnimator cna = prefab.GetComponent<ClientNetworkAnimator>(); if (cna == null) { cna = prefab.AddComponent<ClientNetworkAnimator>(); } Animator anim = prefab.GetComponentInChildren<Animator>(); if (anim != null) { cna.Animator = anim; UnityEditor.EditorUtility.SetDirty(prefab); UnityEditor.AssetDatabase.SaveAssets(); return \"Added ClientNetworkAnimator and linked Animator!\"; } return \"Added ClientNetworkAnimator but no Animator found in children!\"; } }",
-  "className": "AttachAnimator",
-  "methodName": "Run",
-  "isMethodBody": false
-}

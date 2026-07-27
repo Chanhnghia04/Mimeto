@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.AI;
+using Unity.Netcode;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class MutantAI : MonoBehaviour
@@ -20,9 +21,7 @@ public class MutantAI : MonoBehaviour
     [Header("Senses")]
     [Tooltip("The radius where Enami can hear high BPM or sprinting")]
     public float hearRadius = 45f;
-    [Tooltip("Radius of the toxic gas emitting from its body")]
-    public float toxicAuraRadius = 5f;
-    public float toxicDamagePerSecond = 10f;
+
 
     [Header("References")]
     public NavMeshAgent agent;
@@ -36,6 +35,7 @@ public class MutantAI : MonoBehaviour
     private float lastAttackTime;
     private float patrolTimer = 0f;
     private float confuseTimer = 0f;
+    private float heartbeatCheckTimer = 0f;
     private bool isDead = false;
 
     void Start()
@@ -50,6 +50,8 @@ public class MutantAI : MonoBehaviour
 
     void Update()
     {
+        // Server-only: prevent all clients from running AI logic independently
+        if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsServer) return;
         if (health <= 0 || isDead) return;
         
         switch (currentState)
@@ -71,21 +73,7 @@ public class MutantAI : MonoBehaviour
         UpdateAnimator();
     }
 
-    private void ApplyToxicAura()
-    {
-        Collider[] hits = Physics.OverlapSphere(transform.position, toxicAuraRadius);
-        foreach (var hit in hits)
-        {
-            if (hit.CompareTag("Player"))
-            {
-                PlayerSurvival survival = hit.GetComponent<PlayerSurvival>();
-                if (survival != null && survival.currentHealth > 0)
-                {
-                    survival.TakeDamage(toxicDamagePerSecond * Time.deltaTime, "Mutant Toxic Aura");
-                }
-            }
-        }
-    }
+
 
     void HandlePatrol()
     {
@@ -104,7 +92,12 @@ public class MutantAI : MonoBehaviour
             }
         }
 
-        ListenForHeartbeats();
+        heartbeatCheckTimer -= Time.deltaTime;
+        if (heartbeatCheckTimer <= 0f)
+        {
+            heartbeatCheckTimer = 0.5f; // Chỉ quét 2 lần 1 giây để tối ưu hiệu năng
+            ListenForHeartbeats();
+        }
     }
 
     void ListenForHeartbeats()
@@ -178,6 +171,8 @@ public class MutantAI : MonoBehaviour
 
         if (bpm < 85f && !targetPlayer.isMoving && targetPlayer.isCrouching)
         {
+            // Đi tới vị trí cuối cùng nghe thấy tiếng tim thay vì đứng yên ngơ ngác ngay lập tức
+            if (agent.isOnNavMesh) agent.SetDestination(targetPlayer.transform.position);
             targetPlayer = null;
             SetConfused();
             return;
@@ -189,9 +184,9 @@ public class MutantAI : MonoBehaviour
 
         if (dist <= attackRange)
         {
-            // Bắt đầu tấn công: Khóa cứng vị trí
+            // Bắt đầu tấn công: Giữ lại một chút quán tính trượt lên thay vì phanh cháy đường (Khựng lại hoàn toàn)
             agent.isStopped = true;
-            agent.velocity = Vector3.zero;
+            agent.velocity = agent.velocity * 0.25f; 
             agent.ResetPath();
             currentState = MutantState.Attack;
         }
@@ -200,9 +195,11 @@ public class MutantAI : MonoBehaviour
     void SetConfused()
     {
         currentState = MutantState.Confused;
-        confuseTimer = 3f;
-        agent.isStopped = true;
-        agent.velocity = Vector3.zero;
+        confuseTimer = 4f;
+        // Quái vật không dừng hẳn mà sẽ đi chầm chậm tìm kiếm xung quanh (Cinematic feel)
+        if (agent.isOnNavMesh) agent.isStopped = false;
+        agent.speed = patrolSpeed * 0.4f; 
+
         if (audioSource != null && confusedClip != null)
         {
             audioSource.PlayOneShot(confusedClip);
@@ -287,16 +284,12 @@ public class MutantAI : MonoBehaviour
 
     void UpdateAnimator()
     {
-        if (animator == null) return;
+        if (animator == null || animator.runtimeAnimatorController == null) return;
         
-        // Cập nhật Speed để chuyển đổi Idle/Walk
         float currentSpeed = agent.velocity.magnitude;
-        if (animator != null && animator.runtimeAnimatorController != null)
-        {
-            animator.SetFloat("Speed", currentSpeed);
-            animator.SetBool("IsRunning", currentState == MutantState.Charge);
-            animator.SetBool("IsConfuse", currentState == MutantState.Confused);
-        }
+        animator.SetFloat("Speed", currentSpeed);
+        animator.SetBool("IsRunning", currentState == MutantState.Charge);
+        animator.SetBool("IsConfuse", currentState == MutantState.Confused);
     }
 
     public void TakeDamage(float amount)

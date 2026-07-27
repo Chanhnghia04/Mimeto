@@ -1,6 +1,0 @@
-{
-  "csharpCode": "using UnityEngine; using Unity.Netcode.Components; using UnityEditor; public class CheckPlayerAnimators { public static string Run() { string log = \"\"; GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(\"Assets/Prefabs/Player.prefab\"); if (prefab == null) return \"No player prefab\"; Animator anim = prefab.GetComponentInChildren<Animator>(); NetworkAnimator netAnim = prefab.GetComponentInChildren<NetworkAnimator>(); log += \"Animator is on: \" + (anim != null ? anim.gameObject.name : \"none\") + \"\\n\"; log += \"NetworkAnimator is on: \" + (netAnim != null ? netAnim.gameObject.name : \"none\") + \"\\n\"; if (netAnim != null && netAnim.Animator != null) { log += \"NetworkAnimator is linked to: \" + netAnim.Animator.gameObject.name; } else { log += \"NetworkAnimator has NO animator linked!\"; } return log; } }",
-  "className": "CheckPlayerAnimators",
-  "methodName": "Run",
-  "isMethodBody": false
-}

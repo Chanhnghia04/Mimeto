@@ -16,6 +16,17 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
     public bool isAssembling = false;
     private float assemblyProgress = 0f;
 
+    public void ForceAssembleStep()
+    {
+        assemblyProgress += 33.4f;
+        if (assemblyProgress >= 100f)
+        {
+            assemblyProgress = 100f;
+            isAssembling = false;
+            EscapeManager.Instance?.UnlockEscape();
+        }
+    }
+
     public void Interact(GameObject interactor)
     {
         if (isActivated) return;
@@ -157,16 +168,19 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
 
         if (GUI.Button(new Rect(windowRect.x + 150, windowRect.y + 160, 300, 60), "ASSEMBLE PARTS", btnStyle))
         {
-            assemblyProgress += 33.4f;
-            if (assemblyProgress >= 100f)
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
             {
-                assemblyProgress = 100f;
-                isAssembling = false;
-                
-                // Mở khóa và thoát
-                EscapeManager.Instance.UnlockEscape();
-                
-                GameObject player = GameObject.FindGameObjectWithTag("Player");
+                PlayerInventory inv = player.GetComponent<PlayerInventory>();
+                if (inv != null && inv.IsOwner)
+                {
+                    inv.SyncEscapeEventServerRpc(3);
+                }
+            }
+            
+            // Check win local for the player who pressed
+            if (assemblyProgress + 33.4f >= 100f)
+            {
                 if (player != null)
                 {
                     PlayerInventory inv = player.GetComponent<PlayerInventory>();

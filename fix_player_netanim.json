@@ -1,6 +1,0 @@
-{
-  "csharpCode": "using UnityEngine; using Unity.Netcode; using Unity.Netcode.Components; using UnityEditor; public class FixPlayerNetAnim { public static string Run() { string log = \"\"; GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(\"Assets/Prefabs/Player.prefab\"); if (prefab == null) return \"No player prefab\"; ClientNetworkAnimator childNetAnim = prefab.GetComponentInChildren<ClientNetworkAnimator>(); Animator anim = prefab.GetComponentInChildren<Animator>(); if (childNetAnim != null && childNetAnim.gameObject != prefab) { Object.DestroyImmediate(childNetAnim, true); log += \"Removed ClientNetworkAnimator from child.\\n\"; } ClientNetworkAnimator rootNetAnim = prefab.GetComponent<ClientNetworkAnimator>(); if (rootNetAnim == null) { rootNetAnim = prefab.AddComponent<ClientNetworkAnimator>(); log += \"Added ClientNetworkAnimator to root.\\n\"; } rootNetAnim.Animator = anim; EditorUtility.SetDirty(prefab); PrefabUtility.SavePrefabAsset(prefab); return log + \"Done. Root NetAnim is now linked to child Animator.\"; } }",
-  "className": "FixPlayerNetAnim",
-  "methodName": "Run",
-  "isMethodBody": false
-}

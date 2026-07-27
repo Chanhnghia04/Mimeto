@@ -38,26 +38,17 @@ public class EscapeManager : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-
-        // Ép Unity reset seed random theo thời gian thực để đảm bảo mỗi lần Play là 1 kết quả khác nhau
-        Random.InitState((int)System.DateTime.Now.Ticks);
-
-        // Random 1 trong 4 (từ 0 đến 3)
-        CurrentMethod = (EscapeMethodType)Random.Range(0, 4);
-
-        if (forceSpecificMethod)
-        {
-            CurrentMethod = specificMethodToForce;
-            Debug.Log($"<color=yellow>[EscapeManager] DEBUG MODE: Đã ép buộc vào nhiệm vụ {GetMethodName()}</color>");
-        }
-        else
-        {
-            Debug.Log($"<color=cyan>[EscapeManager] Đã random nhiệm vụ màn này: <b>{GetMethodName()}</b></color>");
-        }
     }
 
     System.Collections.IEnumerator Start()
     {
+        // QUAN TRỌNG: Đợi lấy Seed chung từ Host trước khi chọn Nhiệm vụ
+        while (PlayerInventory.GlobalMatchSeed == 0) yield return null;
+        
+        System.Random rng = new System.Random(PlayerInventory.GlobalMatchSeed);
+        CurrentMethod = forceSpecificMethod ? specificMethodToForce : (EscapeMethodType)rng.Next(0, 4);
+        Debug.Log($"<color=cyan>[EscapeManager] Đã random nhiệm vụ màn này: <b>{GetMethodName()}</b> (Seed: {PlayerInventory.GlobalMatchSeed})</color>");
+
         // Chờ đến khi Player được spawn (đặc biệt trong game Network)
         while (GameObject.FindGameObjectWithTag("Player") == null)
         {
@@ -268,38 +259,46 @@ public class EscapeManager : MonoBehaviour
         if (navData.vertices.Length == 0) 
             return center + new Vector3(minDistance, 0, minDistance); // Fallback an toàn
 
+        System.Random rng = new System.Random(PlayerInventory.GlobalMatchSeed + 1234);
+
+        int maxAttempts = 100;
+        int triCount = navData.indices.Length / 3;
+        int[] triIndices = new int[maxAttempts];
+        float[] lerpA = new float[maxAttempts];
+        float[] lerpB = new float[maxAttempts];
+
+        for (int i = 0; i < maxAttempts; i++)
+        {
+            triIndices[i] = rng.Next(0, triCount);
+            lerpA[i] = (float)rng.NextDouble();
+            lerpB[i] = (float)rng.NextDouble();
+        }
+
         Vector3 bestPos = center;
         float bestDist = -1f;
 
-        // Chọn ngẫu nhiên 100 lần từ TẤT CẢ các tam giác NavMesh (tức là TẤT CẢ mọi nơi trên map)
-        for (int i = 0; i < 100; i++)
+        for (int i = 0; i < maxAttempts; i++)
         {
-            int t = Random.Range(0, navData.indices.Length / 3);
+            int t = triIndices[i];
             int v1 = navData.indices[t * 3];
             int v2 = navData.indices[t * 3 + 1];
             int v3 = navData.indices[t * 3 + 2];
 
-            // Lấy 1 điểm ngẫu nhiên bên trong tam giác NavMesh này
-            Vector3 pt = Vector3.Lerp(navData.vertices[v1], navData.vertices[v2], Random.value);
-            pt = Vector3.Lerp(pt, navData.vertices[v3], Random.value);
+            Vector3 pt = Vector3.Lerp(navData.vertices[v1], navData.vertices[v2], lerpA[i]);
+            pt = Vector3.Lerp(pt, navData.vertices[v3], lerpB[i]);
 
-            // BỘ LỌC ĐỘ CAO: Đảm bảo điểm không nằm tít trên ngọn cây hoặc nóc nhà
             if (Mathf.Abs(pt.y - center.y) > 4f) continue;
 
             float dist = Vector3.Distance(center, pt);
             
-            // Nếu đủ xa người chơi
             if (dist >= minDistance)
             {
-                // KIỂM TRA VẬT LÝ: Đảm bảo điểm này không nằm chìm trong 1 BoxCollider (như ngôi nhà bị chặn)
-                // Đặt tâm sphere ở độ cao 0.5m, bán kính 0.2m (điểm thấp nhất là 0.3m, không chạm sàn)
                 if (!Physics.CheckSphere(pt + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
                 {
                     return pt;
                 }
             }
 
-            // Dù không đủ xa nhưng nếu không kẹt, ta vẫn lưu lại làm backup
             if (dist > bestDist && !Physics.CheckSphere(pt + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
             {
                 bestDist = dist;
@@ -307,7 +306,6 @@ public class EscapeManager : MonoBehaviour
             }
         }
 
-        // Lấy điểm tốt nhất tìm được
         return bestPos;
     }
 

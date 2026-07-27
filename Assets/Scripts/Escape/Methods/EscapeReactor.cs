@@ -124,6 +124,12 @@ public class EscapeReactor : MonoBehaviour, IInteractable
 
     // ── Shutdown Animation ────────────────────────────────────────────────────
 
+    public void ForceShutdown()
+    {
+        if (_isShutdown || _isMeltdown) return;
+        StartCoroutine(ShutdownSequence());
+    }
+
     IEnumerator ShutdownSequence()
     {
         _isMeltdown = true;
@@ -308,7 +314,7 @@ public class EscapeReactor : MonoBehaviour, IInteractable
             if (_currentInv != null)
             {
                 _currentInv.ConsumeResources(requiredCircuits, 0, requiredChemicals);
-                StartCoroutine(ShutdownSequence());
+                _currentInv.SyncEscapeEventServerRpc(2); // Event 2 = Reactor Shutdown
             }
             isUIOpen = false;
             Cursor.lockState = CursorLockMode.Locked;

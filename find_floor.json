@@ -1,6 +1,0 @@
-{
-  "csharpCode": "using UnityEngine; public class FindFloor { public static string Run() { UnityEngine.AI.NavMeshHit hit; if (UnityEngine.AI.NavMesh.SamplePosition(Vector3.zero, out hit, 1000f, UnityEngine.AI.NavMesh.AllAreas)) { return $\"Found NavMesh at: {hit.position}\"; } return \"No NavMesh found!\"; } }",
-  "className": "FindFloor",
-  "methodName": "Run",
-  "isMethodBody": false
-}

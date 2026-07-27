@@ -1,0 +1,8 @@
+{
+  "method": {
+    "name": "BuildUI",
+    "declaringType": "BuildSettingsUI",
+    "isStatic": true
+  },
+  "mainThread": true
+}

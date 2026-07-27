@@ -149,8 +149,9 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
 
     // ── Build + Countdown ─────────────────────────────────────────────────────
 
-    void Build()
+    public void ForceBuild()
     {
+        if (_isBuilt) return;
         _isBuilt = true;
         if (audioSource != null && buildClip != null) audioSource.PlayOneShot(buildClip);
         Debug.Log("<color=cyan>[EscapeBeacon] Beacon kích hoạt! Đếm ngược bắt đầu!</color>");
@@ -326,7 +327,7 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
             if (_currentInv != null)
             {
                 _currentInv.ConsumeResources(requiredCircuits, 0, 0, 0, 0, requiredBatteries);
-                Build();
+                _currentInv.SyncEscapeEventServerRpc(1); // 1 = Beacon Build
             }
             isUIOpen = false;
         }

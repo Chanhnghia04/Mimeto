@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Netcode;
 
 public class MimicAI : MonoBehaviour
 {
@@ -59,6 +60,7 @@ private Color originalLightColor;
 
     private Vector3 lastKnownPosition;
     private float loseSightTimer = 0f;
+    private float erraticMoveTimer = 0f;
 
     void Start()
     {
@@ -82,6 +84,8 @@ private Color originalLightColor;
 
     void Update()
     {
+        // Server-only: prevent all clients from running AI logic independently
+        if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsServer) return;
         if (agent == null || !agent.isOnNavMesh) return;
 
         // NEW: Check if target player is dead. If so, forget them.
@@ -109,12 +113,10 @@ private Color originalLightColor;
             }
         }
 
-        if (animator != null)
-        {
         if (animator != null && animator.runtimeAnimatorController != null)
         {
             animator.SetFloat("Speed", agent.velocity.magnitude);
-        }        }
+        }
 
         switch (currentState)
         {
@@ -148,27 +150,35 @@ private Color originalLightColor;
         if (distance > detectionRadius) return false;
 
         Vector3 mimicEye = transform.position + Vector3.up * 1.5f;
-        Vector3 playerEye = player.transform.position + Vector3.up * 1.5f;
-        Vector3 directionToPlayer = (playerEye - mimicEye).normalized;
-        float distanceToEyes = Vector3.Distance(mimicEye, playerEye);
+        
+        // Quét 3 điểm thay vì 1 để thực tế hơn: Đầu, Bụng, và Chân (chống nấp ló mông)
+        Vector3[] checkPoints = new Vector3[] {
+            player.transform.position + Vector3.up * 1.5f, // Đầu
+            player.transform.position + Vector3.up * 0.8f, // Bụng
+            player.transform.position + Vector3.up * 0.2f  // Chân
+        };
 
-        float angleBetween = Vector3.Angle(transform.forward, directionToPlayer);
-
-        if (angleBetween < fieldOfView / 2f)
+        foreach (Vector3 point in checkPoints)
         {
-            RaycastHit hit;
-            if (Physics.Raycast(mimicEye, directionToPlayer, out hit, distanceToEyes, obstacleMask))
+            Vector3 directionToPlayer = (point - mimicEye).normalized;
+            float distanceToPoint = Vector3.Distance(mimicEye, point);
+            float angleBetween = Vector3.Angle(transform.forward, directionToPlayer);
+
+            if (angleBetween < fieldOfView / 2f)
             {
-                // Nếu tia chạm trúng cái gì đó, nhưng đó lại là Player (hoặc con của Player), thì có nghĩa là nhìn thấy!
-                if (hit.collider.gameObject == player || hit.collider.transform.IsChildOf(player.transform) || hit.collider.CompareTag("Player"))
+                RaycastHit hit;
+                if (Physics.Raycast(mimicEye, directionToPlayer, out hit, distanceToPoint, obstacleMask))
                 {
+                    if (hit.collider.gameObject == player || hit.collider.transform.IsChildOf(player.transform) || hit.collider.CompareTag("Player"))
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    // Không có chướng ngại vật nào chắn tầm nhìn
                     return true;
                 }
-            }
-            else
-            {
-                // Không có chướng ngại vật nào chắn tầm nhìn
-                return true;
             }
         }
         
@@ -334,12 +344,25 @@ private Color originalLightColor;
     void HandleHumanForm()
     {
         GameObject group = FindClosestGroup();
-        if (group != null)
+        
+        erraticMoveTimer -= Time.deltaTime;
+        if (group != null && erraticMoveTimer <= 0f)
         {
-            // Bug 3 fix: flatten Y so destination stays on the NavMesh
-            Vector3 randomOffset = Random.insideUnitSphere * 2f;
+            // Cập nhật đường đi mỗi 1-2.5 giây để tạo sự lóng ngóng, thỉnh thoảng đi dạt sang bên (mô phỏng bấm A, D)
+            erraticMoveTimer = Random.Range(1.0f, 2.5f);
+            Vector3 randomOffset = Random.insideUnitSphere * 4f;
             randomOffset.y = 0f;
-            agent.SetDestination(group.transform.position + randomOffset);
+            
+            if (Random.value > 0.85f) 
+            {
+                // 15% tỷ lệ giả vờ đứng lại nhìn ngó ngơ ngác
+                agent.isStopped = true;
+            } 
+            else 
+            {
+                agent.isStopped = false;
+                agent.SetDestination(group.transform.position + randomOffset);
+            }
         }
 
         // Bug 1 fix: use a timer variable instead of Time.time % interval
@@ -413,8 +436,20 @@ private Color originalLightColor;
     {
         isDead = true;
         Debug.Log("<color=red>Mimic Died!</color>");
-        // For now, just disable the mimic or play an effect
-        gameObject.SetActive(false);
+        
+        // Proper NGO network despawn instead of SetActive(false) which causes desync
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
+        {
+            NetworkObject netObj = GetComponent<NetworkObject>();
+            if (netObj != null && netObj.IsSpawned)
+            {
+                netObj.Despawn(true);
+            }
+            else
+            {
+                gameObject.SetActive(false);
+            }
+        }
     }
 
     void SetState(MimicState newState)

@@ -93,6 +93,20 @@ public class CraftingUI : MonoBehaviour
             if (ironPlateSprite == null) ironPlateSprite = invUI.ironPlateSprite;
         }
 
+        // Tự động tìm CraftingPanel bằng phương pháp tuyệt đối
+        if (craftingPanel == null)
+        {
+            GameObject[] allObjs = Resources.FindObjectsOfTypeAll<GameObject>();
+            foreach (var obj in allObjs)
+            {
+                if (obj.name == "CraftingPanel" && obj.scene.IsValid())
+                {
+                    craftingPanel = obj;
+                    break;
+                }
+            }
+        }
+
         if (craftingPanel != null) craftingPanel.SetActive(false);
         if (screenFlash != null) screenFlash.gameObject.SetActive(false);
         
@@ -481,6 +495,19 @@ public class CraftingUI : MonoBehaviour
 
     public void Toggle(bool show)
     {
+        if (craftingPanel == null)
+        {
+            GameObject[] allObjs = Resources.FindObjectsOfTypeAll<GameObject>();
+            foreach (var obj in allObjs)
+            {
+                if (obj.name == "CraftingPanel" && obj.scene.IsValid())
+                {
+                    craftingPanel = obj;
+                    break;
+                }
+            }
+        }
+
         isVisible = show;
         if (craftingPanel != null)
         {

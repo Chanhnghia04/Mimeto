@@ -147,6 +147,10 @@ public class ChestUI : MonoBehaviour
 
         // Chuyển item vào kho Player
         _playerInventory.AddScrap(entry.itemType, entry.amount);
+        
+        // Đồng bộ mạng: báo cho các client khác xoá item này khỏi rương
+        _playerInventory.SyncLootChestItemServerRpc(_currentChest.transform.position, entry.itemType);
+        
         Debug.Log($"[ChestUI] Lấy từ rương: {entry.itemType} x{entry.amount}");
 
         // Xoá item khỏi rương

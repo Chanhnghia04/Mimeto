@@ -1,6 +1,0 @@
-{
-  "csharpCode": "using UnityEngine; using Unity.Netcode; using Unity.Netcode.Components; using System.Linq; public class AutoSetupMultiplayerAll { public static string Run() { int count = 0; var roots = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects(); foreach (var root in roots) { foreach (var t in root.GetComponentsInChildren<Transform>(true)) { GameObject go = t.gameObject; if (go.isStatic) continue; string n = go.name.ToLower(); bool isDynamicProp = n.Contains(\"barrel\") || n.Contains(\"thùng\") || n.Contains(\"box\") || n.Contains(\"obstacle\") || n.Contains(\"chướng\") || n.Contains(\"monster\") || n.Contains(\"quái\") || n.Contains(\"enemy\") || go.GetComponent<Rigidbody>() != null; if (isDynamicProp) { bool added = false; if (go.GetComponent<NetworkObject>() == null) { go.AddComponent<NetworkObject>(); added = true; } if (go.GetComponent<NetworkTransform>() == null) { go.AddComponent<NetworkTransform>(); added = true; } if (added) count++; } } } if (count > 0) UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene()); return $\"Added components to {count} dynamic objects (Rigidbody or specific names).\"; } }",
-  "className": "AutoSetupMultiplayerAll",
-  "methodName": "Run",
-  "isMethodBody": false
-}

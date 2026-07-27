@@ -16,8 +16,9 @@ public class ItemSpawner : MonoBehaviour
              "to ground, so renderer bounds are fully initialised (recommended for complex prefabs).")]
     public bool deferSnap = false;
 
-    void Start()
+    System.Collections.IEnumerator Start()
     {
+        while (PlayerInventory.GlobalMatchSeed == 0) yield return null;
         SpawnItems();
     }
 
@@ -29,31 +30,45 @@ public class ItemSpawner : MonoBehaviour
             return;
         }
 
+        // Dùng System.Random với seed cố định => Host & Client sinh cùng chuỗi số
+        int seed = PlayerInventory.GlobalMatchSeed + (int)transform.position.sqrMagnitude;
+        System.Random rng = new System.Random(seed);
+
+        // BƯỚC 1: Tính trước TẤT CẢ random values (prefab index, X, Z, rotation)
+        // Điều này đảm bảo chuỗi random KHÔNG BAO GIỜ bị lệch bởi Physics.Raycast
+        int[] prefabIndices = new int[totalItemsToSpawn];
+        float[] randomXs    = new float[totalItemsToSpawn];
+        float[] randomZs    = new float[totalItemsToSpawn];
+        float[] randomRots  = new float[totalItemsToSpawn];
+
+        for (int i = 0; i < totalItemsToSpawn; i++)
+        {
+            prefabIndices[i] = rng.Next(0, itemPrefabs.Length);
+            randomXs[i]      = (float)rng.NextDouble() * spawnAreaSize.x - spawnAreaSize.x / 2f;
+            randomZs[i]      = (float)rng.NextDouble() * spawnAreaSize.y - spawnAreaSize.y / 2f;
+            randomRots[i]    = (float)rng.NextDouble() * 360f;
+        }
+
+        // BƯỚC 2: Spawn dựa trên dữ liệu đã tính trước
         int actuallySpawned = 0;
 
         for (int i = 0; i < totalItemsToSpawn; i++)
         {
-            // Skip null slots in the Inspector array
-            GameObject prefab = itemPrefabs[Random.Range(0, itemPrefabs.Length)];
+            GameObject prefab = itemPrefabs[prefabIndices[i]];
             if (prefab == null) continue;
 
-            // Pick a random XZ position and cast from above
-            float randomX = Random.Range(-spawnAreaSize.x / 2f, spawnAreaSize.x / 2f);
-            float randomZ = Random.Range(-spawnAreaSize.y / 2f, spawnAreaSize.y / 2f);
-            Vector3 castOrigin = transform.position + new Vector3(randomX, spawnHeight, randomZ);
+            Vector3 castOrigin = transform.position + new Vector3(randomXs[i], spawnHeight, randomZs[i]);
 
             if (!Physics.Raycast(castOrigin, Vector3.down, out RaycastHit hit,
                                  spawnHeight * 2f, groundLayer))
-                continue; // Missed the ground — skip this slot
+                continue; // Missed the ground — skip (nhưng random đã tiêu thụ ở trên rồi, không ảnh hưởng)
 
-            // Spawn at the hit point (we'll adjust Y precisely after bounds are ready)
-            Quaternion randomYRot = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+            Quaternion randomYRot = Quaternion.Euler(0f, randomRots[i], 0f);
             Quaternion rot = prefab.transform.rotation * randomYRot;
 
             GameObject spawned = Instantiate(prefab, hit.point, rot);
             spawned.transform.SetParent(transform);
 
-            // Fit BoxColliders to the actual mesh, then snap bottom to ground
             SpawnUtils.FitColliders(spawned);
             SpawnUtils.SnapToGround(spawned, hit.point);
 

@@ -30,6 +30,8 @@ public class EscapeCipher : MonoBehaviour, IInteractable
     private bool     _unlocked    = false;
     private bool     _wrongFlash  = false;
     private float    _wrongTimer  = 0f;
+    private PlayerInventory _currentInv;
+    private System.Random _rng;
     
     public bool IsKeypadOpen => _keypadOpen;
 
@@ -44,11 +46,17 @@ public class EscapeCipher : MonoBehaviour, IInteractable
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    void Start()
+    System.Collections.IEnumerator Start()
     {
-        // Tạo mật mã 4 chữ số
-        _code = Random.Range(1000, 9999).ToString();
+        while (PlayerInventory.GlobalMatchSeed == 0) yield return null;
+        _rng = new System.Random(PlayerInventory.GlobalMatchSeed + 3001);
+
+        // Tạo mật mã 4 chữ số (dùng _rng để đồng bộ)
+        _code = _rng.Next(1000, 9999).ToString();
         Debug.Log($"[EscapeCipher] Mật mã màn này: {_code}  (dev log)");
+
+        // Chờ Player spawn
+        while (GameObject.FindGameObjectWithTag("Player") == null) yield return null;
 
         SpawnNotes();
         UpdateHUD(false);
@@ -119,39 +127,57 @@ public class EscapeCipher : MonoBehaviour, IInteractable
         UnityEngine.AI.NavMeshTriangulation navData = UnityEngine.AI.NavMesh.CalculateTriangulation();
         if (navData.vertices.Length == 0) return playerPos + Vector3.forward * 20f;
 
-        for (int a = 0; a < 200; a++)
+        int triCount = navData.indices.Length / 3;
+
+        // PRE-COMPUTE tất cả random values => chuỗi random không bị lệch bởi Physics
+        int maxAttempts = 200;
+        int[] triIndices = new int[maxAttempts];
+        float[] lerpA    = new float[maxAttempts];
+        float[] lerpB    = new float[maxAttempts];
+        for (int i = 0; i < maxAttempts; i++)
         {
-            int t = Random.Range(0, navData.indices.Length / 3);
+            triIndices[i] = _rng.Next(0, triCount);
+            lerpA[i]      = (float)_rng.NextDouble();
+            lerpB[i]      = (float)_rng.NextDouble();
+        }
+
+        int fallbackCount = Mathf.Min(navData.vertices.Length, 50);
+        int[] fallbackIndices = new int[fallbackCount];
+        for (int i = 0; i < fallbackCount; i++)
+        {
+            fallbackIndices[i] = _rng.Next(0, navData.vertices.Length);
+        }
+
+        for (int a = 0; a < maxAttempts; a++)
+        {
+            int t = triIndices[a];
             int v1 = navData.indices[t * 3];
             int v2 = navData.indices[t * 3 + 1];
             int v3 = navData.indices[t * 3 + 2];
 
-            Vector3 pt = Vector3.Lerp(navData.vertices[v1], navData.vertices[v2], Random.value);
-            pt = Vector3.Lerp(pt, navData.vertices[v3], Random.value);
+            Vector3 pt = Vector3.Lerp(navData.vertices[v1], navData.vertices[v2], lerpA[a]);
+            pt = Vector3.Lerp(pt, navData.vertices[v3], lerpB[a]);
 
-            // BỘ LỌC ĐỘ CAO: Đảm bảo điểm không nằm tít trên ngọn cây hoặc nóc nhà
             if (Mathf.Abs(pt.y - playerPos.y) > 4f) continue;
-
             if (Vector3.Distance(pt, playerPos) < minDistFromPlayer) continue;
 
             bool tooClose = false;
             foreach (var u in used) if (Vector3.Distance(pt, u) < 12f) { tooClose = true; break; }
             if (tooClose) continue;
 
-            // Không rớt vào trong BoxCollider
             if (Physics.CheckSphere(pt + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
                 continue;
 
             return pt;
         }
         
-        for (int i = 0; i < navData.vertices.Length; i++)
+        for (int i = 0; i < fallbackCount; i++)
         {
-            Vector3 v = navData.vertices[Random.Range(0, navData.vertices.Length)];
+            Vector3 v = navData.vertices[fallbackIndices[i]];
             if (!Physics.CheckSphere(v + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
                 return v;
         }
-        return navData.vertices[Random.Range(0, navData.vertices.Length)];
+        return navData.vertices[fallbackIndices[0]];
     }
 
     // ── Called by CipherNote ──────────────────────────────────────────────────
@@ -206,6 +232,11 @@ public class EscapeCipher : MonoBehaviour, IInteractable
     public void Interact(GameObject interactor)
     {
         if (_unlocked) { Debug.Log("[EscapeCipher] Đã mở rồi."); return; }
+
+        PlayerInventory inv = interactor.GetComponentInParent<PlayerInventory>()
+                           ?? interactor.GetComponentInChildren<PlayerInventory>();
+        if (inv != null) _currentInv = inv;
+
         _keypadOpen = !_keypadOpen;
         _input.Clear();
 
@@ -329,7 +360,10 @@ public class EscapeCipher : MonoBehaviour, IInteractable
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible   = false;
             Debug.Log("<color=lime>[EscapeCipher] Mật mã đúng! Cửa mở!</color>");
-            EscapeManager.Instance?.UnlockEscape();
+            if (_currentInv != null)
+                _currentInv.SyncEscapeEventServerRpc(0); // Event 0 = Unlock
+            else
+                EscapeManager.Instance?.UnlockEscape();
         }
         else
         {
@@ -437,6 +471,14 @@ public class CipherNote : MonoBehaviour, IInteractable
     public void Interact(GameObject interactor)
     {
         Debug.Log($"[CipherNote] Tìm thấy ghi chú {noteIndex}: chữ số '{digits}'");
+        
+        PlayerInventory inv = interactor.GetComponentInParent<PlayerInventory>()
+                           ?? interactor.GetComponentInChildren<PlayerInventory>();
+        if (inv != null && inv.IsOwner)
+        {
+            inv.SyncCipherNoteServerRpc(noteIndex, digits, transform.position);
+        }
+
         parentCipher?.OnNoteFound(noteIndex, digits);
         Destroy(gameObject);
     }
