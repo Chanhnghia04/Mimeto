@@ -73,6 +73,7 @@ public class TrainMovement : MonoBehaviour
             while (transform.localPosition.x < endX)
             {
                 transform.localPosition += Vector3.right * speed * Time.deltaTime;
+                CheckCollision(); // Check collision every frame
                 yield return null;
             }
 
@@ -88,35 +89,38 @@ public class TrainMovement : MonoBehaviour
         }
     }
 
-    private void OnTriggerEnter(Collider other)
+    private void CheckCollision()
     {
-        // Ignore trigger collisions during the first 1.0 second of loading to prevent teleportation overlap issues
+        // Ignore collisions during the first 1.0 second of loading
         if (Time.timeSinceLevelLoad < 1.0f) return;
 
-        // Check if other is player
-        PlayerSurvival survival = other.GetComponent<PlayerSurvival>();
-        if (survival == null)
-        {
-            survival = other.GetComponentInParent<PlayerSurvival>();
-        }
+        Transform trigger = transform.Find("TrainDamageTrigger");
+        if (trigger == null) return;
+        BoxCollider box = trigger.GetComponent<BoxCollider>();
+        if (box == null) return;
 
-        if (survival != null)
+        Collider[] hits = Physics.OverlapBox(box.bounds.center, box.bounds.extents, box.transform.rotation);
+        foreach (Collider other in hits)
         {
-            Debug.LogWarning("<color=red>TRAIN COLLISION: Player was run over by the train!</color>");
-            survival.TakeDamage(1000f, "Hit by a train!"); // Instakill the player
-        }
+            if (other.isTrigger) continue;
 
-        // Check if other is Mimic
-        MimicAI mimic = other.GetComponent<MimicAI>();
-        if (mimic == null)
-        {
-            mimic = other.GetComponentInParent<MimicAI>();
-        }
+            PlayerSurvival survival = other.GetComponent<PlayerSurvival>();
+            if (survival == null) survival = other.GetComponentInParent<PlayerSurvival>();
 
-        if (mimic != null)
-        {
-            Debug.LogWarning("<color=red>TRAIN COLLISION: Mimic was run over by the train!</color>");
-            mimic.TakeDamage(1000f); // Kill the Mimic too
+            if (survival != null)
+            {
+                Debug.LogWarning("<color=red>TRAIN COLLISION: Player was run over by the train!</color>");
+                survival.TakeDamage(1000f, "Hit by a train!"); // Instakill the player
+            }
+
+            MimicAI mimic = other.GetComponent<MimicAI>();
+            if (mimic == null) mimic = other.GetComponentInParent<MimicAI>();
+
+            if (mimic != null)
+            {
+                Debug.LogWarning("<color=red>TRAIN COLLISION: Mimic was run over by the train!</color>");
+                mimic.TakeDamage(1000f); // Kill the Mimic too
+            }
         }
     }
 }

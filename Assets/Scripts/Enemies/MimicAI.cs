@@ -614,4 +614,30 @@ private Color originalLightColor;
             }
         }
     }
+
+    private float originalSpeed = -1f;
+    private float originalDamage = -1f;
+
+    public void ApplyBloodMoonBuff(float speedMult, float damageMult)
+    {
+        if (originalSpeed < 0)
+        {
+            originalSpeed = monsterSpeed;
+            originalDamage = attackDamage;
+        }
+        monsterSpeed = originalSpeed * speedMult;
+        attackDamage = originalDamage * damageMult;
+        
+        if (agent != null) agent.speed = monsterSpeed;
+    }
+
+    public void RemoveBloodMoonBuff()
+    {
+        if (originalSpeed > 0)
+        {
+            monsterSpeed = originalSpeed;
+            attackDamage = originalDamage;
+            if (agent != null) agent.speed = monsterSpeed;
+        }
+    }
 }

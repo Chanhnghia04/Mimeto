@@ -161,7 +161,7 @@ public class PlayerInventory : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void SyncDestroyItemClientRpc(Vector3 pos, string itemType)
+    public void SyncDestroyItemClientRpc(Vector3 pos, string itemType)
     {
         // Ignore on the client that actually picked it up (they destroyed it locally already)
         if (IsOwner) return;
@@ -187,7 +187,7 @@ public class PlayerInventory : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void SyncLootChestItemClientRpc(Vector3 chestPos, string itemType)
+    public void SyncLootChestItemClientRpc(Vector3 chestPos, string itemType)
     {
         if (IsOwner) return; // The one who looted it already removed it locally
 
@@ -216,7 +216,7 @@ public class PlayerInventory : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void SyncEscapeEventClientRpc(int eventId)
+    public void SyncEscapeEventClientRpc(int eventId)
     {
         if (eventId == 0) // Unlock Escape Door
         {
@@ -246,7 +246,7 @@ public class PlayerInventory : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void SyncAssemblyPartClientRpc(string partName, Vector3 pos)
+    public void SyncAssemblyPartClientRpc(string partName, Vector3 pos)
     {
         if (IsOwner) return; // Người nhặt tự xử lý local
         
@@ -270,7 +270,7 @@ public class PlayerInventory : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void SyncCipherNoteClientRpc(int noteIndex, string digits, Vector3 pos)
+    public void SyncCipherNoteClientRpc(int noteIndex, string digits, Vector3 pos)
     {
         if (IsOwner) return; // Người nhặt tự xử lý local
         
@@ -329,14 +329,11 @@ public class PlayerInventory : NetworkBehaviour
         plasticPipes = 0;
         scrapBatteries = 0;
         
+        credits += totalValue;
+        GlobalPlayerData.credits = credits;
         if (IsSpawned)
         {
             AddCreditsServerRpc(totalValue);
-        }
-        else
-        {
-            credits += totalValue;
-            GlobalPlayerData.credits = credits;
         }
         
         Debug.Log($"[Store] Sold all scrap for {totalValue} Energy Cells!");
@@ -354,10 +351,10 @@ public class PlayerInventory : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void UpdateCreditsClientRpc(int amount)
+    public void UpdateCreditsClientRpc(int amount)
     {
+        if (IsOwner) return; // Người chơi local đã cộng/trừ tiền trực tiếp rồi, không cập nhật lại nữa.
         credits += amount;
-        GlobalPlayerData.credits = credits;
     }
 
     /// <summary>
@@ -367,14 +364,11 @@ public class PlayerInventory : NetworkBehaviour
     {
         if (credits >= amount)
         {
+            credits -= amount;
+            GlobalPlayerData.credits = credits;
             if (IsSpawned)
             {
                 AddCreditsServerRpc(-amount);
-            }
-            else
-            {
-                credits -= amount;
-                GlobalPlayerData.credits = credits;
             }
             return true;
         }
@@ -383,14 +377,11 @@ public class PlayerInventory : NetworkBehaviour
 
     public void AddCredits(int amount)
     {
+        credits += amount;
+        GlobalPlayerData.credits = credits;
         if (IsSpawned)
         {
             AddCreditsServerRpc(amount);
-        }
-        else
-        {
-            credits += amount;
-            GlobalPlayerData.credits = credits;
         }
     }
 

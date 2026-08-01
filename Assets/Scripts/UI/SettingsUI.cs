@@ -141,7 +141,7 @@ public class SettingsUI : MonoBehaviour
         {
             NetworkManager.Singleton.Shutdown();
         }
-        UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu"); // Thay bằng tên scene Menu của bạn
+        UnityEngine.SceneManagement.SceneManager.LoadScene("StartGame");
     }
 
     // ================== AUDIO ==================

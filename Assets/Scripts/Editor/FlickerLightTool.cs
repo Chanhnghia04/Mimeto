@@ -11,7 +11,7 @@ public class FlickerLightTool
     [MenuItem("Tools/Flicker/Add Flicker To All Point+Spot Lights")]
     static void AddFlickerToAll()
     {
-        Light[] allLights = Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+        Light[] allLights = Object.FindObjectsByType<Light>();
         int count = 0;
 
         foreach (Light light in allLights)
@@ -37,7 +37,7 @@ public class FlickerLightTool
     [MenuItem("Tools/Flicker/Remove Flicker From All Lights")]
     static void RemoveFlickerFromAll()
     {
-        FlickerLight[] all = Object.FindObjectsByType<FlickerLight>(FindObjectsSortMode.None);
+        FlickerLight[] all = Object.FindObjectsByType<FlickerLight>();
         foreach (var f in all)
             Undo.DestroyObjectImmediate(f);
 

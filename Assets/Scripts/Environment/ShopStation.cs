@@ -14,7 +14,14 @@ public class ShopStation : MonoBehaviour, IInteractable
 
     [Header("Audio (Optional)")]
     public AudioClip buySound;
+    public AudioClip sellSound;
     public AudioClip errorSound;
+    private void Start()
+    {
+        if (buySound == null) buySound = Resources.Load<AudioClip>("SFX/Buy_Coin_Sound") ?? Resources.Load<AudioClip>("SFX/Buy_Coin");
+        if (sellSound == null) sellSound = Resources.Load<AudioClip>("SFX/Sell_Cash_Sound") ?? Resources.Load<AudioClip>("SFX/Sell_Cash");
+        if (errorSound == null) errorSound = Resources.Load<AudioClip>("SFX/UI/ui_wav/negative_sound");
+    }
 
     // ── State ────────────────────────────────────────────────────────────────
     [HideInInspector] public bool isOpen = false;
@@ -67,7 +74,7 @@ public class ShopStation : MonoBehaviour, IInteractable
         // Tìm local player
         if (_localPlayer == null || _inventory == null)
         {
-            PlayerInventory[] inventories = FindObjectsByType<PlayerInventory>(FindObjectsSortMode.None);
+            PlayerInventory[] inventories = FindObjectsByType<PlayerInventory>();
             foreach (var inv in inventories)
             {
                 if (inv.IsOwner)
@@ -120,7 +127,7 @@ public class ShopStation : MonoBehaviour, IInteractable
         // Fallback: Nếu không tìm thấy qua interactor, tìm PlayerInventory của local player
         if (inv == null)
         {
-            PlayerInventory[] inventories = FindObjectsByType<PlayerInventory>(FindObjectsSortMode.None);
+            PlayerInventory[] inventories = FindObjectsByType<PlayerInventory>();
             foreach (var i in inventories)
             {
                 if (i.IsOwner)
@@ -388,7 +395,7 @@ public class ShopStation : MonoBehaviour, IInteractable
         {
             case "health_pack":
                 if (_survival != null)
-                    _survival.currentHealth = Mathf.Min(_survival.currentHealth + 50f, _survival.maxHealth);
+                    _survival.Heal(50f);
                 else
                     _inventory.healthPacks++;
                 ShowStatus("Health Pack đã dùng! (+50 HP)", false);
@@ -396,7 +403,7 @@ public class ShopStation : MonoBehaviour, IInteractable
 
             case "full_health_kit":
                 if (_survival != null)
-                    _survival.currentHealth = _survival.maxHealth;
+                    _survival.Heal(_survival.maxHealth);
                 else
                     _inventory.healthPacks++;
                 ShowStatus("Full Health Kit đã dùng! (MAX HP)", false);

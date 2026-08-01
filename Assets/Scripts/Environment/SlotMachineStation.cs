@@ -1,7 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-[RequireComponent(typeof(BoxCollider))]
 public class SlotMachineStation : MonoBehaviour, IInteractable
 {
     public bool isOpen = false;
@@ -76,6 +75,7 @@ public class SlotMachineStation : MonoBehaviour, IInteractable
         if (inv == null) return;
         _inventory = inv;
         isOpen = true;
+        PlayerController.OpenMinigameCount++;
         _alpha = 0f; _scale = 0.82f; _flash = 0f; _leverT = 0f;
         _state = State.Idle; _win = false;
         _msg = "INSERT COIN  ►  SET BET  ►  SPIN";
@@ -86,7 +86,7 @@ public class SlotMachineStation : MonoBehaviour, IInteractable
 
     void CloseStation()
     {
-        isOpen = false;
+        if (isOpen) { isOpen = false; PlayerController.OpenMinigameCount--; }
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible   = false;
     }
@@ -493,7 +493,7 @@ public class SlotMachineStation : MonoBehaviour, IInteractable
         GUI.DrawTexture(r,_wh);
         var xs = Sty(20,FontStyle.Bold,hov?NEON_RED:new Color(NEON_RED.r,NEON_RED.g,NEON_RED.b,0.6f),TextAnchor.MiddleCenter);
         GUI.color = new Color(1,1,1,_alpha); GUI.Label(r,"✕",xs);
-        if (hov&&Event.current.type==EventType.MouseDown&&Event.current.button==0){Event.current.Use();CloseStation();}
+        if (hov&&Event.current.type==EventType.MouseDown&&Event.current.button==0){PlayClickSound();Event.current.Use();CloseStation();}
     }
 
     bool ArcadeBtn(float x, float y, float w, float h, string txt, Color col, bool large)
@@ -524,8 +524,15 @@ public class SlotMachineStation : MonoBehaviour, IInteractable
         s.normal.textColor = new Color(tc.r,tc.g,tc.b,_alpha);
         GUI.Label(r,txt,s);
 
-        if (hov&&Event.current.type==EventType.MouseDown&&Event.current.button==0){Event.current.Use();return true;}
+        if (hov&&Event.current.type==EventType.MouseDown&&Event.current.button==0){PlayClickSound();Event.current.Use();return true;}
         return false;
+    }
+
+    private static AudioClip s_clickSound;
+    private void PlayClickSound()
+    {
+        if (s_clickSound == null) s_clickSound = Resources.Load<AudioClip>("SFX/UI/ui_wav/click_sound") ?? Resources.Load<AudioClip>("SFX/Buy_Coin");
+        if (s_clickSound != null && Camera.main != null) AudioSource.PlayClipAtPoint(s_clickSound, Camera.main.transform.position, 0.5f);
     }
 
     void DrawBorder(float x,float y,float w,float h,float t)

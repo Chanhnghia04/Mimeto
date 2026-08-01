@@ -16,6 +16,12 @@ public class ScrapSellStation : MonoBehaviour, IInteractable
     public AudioClip sellSound;
     public AudioClip errorSound;
 
+    private void Start()
+    {
+        if (sellSound == null) sellSound = Resources.Load<AudioClip>("SFX/Sell_Cash_Sound") ?? Resources.Load<AudioClip>("SFX/Sell_Cash");
+        if (errorSound == null) errorSound = Resources.Load<AudioClip>("SFX/UI/ui_wav/negative_sound");
+    }
+
     [HideInInspector] public bool isOpen = false;
     private PlayerInventory _inventory;
     private AudioSource _audioSource;
@@ -54,7 +60,7 @@ public class ScrapSellStation : MonoBehaviour, IInteractable
     {
         if (_localPlayer == null || _inventory == null)
         {
-            PlayerInventory[] inventories = FindObjectsByType<PlayerInventory>(FindObjectsSortMode.None);
+            PlayerInventory[] inventories = FindObjectsByType<PlayerInventory>();
             foreach (var inv in inventories)
             {
                 if (inv.IsOwner)
@@ -99,7 +105,7 @@ public class ScrapSellStation : MonoBehaviour, IInteractable
         // Fallback: Nếu không tìm thấy qua interactor, tìm PlayerInventory của local player
         if (inv == null)
         {
-            PlayerInventory[] inventories = FindObjectsByType<PlayerInventory>(FindObjectsSortMode.None);
+            PlayerInventory[] inventories = FindObjectsByType<PlayerInventory>();
             foreach (var i in inventories)
             {
                 if (i.IsOwner)

@@ -28,6 +28,7 @@ public class InfoBoard : MonoBehaviour, IInteractable
     {
         if (isOpen) return;
         isOpen = true;
+        PlayerController.OpenMinigameCount++;
         _alpha = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -35,7 +36,7 @@ public class InfoBoard : MonoBehaviour, IInteractable
 
     void CloseBoard()
     {
-        isOpen = false;
+        if (isOpen) { isOpen = false; PlayerController.OpenMinigameCount--; }
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }

@@ -6,7 +6,7 @@ public class CurrencyUI : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void AutoSpawn()
     {
-        if (FindObjectsByType<CurrencyUI>(FindObjectsSortMode.None).Length == 0)
+        if (FindObjectsByType<CurrencyUI>().Length == 0)
         {
             var go = new GameObject("CurrencyUI_AutoSpawn");
             go.AddComponent<CurrencyUI>();
@@ -24,7 +24,7 @@ public class CurrencyUI : MonoBehaviour
     {
         if (_localInventory == null)
         {
-            PlayerInventory[] inventories = FindObjectsByType<PlayerInventory>(FindObjectsSortMode.None);
+            PlayerInventory[] inventories = FindObjectsByType<PlayerInventory>();
             foreach (var inv in inventories)
             {
                 // Nếu đang chơi online thì check IsOwner, nếu chơi offline (chưa spawn) thì lấy luôn

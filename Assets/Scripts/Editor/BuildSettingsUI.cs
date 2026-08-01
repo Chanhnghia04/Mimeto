@@ -9,7 +9,7 @@ public class BuildSettingsUI
     public static void BuildUI()
     {
         // Find Canvas
-        Canvas canvas = Object.FindObjectOfType<Canvas>();
+        Canvas canvas = Object.FindFirstObjectByType<Canvas>();
         if (canvas == null)
         {
             GameObject canvasObj = new GameObject("Canvas");

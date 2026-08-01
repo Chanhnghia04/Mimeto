@@ -113,7 +113,7 @@ public class MutantSpawner : NetworkBehaviour
     /// <summary>Spawn at weighted MutantSpawnPoint locations, respecting player distance.</summary>
     private void SpawnAtSpawnPoints(Vector3 playerPos)
     {
-        MutantSpawnPoint[] allPoints = FindObjectsByType<MutantSpawnPoint>(FindObjectsSortMode.None);
+        MutantSpawnPoint[] allPoints = FindObjectsByType<MutantSpawnPoint>();
         if (allPoints.Length == 0)
         {
             Debug.LogWarning("[MutantSpawner] No MutantSpawnPoints found! Falling back to random spawn.");

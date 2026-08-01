@@ -1,7 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-[RequireComponent(typeof(BoxCollider))]
 public class BlackjackStation : MonoBehaviour, IInteractable
 {
     public bool isOpen = false;
@@ -114,6 +113,7 @@ public class BlackjackStation : MonoBehaviour, IInteractable
 
         _inventory = inv;
         isOpen     = true;
+        PlayerController.OpenMinigameCount++;
         panelAlpha = 0f;
         panelScale = 0.88f;
         winFlash   = 0f;
@@ -125,7 +125,7 @@ public class BlackjackStation : MonoBehaviour, IInteractable
 
     void CloseStation()
     {
-        isOpen = false;
+        if (isOpen) { isOpen = false; PlayerController.OpenMinigameCount--; }
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible   = false;
     }
@@ -490,7 +490,7 @@ public class BlackjackStation : MonoBehaviour, IInteractable
         GUI.Label(r, "✕", s);
 
         if (hover && Event.current.type == EventType.MouseDown && Event.current.button == 0)
-        { Event.current.Use(); CloseStation(); }
+        { PlayClickSound(); Event.current.Use(); CloseStation(); }
     }
 
     // ── Status Bar ────────────────────────────────────────────────────────────
@@ -775,8 +775,15 @@ public class BlackjackStation : MonoBehaviour, IInteractable
         GUI.Label(r, text, s);
 
         if (hover && Event.current.type == EventType.MouseDown && Event.current.button == 0)
-        { Event.current.Use(); return true; }
+        { PlayClickSound(); Event.current.Use(); return true; }
         return false;
+    }
+
+    private static AudioClip s_clickSound;
+    private void PlayClickSound()
+    {
+        if (s_clickSound == null) s_clickSound = Resources.Load<AudioClip>("SFX/UI/ui_wav/click_sound") ?? Resources.Load<AudioClip>("SFX/Buy_Coin");
+        if (s_clickSound != null && Camera.main != null) AudioSource.PlayClipAtPoint(s_clickSound, Camera.main.transform.position, 0.5f);
     }
 
     // ── Gold Oval Ring (felt decor) ───────────────────────────────────────────

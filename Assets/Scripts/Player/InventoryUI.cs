@@ -67,7 +67,7 @@ public class InventoryUI : MonoBehaviour
         }
         else
         {
-            Debug.LogError("[InventoryUI] Không tìm thấy InventoryPanel trong Scene! Hãy chắc chắn bạn đã tạo Canvas chứa InventoryPanel.");
+            Debug.LogWarning("[InventoryUI] Không tìm thấy InventoryPanel lúc khởi tạo. Có thể nó ở Scene khác (VD: Map) và sẽ được tìm lại khi bạn mở Inventory.");
         }
     }
 

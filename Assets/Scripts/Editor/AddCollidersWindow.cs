@@ -208,7 +208,7 @@ public class AddCollidersWindow : EditorWindow
                 ? FindObjectsInactive.Exclude
                 : FindObjectsInactive.Include;
 
-            pool = Object.FindObjectsByType<MeshRenderer>(inactive, FindObjectsSortMode.None)
+            pool = Object.FindObjectsByType<MeshRenderer>(inactive)
                          .Select(r => r.gameObject);
         }
 
