@@ -20,7 +20,7 @@ public class WaitingRoomManager : NetworkBehaviour
     [SerializeField] private Transform playerListContainer;
     [SerializeField] private GameObject playerItemPrefab;
 
-    private NetworkList<ulong> connectedPlayers;
+    private NetworkList<ulong> connectedPlayers = new NetworkList<ulong>();
 
     
 
@@ -170,7 +170,6 @@ public class WaitingRoomManager : NetworkBehaviour
         {
             NetworkManager.Singleton.Shutdown();
         }
-
-        SceneManager.LoadScene("Menu");
+        SceneManager.LoadScene("StartGame");
     }
 }

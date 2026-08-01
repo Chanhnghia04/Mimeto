@@ -184,7 +184,7 @@ public class PlayerController : NetworkBehaviour
         _chestUI     = Object.FindAnyObjectByType<ChestUI>();
 
         // Chuyển UI từ Camera sang Overlay giống như Scene StartGame
-        UnityEngine.Canvas[] canvasses = FindObjectsByType<UnityEngine.Canvas>(FindObjectsSortMode.None);
+        UnityEngine.Canvas[] canvasses = FindObjectsByType<UnityEngine.Canvas>();
         foreach (var canvas in canvasses)
         {
             // Chỉ chỉnh những Canvas đang dính vào Camera (VD: túi đồ, máu me)
@@ -413,7 +413,6 @@ public class PlayerController : NetworkBehaviour
     // Hàm này hiện tại là public để bạn có thể gọi từ Animation Event
     public void ExecutePunch()
     {
-        RaycastHit hit;
         float actualRange = punchRange;
         float actualDamage = punchDamage;
         PlayerInventory inv = GetComponent<PlayerInventory>();
@@ -639,6 +638,8 @@ public class PlayerController : NetworkBehaviour
 
         SettingsUI settingsUI = Object.FindAnyObjectByType<SettingsUI>();
         if (settingsUI != null && settingsUI.settingsPanel != null && settingsUI.settingsPanel.activeSelf) return true;
+
+        if (OpenMinigameCount > 0) return true;
         
         // 2. Kiểm tra chậm (slow path): Quét toàn Scene 4 lần/giây thay vì 60 lần/giây để chống giật lag (Optimize)
         _uiCheckTimer -= Time.deltaTime;
@@ -694,6 +695,13 @@ public class PlayerController : NetworkBehaviour
         }
 
         return _cachedUiOpen;
+    }
+
+    public static int OpenMinigameCount = 0;
+
+    public void ForceUIRefresh()
+    {
+        _uiCheckTimer = 0f;
     }
 
     private Transform spectateTarget = null;
@@ -774,7 +782,7 @@ public class PlayerController : NetworkBehaviour
 
     private void CycleSpectateTarget()
     {
-        PlayerSurvival[] allPlayers = Object.FindObjectsByType<PlayerSurvival>(FindObjectsSortMode.None);
+        PlayerSurvival[] allPlayers = Object.FindObjectsByType<PlayerSurvival>();
         System.Collections.Generic.List<PlayerSurvival> alivePlayers = new System.Collections.Generic.List<PlayerSurvival>();
         
         foreach (var p in allPlayers)

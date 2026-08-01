@@ -17,7 +17,6 @@ public class PlayerSurvival : NetworkBehaviour
     private static bool showGameOver = false;
     private static bool isWinResult = false;
     private static bool pendingSceneLoad = false;
-    private static float serverLoadSceneTimer = -1f;
 
     public static bool IsGameOverUIOpen()
     {
@@ -343,7 +342,7 @@ public class PlayerSurvival : NetworkBehaviour
         string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         if (sceneName != "Map" && sceneName != "PollutedZone") return;
 
-        PlayerSurvival[] players = FindObjectsByType<PlayerSurvival>(FindObjectsSortMode.None);
+        PlayerSurvival[] players = FindObjectsByType<PlayerSurvival>();
         if (players.Length == 0) return;
 
         bool allDead = true;
@@ -399,7 +398,7 @@ public class PlayerSurvival : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void TakeDamageClientRpc(float amount, string reason)
+    public void TakeDamageClientRpc(float amount, string reason)
     {
         if (IsOwner)
         {
@@ -430,12 +429,19 @@ public class PlayerSurvival : NetworkBehaviour
         UpdateHealthServerRpc(currentHealth);
     }
 
+    public void Heal(float amount)
+    {
+        if (currentHealth <= 0 || isDead) return;
+        currentHealth = Mathf.Min(currentHealth + amount, maxHealth);
+        UpdateHealthServerRpc(currentHealth);
+    }
+
     [ServerRpc(RequireOwnership = false)]
-    private void UpdateHealthServerRpc(float newHealth)
+    public void UpdateHealthServerRpc(float newHealth)
     {
         currentHealth = newHealth;
     }
-
+//
     private float bleedEndTime = 0f;
     private float bleedDps = 0f;
 
@@ -502,7 +508,7 @@ public class PlayerSurvival : NetworkBehaviour
     }
 
     [ServerRpc(RequireOwnership = false)]
-    private void NotifyTeamWipeCheckServerRpc()
+    public void NotifyTeamWipeCheckServerRpc()
     {
         CheckTeamWipe();
     }
@@ -925,3 +931,4 @@ public class PlayerSurvival : NetworkBehaviour
         GUI.color = Color.white;
     }
 }
+ 

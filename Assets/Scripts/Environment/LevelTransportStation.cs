@@ -26,7 +26,7 @@ public class LevelTransportStation : MonoBehaviour, IInteractable
 
     void Update()
     {
-        PlayerInventory[] allPlayers = FindObjectsByType<PlayerInventory>(FindObjectsSortMode.None);
+        PlayerInventory[] allPlayers = FindObjectsByType<PlayerInventory>();
         _totalPlayers = allPlayers.Length;
         _playersInZone = 0;
         

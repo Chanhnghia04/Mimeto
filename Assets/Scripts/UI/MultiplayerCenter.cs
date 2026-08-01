@@ -179,9 +179,8 @@ public class MultiplayerCenter : MonoBehaviour
         {
             NetworkManager.Singleton.Shutdown();
         }
-
         _ = LobbyManager.Instance.LeaveLobby();
-        UnityEngine.SceneManagement.SceneManager.LoadScene("Menu");
+        UnityEngine.SceneManagement.SceneManager.LoadScene("StartGame");
     }
 
     #endregion

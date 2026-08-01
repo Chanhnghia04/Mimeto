@@ -176,7 +176,6 @@ GameObject:
   - component: {fileID: 5352208273475910885}
   - component: {fileID: 7778788959161791092}
   - component: {fileID: 5279150610122130779}
-  - component: {fileID: 8458132902521818565}
   - component: {fileID: 2213295620602334515}
   - component: {fileID: 1110349559404036167}
   - component: {fileID: 4813576773242687807}
@@ -322,7 +321,9 @@ MonoBehaviour:
   landDipSpeed: 10
   isHiding: 0
   isShopMode: 0
+  isGhostMode: 0
   velocity: {x: 0, y: 0, z: 0}
+  isExhausted: 0
 --- !u!114 &8340760422518348896
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -335,6 +336,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 43c3d52923a03374b992707266f96b22, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInventory
+  MatchSeed:
+    m_InternalValue: 0
   circuits: 0
   metalPipes: 0
   ironPlates: 0
@@ -369,12 +372,18 @@ MonoBehaviour:
   maxHealth: 100
   currentHealth: 0
   toxicDamagePerSecond: 5
+  isGhost:
+    m_InternalValue: 0
   spawnPoint: {fileID: 0}
   maxOxygen: 100
   currentOxygen: 0
   oxygenDepletionRate: 3
   oxygenRestoreRate: 10
   inSafeZone: 0
+  maxStamina: 100
+  currentStamina: 0
+  staminaDepletionRate: 20
+  staminaRestoreRate: 15
   activeMaskType: 0
   maskDurability: 0
   basicMaskProtection: 0.8
@@ -497,93 +506,6 @@ MonoBehaviour:
   plasticSprite: {fileID: 21300000, guid: 37605ae5a9629264a905456bb402bf67, type: 3}
   batterySprite: {fileID: 21300000, guid: cb44366bbcffba949ba650fe34b6aa5f, type: 3}
   ironPlateSprite: {fileID: 21300000, guid: 2c7287db812deae46abbfe6268846b6c, type: 3}
---- !u!114 &8458132902521818565
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1863494784221845881}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 43a20ad4fcb6d544da050f803ae7bafb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CraftingUI
-  inventory: {fileID: 8340760422518348896}
-  survival: {fileID: 1961056957831625758}
-  craftingPanel: {fileID: 0}
-  mainCanvasGroup: {fileID: 0}
-  observationDeck: {fileID: 0}
-  scanningGrid: {fileID: 0}
-  holographicBrackets: []
-  screenFlash: {fileID: 0}
-  detailsPane: {fileID: 0}
-  detailsTitleText: {fileID: 0}
-  detailsDescriptionText: {fileID: 0}
-  detailsIcon: {fileID: 0}
-  mainCraftButton: {fileID: 0}
-  materialRequirementUI: []
-  materialRequirementIcons: []
-  materialRequirementTexts: []
-  materialGlows: []
-  recipeSelectionButtons: []
-  recipeSelectionSelectionGlows: []
-  statusText: {fileID: 0}
-  craftBasicButton: {fileID: 0}
-  craftAdvancedButton: {fileID: 0}
-  craftUVButton: {fileID: 0}
-  craftCrowbarButton: {fileID: 0}
-  craftShovelButton: {fileID: 0}
-  craftMacheteButton: {fileID: 0}
-  craftAxeButton: {fileID: 0}
-  craftBatButton: {fileID: 0}
-  basicRecipeIcons:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  advancedRecipeIcons:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  uvRecipeIcons:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  crowbarRecipeIcons:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  shovelRecipeIcons:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  macheteRecipeIcons:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  axeRecipeIcons:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  batRecipeIcons:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  circuitSprite: {fileID: 21300000, guid: d39d3957770819049927465b4b5962bc, type: 3}
-  pipeSprite: {fileID: 21300000, guid: 09fba5dc6ed73254c9b8cba8174ca3d8, type: 3}
-  chemicalSprite: {fileID: 21300000, guid: 61cd39f96598c9a4cae69096a15f58e1, type: 3}
-  plasticSprite: {fileID: 21300000, guid: 37605ae5a9629264a905456bb402bf67, type: 3}
-  batterySprite: {fileID: 21300000, guid: cb44366bbcffba949ba650fe34b6aa5f, type: 3}
-  ironPlateSprite: {fileID: 21300000, guid: 2c7287db812deae46abbfe6268846b6c, type: 3}
-  missingIconSprite: {fileID: 0}
-  basicMaskSprite: {fileID: 0}
-  advancedMaskSprite: {fileID: 0}
-  flashlightSprite: {fileID: 0}
-  crowbarSprite: {fileID: 0}
-  shovelSprite: {fileID: 0}
-  macheteSprite: {fileID: 0}
-  axeSprite: {fileID: 0}
-  batSprite: {fileID: 0}
 --- !u!114 &2213295620602334515
 MonoBehaviour:
   m_ObjectHideFlags: 0

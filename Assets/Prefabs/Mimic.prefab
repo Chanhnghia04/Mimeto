@@ -191,7 +191,7 @@ Transform:
   m_GameObject: {fileID: 6809241182050659446}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -64.16689, y: 1.118206, z: -65.17778}
+  m_LocalPosition: {x: -64.16689, y: 1.118206, z: -64.8}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -273,12 +273,12 @@ MonoBehaviour:
   humanAcceleration: 5
   redFlashlightInterval: 2
   redLightColor: {r: 1, g: 0, b: 0, a: 1}
-  agent: {fileID: 0}
+  agent: {fileID: 3307320919740979990}
   monsterModel: {fileID: 6809241182050659446}
   humanModelContainer: {fileID: 5595753786700109416}
   flashlight: {fileID: 3342207908793532240}
   nametag: {fileID: 3887786381573454787}
-  animator: {fileID: 0}
+  animator: {fileID: 4988543479724754048}
   audioSource: {fileID: 0}
   attackClip: {fileID: 8300000, guid: d534ec4f18a98ff458a83cb7aee4518f, type: 3}
   ambientAudioSource: {fileID: 0}
@@ -350,7 +350,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3386292741
+  GlobalObjectIdHash: 992938384
   InScenePlacedSourceGlobalObjectIdHash: 0
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
@@ -595,7 +595,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 8bdad943e1ae7234992196862b5c11d6, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: -8.7
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8bdad943e1ae7234992196862b5c11d6, type: 3}
       propertyPath: m_LocalPosition.y
@@ -603,7 +603,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8bdad943e1ae7234992196862b5c11d6, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: -10
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8bdad943e1ae7234992196862b5c11d6, type: 3}
       propertyPath: m_LocalRotation.w
@@ -648,7 +648,7 @@ PrefabInstance:
     - target: {fileID: 5866666021909216657, guid: 8bdad943e1ae7234992196862b5c11d6, type: 3}
       propertyPath: m_Controller
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 9100000, guid: 389f40cca039c2a44a3c10302c169d74, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -657,5 +657,10 @@ PrefabInstance:
 --- !u!4 &1430720855870545658 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 8bdad943e1ae7234992196862b5c11d6, type: 3}
+  m_PrefabInstance: {fileID: 1463749545108535569}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &4988543479724754048 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: 8bdad943e1ae7234992196862b5c11d6, type: 3}
   m_PrefabInstance: {fileID: 1463749545108535569}
   m_PrefabAsset: {fileID: 0}

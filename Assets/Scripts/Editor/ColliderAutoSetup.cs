@@ -89,7 +89,7 @@ public static class ColliderAutoSetup
         Debug.Log("[ColliderAutoSetup] ▶ Scanning scene for objects without colliders…");
 
         MeshRenderer[] allRenderers = Object.FindObjectsByType<MeshRenderer>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
 
         Undo.SetCurrentGroupName("Auto: Add Box Colliders");
         int group = Undo.GetCurrentGroup();

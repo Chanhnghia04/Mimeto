@@ -60,7 +60,7 @@ public class PollutedSkySetup : EditorWindow
         skyboxMat.SetFloat("_Exposure", 0.05f); // Bầu trời gần như không phát sáng
 
         // 4. Tạo hiệu ứng Post Processing (Global Volume) - Giảm sáng mạnh
-        Volume volume = FindObjectOfType<Volume>();
+        Volume volume = FindFirstObjectByType<Volume>();
         if (volume == null)
         {
             GameObject volumeObj = new GameObject("Polluted Sky Global Volume");

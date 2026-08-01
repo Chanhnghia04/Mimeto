@@ -194,7 +194,10 @@ public class InteractionSystem : MonoBehaviour
             try
             {
                 if (interactable != null && (interactable as MonoBehaviour) != null)
+                {
                     interactable.Interact(gameObject);
+                    GetComponentInParent<PlayerController>()?.ForceUIRefresh();
+                }
             }
             catch (System.Exception e)
             {
@@ -237,6 +240,7 @@ public class InteractionSystem : MonoBehaviour
             if (interactable != null && (interactable as MonoBehaviour) != null)
             {
                 interactable.Interact(gameObject);
+                GetComponentInParent<PlayerController>()?.ForceUIRefresh();
             }
         }
         catch (System.Exception e)

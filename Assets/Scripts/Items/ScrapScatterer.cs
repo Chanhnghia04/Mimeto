@@ -38,12 +38,12 @@ public class ScrapScatterer : MonoBehaviour
         CreateScrap("battery",    new Vector3(  8, 0,   5));
         CreateScrap("battery",    new Vector3( -8, 0,   5));
 
-        // ── Workbench ─────────────────────────────────────────────────────────
-        GameObject wb = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        wb.name = "Workbench";
-        wb.AddComponent<Workbench>();
-        SnapPrimitiveToGround(wb, new Vector3(0, 0, 5));
-        SpawnUtils.FitColliders(wb);
+        // ── Workbench (Removed by user request) ───────────────────────────────
+        // GameObject wb = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        // wb.name = "Workbench";
+        // wb.AddComponent<Workbench>();
+        // SnapPrimitiveToGround(wb, new Vector3(0, 0, 5));
+        // SpawnUtils.FitColliders(wb);
 
         // ── Extraction Point ──────────────────────────────────────────────────
         GameObject ex = GameObject.CreatePrimitive(PrimitiveType.Cylinder);

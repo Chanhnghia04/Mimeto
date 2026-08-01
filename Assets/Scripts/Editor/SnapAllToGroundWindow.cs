@@ -276,7 +276,7 @@ public class SnapAllToGroundWindow : EditorWindow
                 .GetRootGameObjects();
         }
         return Object.FindObjectsByType<GameObject>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
     }
 
     private bool ShouldSkip(GameObject go)

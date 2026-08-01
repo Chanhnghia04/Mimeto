@@ -40,7 +40,7 @@ public static class RemoveTreeColliders
 
         // Tìm tất cả root GameObject — kiểm tra cả hierarchy
         GameObject[] allObjects = Object.FindObjectsByType<GameObject>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
 
         Undo.SetCurrentGroupName("Remove Tree Colliders");
         int group = Undo.GetCurrentGroup();

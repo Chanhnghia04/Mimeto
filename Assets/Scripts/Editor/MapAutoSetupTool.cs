@@ -63,7 +63,7 @@ public class MapAutoSetupTool : EditorWindow
     private void SetupLODForHouses()
     {
         // Tìm tất cả GameObject trong scene
-        GameObject[] allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+        GameObject[] allObjects = FindObjectsByType<GameObject>();
         int count = 0;
 
         foreach (GameObject go in allObjects)

@@ -102,7 +102,7 @@ public class MutantAI : MonoBehaviour
 
     void ListenForHeartbeats()
     {
-        PlayerController[] players = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        PlayerController[] players = FindObjectsByType<PlayerController>();
         PlayerController bestTarget = null;
         float highestThreat = 0f;
 
@@ -333,5 +333,31 @@ public class MutantAI : MonoBehaviour
         
         this.enabled = false;
         Destroy(gameObject, 5f);
+    }
+
+    private float originalSpeed = -1f;
+    private float originalDamage = -1f;
+
+    public void ApplyBloodMoonBuff(float speedMult, float damageMult)
+    {
+        if (originalSpeed < 0)
+        {
+            originalSpeed = chargeSpeed;
+            originalDamage = attackDamage;
+        }
+        chargeSpeed = originalSpeed * speedMult;
+        attackDamage = originalDamage * damageMult;
+        
+        if (agent != null) agent.speed = chargeSpeed;
+    }
+
+    public void RemoveBloodMoonBuff()
+    {
+        if (originalSpeed > 0)
+        {
+            chargeSpeed = originalSpeed;
+            attackDamage = originalDamage;
+            if (agent != null) agent.speed = chargeSpeed;
+        }
     }
 }
