@@ -57,7 +57,18 @@ public class LevelTransportStation : MonoBehaviour, IInteractable
                     {
                         if (Unity.Netcode.NetworkManager.Singleton.IsServer)
                         {
-                            Debug.Log("[Transport] Server loading map...");
+                            // ★ Tạo seed mới → items/chests/enemies/escape đều random lại
+                            foreach (var client in Unity.Netcode.NetworkManager.Singleton.ConnectedClientsList)
+                            {
+                                var inv = client.PlayerObject?.GetComponent<PlayerInventory>();
+                                if (inv != null && inv.IsServer)
+                                {
+                                    inv.RegenerateSeed();
+                                    break; // Chỉ cần 1 lần — seed là NetworkVariable, tự sync
+                                }
+                            }
+
+                            Debug.Log("[Transport] Server loading map with NEW seed...");
                             Unity.Netcode.NetworkManager.Singleton.SceneManager.LoadScene(targetScene, LoadSceneMode.Single);
                         }
                     }

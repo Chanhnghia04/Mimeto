@@ -144,13 +144,26 @@ public class WaitingRoomManager : NetworkBehaviour
     {
         if (!IsHost) return;
 
+        if (startButton != null) startButton.interactable = false;
+
         // 1. Lock lobby — không ai join được nữa
         if (LobbyManager.Instance != null)
         {
             await LobbyManager.Instance.SetGameStarted();
         }
 
-        // 2. Load Map scene (tất cả client sẽ tự động load theo)
+        // 2. Tạo seed mới → mỗi lần vào Map, items/chests/enemies đều khác
+        foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
+        {
+            var inv = client.PlayerObject?.GetComponent<PlayerInventory>();
+            if (inv != null && inv.IsServer)
+            {
+                inv.RegenerateSeed();
+                break; // Chỉ cần 1 lần — seed là NetworkVariable, tự sync
+            }
+        }
+
+        // 3. Load Map scene (tất cả client sẽ tự động load theo)
         NetworkManager.Singleton.SceneManager.LoadScene("Map", LoadSceneMode.Single);
     }
 

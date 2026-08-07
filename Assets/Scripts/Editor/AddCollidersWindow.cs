@@ -98,7 +98,7 @@ public class AddCollidersWindow : EditorWindow
         _skipTerrain     = EditorGUILayout.Toggle("Terrain (has TerrainCollider)", _skipTerrain);
         _skipParticles   = EditorGUILayout.Toggle("Particle Systems", _skipParticles);
         _skipUI          = EditorGUILayout.Toggle("UI Canvas / Graphic", _skipUI);
-        _skipSpawnPoints = EditorGUILayout.Toggle("MimicSpawnPoints / MimicSpawner", _skipSpawnPoints);
+//         _skipSpawnPoints = EditorGUILayout.Toggle("MimicSpawnPoints / MimicSpawner", _skipSpawnPoints);
 
         EditorGUILayout.Space(10);
 
@@ -256,9 +256,7 @@ public class AddCollidersWindow : EditorWindow
         if (_skipUI && (go.GetComponent<Canvas>() != null || go.GetComponent<UnityEngine.UI.Graphic>() != null))
             return "UI Element";
 
-        if (_skipSpawnPoints &&
-            (go.GetComponent<MimicSpawnPoint>() != null || go.GetComponent<MimicSpawner>() != null))
-            return "Mimic system object";
+
 
         if (_skipIfHasAnyCollider && go.GetComponent<Collider>() != null)
             return "Already has collider";

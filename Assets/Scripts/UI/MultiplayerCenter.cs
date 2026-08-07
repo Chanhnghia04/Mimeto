@@ -339,6 +339,8 @@ public class MultiplayerCenter : MonoBehaviour
     /// </summary>
     private async void OnCancelRoomClicked()
     {
+        if (cancelRoomButton != null) cancelRoomButton.interactable = false;
+        
         bool wasHost = NetworkManager.Singleton != null && NetworkManager.Singleton.IsHost;
 
         if (NetworkManager.Singleton != null)
@@ -347,6 +349,7 @@ public class MultiplayerCenter : MonoBehaviour
         }
 
         await LobbyManager.Instance.LeaveLobby();
+        await Task.Delay(500); // Đợi NetworkManager Shutdown hoàn tất
 
         if (roomInfoPanel != null) roomInfoPanel.SetActive(false);
         
@@ -363,6 +366,7 @@ public class MultiplayerCenter : MonoBehaviour
             UpdateClientStatus("Đã thoát phòng.");
         }
         
+        if (cancelRoomButton != null) cancelRoomButton.interactable = true;
         UpdateStatus("Sẵn sàng!");
     }
 

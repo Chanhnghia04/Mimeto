@@ -10,17 +10,22 @@ public class UIDrag : MonoBehaviour, IDragHandler, IBeginDragHandler
     {
         rectTransform = GetComponent<RectTransform>();
         canvas = GetComponentInParent<Canvas>();
+        
+        // Tăng kích cỡ lên 250%
+        rectTransform.localScale = new Vector3(2.5f, 2.5f, 2.5f);
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        rectTransform.SetAsLastSibling();
+        // Khóa cứng
+        // rectTransform.SetAsLastSibling();
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (canvas == null) canvas = GetComponentInParent<Canvas>();
-        if (canvas != null)
-            rectTransform.anchoredPosition += eventData.delta / canvas.scaleFactor;
+        // Khóa cứng
+        // if (canvas == null) canvas = GetComponentInParent<Canvas>();
+        // if (canvas != null)
+        //     rectTransform.anchoredPosition += eventData.delta / canvas.scaleFactor;
     }
 }

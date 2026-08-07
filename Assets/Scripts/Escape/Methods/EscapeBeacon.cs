@@ -116,10 +116,11 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
                 if (pingClip != null) audioSource.PlayOneShot(pingClip);
             }
 
-            MimicAI[] mimics = FindObjectsByType<MimicAI>();
+UnityEngine.Component[] mimics = new UnityEngine.Component[0];
+//             MimicAI[] mimics = FindObjectsByType<MimicAI>();
             foreach (var m in mimics)
             {
-                m.Investigate(transform.position);
+//                 m.Investigate(transform.position);
             }
         }
 

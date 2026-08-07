@@ -257,9 +257,6 @@ public class EscapePart : MonoBehaviour, IInteractable
         {
             inv.SyncAssemblyPartServerRpc(partName, transform.position);
         }
-
-        parentAssembly?.OnPartCollected(partName);
-        Destroy(gameObject);
     }
 
 #if UNITY_EDITOR

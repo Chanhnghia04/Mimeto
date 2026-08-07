@@ -23,6 +23,8 @@ public class PlayerStatusEffect : MonoBehaviour
     public AudioSource heartbeatAudio;
     public float pulseSpeed = 5f;
     
+    private static readonly Collider[] _monsterBuffer = new Collider[20];
+
     private void Start()
     {
         if (globalVolume == null)
@@ -64,13 +66,19 @@ public class PlayerStatusEffect : MonoBehaviour
     {
         if (chromaticAberration == null || filmGrain == null) return;
 
-        Collider[] monsters = Physics.OverlapSphere(transform.position, monsterDetectRadius);
+        int count = Physics.OverlapSphereNonAlloc(transform.position, monsterDetectRadius, _monsterBuffer);
         float closestDistance = monsterDetectRadius;
         bool monsterNearby = false;
 
-        foreach (var col in monsters)
+        for (int i = 0; i < count; i++)
         {
-            if (col.GetComponent<MutantAI>() != null || col.GetComponent<MimicAI>() != null)
+            Collider col = _monsterBuffer[i];
+//             MimicAI mimic = col.GetComponentInParent<MimicAI>();
+            MutantAI mutant = col.GetComponentInParent<MutantAI>();
+// bool isMimic = false;
+//             bool isMimic = mimic != null && mimic.currentState != MimicAI.MimicState.HumanForm;
+            bool isMutant = mutant != null;
+//             if (isMimic || isMutant)
             {
                 monsterNearby = true;
                 float dist = Vector3.Distance(transform.position, col.transform.position);

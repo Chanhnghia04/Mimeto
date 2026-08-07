@@ -87680,12 +87680,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.CanvasScaler
-  m_UiScaleMode: 0
+  m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 800, y: 600}
+  m_ReferenceResolution: {x: 1920, y: 1080}
   m_ScreenMatchMode: 0
-  m_MatchWidthOrHeight: 0
+  m_MatchWidthOrHeight: 0.5
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
@@ -101654,11 +101654,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 44033f29cf193cc47826b27566f0502a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MimicSpawner
-  mimicPrefab: {fileID: 6809241182050659446, guid: 680ec57abc7703141b3b38abb1ad8ebd, type: 3}
-  mimicsToSpawn: 1
-  completelyRandomSpawn: 1
-  globalMinDistanceFromPlayer: 20
-  playerTag: Player
 --- !u!4 &1372784496
 Transform:
   m_ObjectHideFlags: 0
@@ -112965,12 +112960,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.CanvasScaler
-  m_UiScaleMode: 0
+  m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 800, y: 600}
+  m_ReferenceResolution: {x: 1920, y: 1080}
   m_ScreenMatchMode: 0
-  m_MatchWidthOrHeight: 0
+  m_MatchWidthOrHeight: 0.5
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
@@ -115588,12 +115583,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.CanvasScaler
-  m_UiScaleMode: 0
+  m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 800, y: 600}
+  m_ReferenceResolution: {x: 1920, y: 1080}
   m_ScreenMatchMode: 0
-  m_MatchWidthOrHeight: 0
+  m_MatchWidthOrHeight: 0.5
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
@@ -138721,8 +138716,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a104c12f34997114f8ec80f57ebca55a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MutantSpawner
-  mutantPrefab: {fileID: 9046945449887451368, guid: 30f13937ac14fa14bad576247f1c5dba, type: 3}
-  mutantsToSpawn: 1
+  enemyPrefabs:
+  - {fileID: 9046945449887451368, guid: 30f13937ac14fa14bad576247f1c5dba, type: 3}
+  - {fileID: 2543562900075158244, guid: 1f3e277a5478ee44e8911ee645e28451, type: 3}
+  mutantsToSpawn: 2
   shuffleSpawnPoints: 1
   completelyRandomSpawn: 1
   globalMinDistanceFromPlayer: 20

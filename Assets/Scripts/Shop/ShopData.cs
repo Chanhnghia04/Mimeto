@@ -46,6 +46,7 @@ public static class ShopData
     {
         new ShopItemData("health_pack",       "Health Pack",        "Restores 50 HP instantly.",                    50,  ShopItemCategory.Consumable),
         new ShopItemData("full_health_kit",   "Full Health Kit",    "Fully restores health to maximum.",           120,  ShopItemCategory.Consumable),
+        new ShopItemData("antidote",          "Parasite Antidote",  "Cures parasite infection immediately.",       150,  ShopItemCategory.Consumable),
         new ShopItemData("basic_gas_mask",    "Basic Gas Mask",     "80% toxin protection. Lasts ~60 seconds.",     80,  ShopItemCategory.Equipment),
         new ShopItemData("advanced_gas_mask", "Advanced Gas Mask",  "95% toxin protection. Lasts ~300 seconds.",   200,  ShopItemCategory.Equipment),
         new ShopItemData("battery_pack",      "Battery Pack",       "Contains 3 scrap batteries.",                  60,  ShopItemCategory.Utility),

@@ -3,7 +3,7 @@ using UnityEngine.AI;
 using Unity.Netcode;
 
 [RequireComponent(typeof(NavMeshAgent))]
-public class MutantAI : MonoBehaviour
+public class MutantAI : NetworkBehaviour
 {
     public enum MutantState { Patrol, Listen, Charge, Confused, Attack }
     
@@ -140,7 +140,7 @@ public class MutantAI : MonoBehaviour
             
             if (audioSource != null && chargeScreamClip != null && !audioSource.isPlaying)
             {
-                audioSource.PlayOneShot(chargeScreamClip);
+                PlaySoundClientRpc(0);
             }
         }
     }
@@ -202,7 +202,7 @@ public class MutantAI : MonoBehaviour
 
         if (audioSource != null && confusedClip != null)
         {
-            audioSource.PlayOneShot(confusedClip);
+            PlaySoundClientRpc(2);
         }
     }
 
@@ -248,9 +248,9 @@ public class MutantAI : MonoBehaviour
             if (animator != null)
             {
                 // Sử dụng Trigger Punch đã thiết lập trong Animator
-                animator.SetTrigger("Punch");
+                TriggerAnimClientRpc("Punch");
             }
-            if (audioSource != null && attackClip != null) audioSource.PlayOneShot(attackClip);
+            if (audioSource != null && attackClip != null) PlaySoundClientRpc(1);
 
             StartCoroutine(DealDamageAfterDelay(0.5f)); 
         }
@@ -314,7 +314,7 @@ public class MutantAI : MonoBehaviour
         currentState = MutantState.Charge;
         if (audioSource != null && chargeScreamClip != null && !audioSource.isPlaying)
         {
-            audioSource.PlayOneShot(chargeScreamClip);
+            PlaySoundClientRpc(0);
         }
     }
 
@@ -325,7 +325,7 @@ public class MutantAI : MonoBehaviour
         
         if (animator != null) 
         {
-            animator.SetTrigger("Die");
+            TriggerAnimClientRpc("Die");
         }
         
         Collider col = GetComponent<Collider>();
@@ -337,6 +337,7 @@ public class MutantAI : MonoBehaviour
 
     private float originalSpeed = -1f;
     private float originalDamage = -1f;
+    private float originalPatrolSpeed = -1f;
 
     public void ApplyBloodMoonBuff(float speedMult, float damageMult)
     {
@@ -344,11 +345,20 @@ public class MutantAI : MonoBehaviour
         {
             originalSpeed = chargeSpeed;
             originalDamage = attackDamage;
+            originalPatrolSpeed = patrolSpeed;
         }
         chargeSpeed = originalSpeed * speedMult;
+        patrolSpeed = originalPatrolSpeed * speedMult;
         attackDamage = originalDamage * damageMult;
         
-        if (agent != null) agent.speed = chargeSpeed;
+        // Cập nhật agent.speed ngay lập tức cho state hiện tại
+        if (agent != null)
+        {
+            if (currentState == MutantState.Charge || currentState == MutantState.Attack)
+                agent.speed = chargeSpeed;
+            else
+                agent.speed = patrolSpeed;
+        }
     }
 
     public void RemoveBloodMoonBuff()
@@ -356,8 +366,30 @@ public class MutantAI : MonoBehaviour
         if (originalSpeed > 0)
         {
             chargeSpeed = originalSpeed;
+            patrolSpeed = originalPatrolSpeed;
             attackDamage = originalDamage;
-            if (agent != null) agent.speed = chargeSpeed;
+            if (agent != null)
+            {
+                if (currentState == MutantState.Charge || currentState == MutantState.Attack)
+                    agent.speed = chargeSpeed;
+                else
+                    agent.speed = patrolSpeed;
+            }
         }
+    }
+
+    [ClientRpc]
+    private void PlaySoundClientRpc(int soundType)
+    {
+        if (audioSource == null) return;
+        if (soundType == 0 && chargeScreamClip != null) audioSource.PlayOneShot(chargeScreamClip);
+        else if (soundType == 1 && attackClip != null) audioSource.PlayOneShot(attackClip);
+        else if (soundType == 2 && confusedClip != null) audioSource.PlayOneShot(confusedClip);
+    }
+
+    [ClientRpc]
+    private void TriggerAnimClientRpc(string triggerName)
+    {
+        if (animator != null) animator.SetTrigger(triggerName);
     }
 }

@@ -27,6 +27,7 @@ public static class GlobalPlayerData
     // Shop consumables
     public static int healthPacks = 0;
     public static int oxygenTanks = 0;
+    public static int antidotes = 0;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     public static void Initialize()
@@ -55,7 +56,8 @@ public static class GlobalPlayerData
             hasBat = hasBat,
             rareLootCount = rareLootCount,
             healthPacks = healthPacks,
-            oxygenTanks = oxygenTanks
+            oxygenTanks = oxygenTanks,
+            antidotes = antidotes
         };
 
         string json = JsonUtility.ToJson(data);
@@ -90,6 +92,7 @@ public static class GlobalPlayerData
             rareLootCount = data.rareLootCount;
             healthPacks = data.healthPacks;
             oxygenTanks = data.oxygenTanks;
+            antidotes = data.antidotes;
             
             hasSavedData = true;
             Debug.Log("[GlobalPlayerData] Dữ liệu đã được TẢI từ ổ cứng.");
@@ -124,6 +127,7 @@ public static class GlobalPlayerData
         rareLootCount = 0;
         healthPacks = 0;
         oxygenTanks = 0;
+        antidotes = 0;
         
         Debug.Log("[GlobalPlayerData] Đã XÓA toàn bộ dữ liệu lưu trữ.");
     }
@@ -150,4 +154,5 @@ public class PlayerDataSave
     public int rareLootCount;
     public int healthPacks;
     public int oxygenTanks;
+    public int antidotes;
 }

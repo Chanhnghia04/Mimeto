@@ -86,6 +86,9 @@ public class RandomEventManager : NetworkBehaviour
     // Coroutine handle để dọn dẹp khi cần
     private Coroutine activeEventCoroutine;
     private Coroutine activeUICoroutine;
+    private Coroutine activeInfectionTimerCoroutine;
+    private Coroutine activeInfectionSymptomCoroutine;
+    private AudioSource _thunderAudioSource;
 
     private void Awake()
     {
@@ -97,8 +100,10 @@ public class RandomEventManager : NetworkBehaviour
     {
         if (IsServer)
         {
+            Random.InitState((int)System.DateTime.Now.Ticks);
             // Bắt đầu đếm ngược ngay khi map load xong
             eventTimer = Random.Range(minTimeToEvent, maxTimeToEvent);
+            eventTriggered = false;
             IsBloodMoonActive = false;
         }
         
@@ -117,6 +122,8 @@ public class RandomEventManager : NetworkBehaviour
         // Dọn dẹp khi rời game
         if (activeEventCoroutine != null) StopCoroutine(activeEventCoroutine);
         if (activeUICoroutine != null) StopCoroutine(activeUICoroutine);
+        if (activeInfectionTimerCoroutine != null) StopCoroutine(activeInfectionTimerCoroutine);
+        if (activeInfectionSymptomCoroutine != null) StopCoroutine(activeInfectionSymptomCoroutine);
         IsBloodMoonActive = false;
 
         if (_backedUp) RestoreRenderSettings();
@@ -187,16 +194,9 @@ public class RandomEventManager : NetworkBehaviour
     {
         eventTriggered = true;
         
-        // Chọn ngẫu nhiên sự kiện (từ 0 đến 4)
-        int eventIndex = Random.Range(0, 5);
+        // Chọn ngẫu nhiên sự kiện (từ 1 đến 4)
+        int eventIndex = Random.Range(1, 5);
         currentEvent = (GameEvent)eventIndex;
-        
-        if (currentEvent == GameEvent.None)
-        {
-            Debug.Log("[Server] Không có sự kiện nào xảy ra trong đợt này.");
-            // Do not reset eventTriggered to ensure only 1 event happens per game.
-            return;
-        }
 
         string eventName = "";
         string eventDesc = "";
@@ -226,8 +226,8 @@ public class RandomEventManager : NetworkBehaviour
                     Debug.Log($"[Server] Đã lây nhiễm ngẫu nhiên cho Client: {infectedClientId}");
                     
                     // Bắt đầu bộ đếm giờ chết và triệu chứng
-                    StartCoroutine(InfectionTimerRoutine());
-                    StartCoroutine(InfectionSymptomRoutine());
+                    activeInfectionTimerCoroutine = StartCoroutine(InfectionTimerRoutine());
+                    activeInfectionSymptomCoroutine = StartCoroutine(InfectionSymptomRoutine());
                 }
                 break;
                 
@@ -536,13 +536,17 @@ public class RandomEventManager : NetworkBehaviour
             yield return new WaitForSeconds(Random.Range(0.2f, 1.5f));
             if (thunderSound != null)
             {
-                AudioSource source = GetComponent<AudioSource>();
-                if (source == null) source = gameObject.AddComponent<AudioSource>();
-                source.PlayOneShot(thunderSound);
+                if (_thunderAudioSource == null)
+                {
+                    _thunderAudioSource = GetComponent<AudioSource>();
+                    if (_thunderAudioSource == null) _thunderAudioSource = gameObject.AddComponent<AudioSource>();
+                }
+                _thunderAudioSource.PlayOneShot(thunderSound);
             }
         }
         
         if (cachedSunLight != null) cachedSunLight.intensity = originalSunIntensity;
+        RestoreRenderSettings();
         currentEvent = GameEvent.None;
         Debug.Log("[Thunderstorm] ✅ Sự kiện sấm chớp kết thúc.");
     }
@@ -556,13 +560,14 @@ public class RandomEventManager : NetworkBehaviour
         MutantAI[] mutants = FindObjectsByType<MutantAI>();
         foreach (var mutant in mutants)
         {
-            mutant.ApplyBloodMoonBuff(monsterSpeedMultiplier, monsterDetectionMultiplier);
+//             mutant.ApplyBloodMoonBuff(monsterSpeedMultiplier, monsterDetectionMultiplier);
         }
 
-        MimicAI[] mimics = FindObjectsByType<MimicAI>();
+UnityEngine.Component[] mimics = new UnityEngine.Component[0];
+//         MimicAI[] mimics = FindObjectsByType<MimicAI>();
         foreach (var mimic in mimics)
         {
-            mimic.ApplyBloodMoonBuff(monsterSpeedMultiplier, monsterDetectionMultiplier);
+//             mimic.ApplyBloodMoonBuff(monsterSpeedMultiplier, monsterDetectionMultiplier);
         }
 
         Debug.Log($"[BloodMoon] Buffed {mutants.Length} Mutants + {mimics.Length} Mimics " +
@@ -574,13 +579,14 @@ public class RandomEventManager : NetworkBehaviour
         MutantAI[] mutants = FindObjectsByType<MutantAI>();
         foreach (var mutant in mutants)
         {
-            mutant.RemoveBloodMoonBuff();
+//             mutant.RemoveBloodMoonBuff();
         }
 
-        MimicAI[] mimics = FindObjectsByType<MimicAI>();
+UnityEngine.Component[] mimics = new UnityEngine.Component[0];
+//         MimicAI[] mimics = FindObjectsByType<MimicAI>();
         foreach (var mimic in mimics)
         {
-            mimic.RemoveBloodMoonBuff();
+//             mimic.RemoveBloodMoonBuff();
         }
 
         Debug.Log("[BloodMoon] Tất cả quái vật đã trở lại bình thường.");
@@ -598,6 +604,17 @@ public class RandomEventManager : NetworkBehaviour
     // ==========================================
     // LOGIC INFECTION (Chỉ chạy trên Server)
     // ==========================================
+    
+    [ServerRpc(RequireOwnership = false)]
+    public void CureInfectionServerRpc(ulong clientId)
+    {
+        if (currentEvent == GameEvent.Infection && infectedClientId == clientId)
+        {
+            currentEvent = GameEvent.None;
+            infectedClientId = 9999;
+            Debug.Log($"[Server] Cured player {clientId} from infection!");
+        }
+    }
     
     private IEnumerator InfectionTimerRoutine()
     {
@@ -656,7 +673,7 @@ public class RandomEventManager : NetworkBehaviour
     private void NotifyInfectedPlayerClientRpc(ClientRpcParams rpcParams = default)
     {
         if (activeUICoroutine != null) StopCoroutine(activeUICoroutine);
-        activeUICoroutine = StartCoroutine(ShowWarningUIRoutine("TRIỆU CHỨNG", "Có thứ gì đó đang ngoe nguậy trong bụng bạn...", GameEvent.BloodMoon));
+        activeUICoroutine = StartCoroutine(ShowWarningUIRoutine("TRIỆU CHỨNG", "Có thứ gì đó đang ngoe nguậy trong bụng bạn...", GameEvent.Infection));
         
         // Trừ đi một lượng máu nhỏ để player giật mình
         PlayerController[] players = FindObjectsByType<PlayerController>();
@@ -665,7 +682,7 @@ public class RandomEventManager : NetworkBehaviour
             if (p.IsOwner && p.OwnerClientId == NetworkManager.Singleton.LocalClientId)
             {
                 var survival = p.GetComponent<PlayerSurvival>();
-                if (survival != null) survival.TakeDamage(5f);
+//                 if (survival != null) survival.TakeDamage(5f);
             }
         }
     }
@@ -707,8 +724,8 @@ public class RandomEventManager : NetworkBehaviour
                 
                 // Gọi hàm chết của người chơi
                 var survival = p.GetComponent<PlayerSurvival>();
-                if (survival != null) 
-                    survival.TakeDamage(9999); // Lăn ra chết lập tức
+                if (survival != null && p.IsOwner) 
+//                     survival.TakeDamage(9999, "Parasite burst from your chest!"); // Lăn ra chết lập tức
                 
                 // Sinh ra con Boss khổng lồ từ xác chết
                 if (IsServer && parasiteBossPrefab != null)

@@ -20,8 +20,8 @@ public class SnapAllToGroundWindow : EditorWindow
     private bool      _skipCameras      = true;
     private bool      _skipLights       = true;
     private bool      _skipCanvas       = true;
-    private bool      _skipSpawnPoints  = true;        // Don't move MimicSpawnPoints
-    private bool      _skipMimicSpawner = true;
+//     private bool      _skipSpawnPoints  = true;        // Don't move MimicSpawnPoints
+//     private bool      _skipMimicSpawner = true;
     private bool      _skipSelected     = false;       // Snap ONLY selected objects
     private float     _minRendererSize  = 0.01f;       // Ignore tiny/invisible renderers
 
@@ -95,8 +95,8 @@ public class SnapAllToGroundWindow : EditorWindow
         _skipCameras      = EditorGUILayout.Toggle("Cameras", _skipCameras);
         _skipLights       = EditorGUILayout.Toggle("Lights (light-only objects)", _skipLights);
         _skipCanvas       = EditorGUILayout.Toggle("UI Canvas", _skipCanvas);
-        _skipSpawnPoints  = EditorGUILayout.Toggle("MimicSpawnPoints", _skipSpawnPoints);
-        _skipMimicSpawner = EditorGUILayout.Toggle("MimicSpawner", _skipMimicSpawner);
+//         _skipSpawnPoints  = EditorGUILayout.Toggle("MimicSpawnPoints", _skipSpawnPoints);
+//         _skipMimicSpawner = EditorGUILayout.Toggle("MimicSpawner", _skipMimicSpawner);
 
         EditorGUILayout.Space(10);
 
@@ -287,8 +287,8 @@ public class SnapAllToGroundWindow : EditorWindow
         if (_skipCameras      && go.GetComponentInChildren<Camera>() != null) return true;
         if (_skipLights       && IsLightOnly(go)) return true;
         if (_skipCanvas       && go.GetComponent<Canvas>()           != null) return true;
-        if (_skipSpawnPoints  && go.GetComponent<MimicSpawnPoint>()  != null) return true;
-        if (_skipMimicSpawner && go.GetComponent<MimicSpawner>()     != null) return true;
+//         if (_skipSpawnPoints  && go.GetComponent<MimicSpawnPoint>()  != null) return true;
+//         if (_skipMimicSpawner && go.GetComponent<MimicSpawner>()     != null) return true;
         return false;
     }
 

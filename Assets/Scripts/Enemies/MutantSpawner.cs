@@ -10,9 +10,9 @@ using Unity.Netcode;
 /// </summary>
 public class MutantSpawner : NetworkBehaviour
 {
-    [Header("Prefab")]
-    [Tooltip("Drag the Mutant prefab here (Assets/Prefabs/Mutant.prefab).")]
-    public GameObject mutantPrefab;
+    [Header("Prefabs")]
+    [Tooltip("Drag the enemy prefabs here. A random one will be chosen per spawn.")]
+    public GameObject[] enemyPrefabs;
 
     [Header("Spawn Settings")]
     [Tooltip("How many Mutants to spawn at game start.")]
@@ -89,35 +89,33 @@ public class MutantSpawner : NetworkBehaviour
 
     private void SpawnMutants()
     {
-        if (mutantPrefab == null)
+        if (enemyPrefabs == null || enemyPrefabs.Length == 0)
         {
-            Debug.LogError("[MutantSpawner] mutantPrefab is not assigned! " +
-                           "Drag Assets/Prefabs/Mutant.prefab into the MutantSpawner component.");
+            Debug.LogError("[MutantSpawner] enemyPrefabs array is empty!");
             return;
         }
 
-        // Find player for distance checks (if any exists early on)
-        GameObject player = GameObject.FindGameObjectWithTag(playerTag);
-        Vector3 playerPos = player != null ? player.transform.position : Vector3.zero;
+        // Find all players for distance checks
+        GameObject[] allPlayers = GameObject.FindGameObjectsWithTag(playerTag);
 
         if (completelyRandomSpawn)
         {
-            SpawnRandomly(playerPos);
+            SpawnRandomly(allPlayers);
         }
         else
         {
-            SpawnAtSpawnPoints(playerPos);
+            SpawnAtSpawnPoints(allPlayers);
         }
     }
 
     /// <summary>Spawn at weighted MutantSpawnPoint locations, respecting player distance.</summary>
-    private void SpawnAtSpawnPoints(Vector3 playerPos)
+    private void SpawnAtSpawnPoints(GameObject[] allPlayers)
     {
         MutantSpawnPoint[] allPoints = FindObjectsByType<MutantSpawnPoint>();
         if (allPoints.Length == 0)
         {
             Debug.LogWarning("[MutantSpawner] No MutantSpawnPoints found! Falling back to random spawn.");
-            SpawnRandomly(playerPos);
+            SpawnRandomly(allPlayers);
             return;
         }
 
@@ -128,8 +126,17 @@ public class MutantSpawner : NetworkBehaviour
         foreach (var sp in allPoints)
         {
             float minDist = Mathf.Max(sp.minDistanceFromPlayer, globalMinDistanceFromPlayer);
-            float distToPlayer = Vector3.Distance(sp.transform.position, playerPos);
-            if (distToPlayer >= minDist)
+            bool isSafe = true;
+            foreach (var p in allPlayers)
+            {
+                if (Vector3.Distance(sp.transform.position, p.transform.position) < minDist)
+                {
+                    isSafe = false;
+                    break;
+                }
+            }
+
+            if (isSafe)
             {
                 eligible.Add(sp);
                 totalWeight += sp.weight;
@@ -139,7 +146,7 @@ public class MutantSpawner : NetworkBehaviour
         if (eligible.Count == 0)
         {
             Debug.LogWarning("[MutantSpawner] All SpawnPoints too close to player! Falling back to random spawn.");
-            SpawnRandomly(playerPos);
+            SpawnRandomly(allPlayers);
             return;
         }
 
@@ -184,8 +191,11 @@ public class MutantSpawner : NetworkBehaviour
                 Vector3 spawnPos = navHit.position;
                 Quaternion spawnRot = chosenPoint.transform.rotation;
 
-                GameObject mutant = Instantiate(mutantPrefab, spawnPos, spawnRot);
-                mutant.name = $"Mutant_{spawned + 1}";
+                GameObject prefabToSpawn = enemyPrefabs[Random.Range(0, enemyPrefabs.Length)];
+                if (prefabToSpawn == null) continue;
+
+                GameObject mutant = Instantiate(prefabToSpawn, spawnPos, spawnRot);
+                mutant.name = $"{prefabToSpawn.name}_{spawned + 1}";
 
                 NetworkObject netObj = mutant.GetComponent<NetworkObject>();
                 if (netObj != null)
@@ -194,7 +204,7 @@ public class MutantSpawner : NetworkBehaviour
                 }
                 else
                 {
-                    Debug.LogWarning("[MutantSpawner] mutantPrefab is missing a NetworkObject component!");
+                    Debug.LogWarning($"[MutantSpawner] {prefabToSpawn.name} is missing a NetworkObject component!");
                 }
 
                 _spawnedMutants.Add(mutant);
@@ -209,43 +219,61 @@ public class MutantSpawner : NetworkBehaviour
             int remaining = mutantsToSpawn - spawned;
             int oldCount = mutantsToSpawn;
             mutantsToSpawn = remaining;
-            SpawnRandomly(playerPos);
+            SpawnRandomly(allPlayers);
             mutantsToSpawn = oldCount;
         }
     }
 
     /// <summary>Spawn at completely random NavMesh positions.</summary>
-    private void SpawnRandomly(Vector3 playerPos)
+    private void SpawnRandomly(GameObject[] allPlayers)
     {
+        Vector3 anchorPos = allPlayers.Length > 0 ? allPlayers[0].transform.position : Vector3.zero;
         int spawned = 0;
         int attempts = 0;
 
         while (spawned < mutantsToSpawn && attempts < 100)
         {
             Vector2 randomCircle = Random.insideUnitCircle.normalized * Random.Range(globalMinDistanceFromPlayer, globalMinDistanceFromPlayer + 150f);
-            Vector3 tryPos = playerPos + new Vector3(randomCircle.x, 0, randomCircle.y);
+            Vector3 tryPos = anchorPos + new Vector3(randomCircle.x, 0, randomCircle.y);
             
             if (NavMesh.SamplePosition(tryPos, out NavMeshHit navHit, 30f, NavMesh.AllAreas))
             {
                 Vector3 spawnPos = navHit.position;
-                Quaternion spawnRot = Quaternion.Euler(0, Random.Range(0, 360), 0);
-
-                GameObject mutant = Instantiate(mutantPrefab, spawnPos, spawnRot);
-                mutant.name = $"Mutant_{spawned + 1}";
                 
-                NetworkObject netObj = mutant.GetComponent<NetworkObject>();
-                if (netObj != null)
+                // Validate against all players
+                bool isSafe = true;
+                foreach (var p in allPlayers)
                 {
-                    netObj.Spawn(true);
-                }
-                else
-                {
-                    Debug.LogWarning("[MutantSpawner] mutantPrefab is missing a NetworkObject component!");
+                    if (Vector3.Distance(spawnPos, p.transform.position) < globalMinDistanceFromPlayer)
+                    {
+                        isSafe = false;
+                        break;
+                    }
                 }
 
-                _spawnedMutants.Add(mutant);
-                Debug.Log($"[MutantSpawner] Randomly spawned '{mutant.name}' at {spawnPos}");
-                spawned++;
+                if (isSafe)
+                {
+                    GameObject prefabToSpawn = enemyPrefabs[Random.Range(0, enemyPrefabs.Length)];
+                    if (prefabToSpawn == null) continue;
+
+                    Quaternion spawnRot = Quaternion.Euler(0, Random.Range(0, 360), 0);
+                    GameObject mutant = Instantiate(prefabToSpawn, spawnPos, spawnRot);
+                    mutant.name = $"{prefabToSpawn.name}_{spawned + 1}";
+                    
+                    NetworkObject netObj = mutant.GetComponent<NetworkObject>();
+                    if (netObj != null)
+                    {
+                        netObj.Spawn(true);
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[MutantSpawner] {prefabToSpawn.name} is missing a NetworkObject component!");
+                    }
+
+                    _spawnedMutants.Add(mutant);
+                    Debug.Log($"[MutantSpawner] Randomly spawned '{mutant.name}' at {spawnPos}");
+                    spawned++;
+                }
             }
             attempts++;
         }
