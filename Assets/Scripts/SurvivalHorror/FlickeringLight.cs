@@ -26,8 +26,8 @@ public class FlickeringLight : MonoBehaviour
     {
         if (!isBroken)
         {
-            bool isMonster = other.GetComponent<MutantAI>() != null || other.GetComponentInParent<MutantAI>() != null ||
-                             other.GetComponent<MimicAI>() != null || other.GetComponentInParent<MimicAI>() != null;
+            bool isMonster = other.GetComponent<MutantAI>() != null || other.GetComponentInParent<MutantAI>() != null;
+//                              other.GetComponent<MimicAI>() != null || other.GetComponentInParent<MimicAI>() != null;
             if (isMonster)
             {
                 isBroken = true;

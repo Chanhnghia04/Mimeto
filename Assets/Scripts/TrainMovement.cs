@@ -110,17 +110,10 @@ public class TrainMovement : MonoBehaviour
             if (survival != null)
             {
                 Debug.LogWarning("<color=red>TRAIN COLLISION: Player was run over by the train!</color>");
-                survival.TakeDamage(1000f, "Hit by a train!"); // Instakill the player
+//                 survival.TakeDamage(1000f, "Hit by a train!"); // Instakill the player
             }
 
-            MimicAI mimic = other.GetComponent<MimicAI>();
-            if (mimic == null) mimic = other.GetComponentInParent<MimicAI>();
 
-            if (mimic != null)
-            {
-                Debug.LogWarning("<color=red>TRAIN COLLISION: Mimic was run over by the train!</color>");
-                mimic.TakeDamage(1000f); // Kill the Mimic too
-            }
         }
     }
 }

@@ -51,9 +51,9 @@ public static class ColliderAutoSetup
         typeof(Canvas),
         typeof(UnityEngine.UI.Graphic),
         typeof(Camera),
-        typeof(MimicSpawnPoint),
-        typeof(MimicSpawner),
-        typeof(MimicAI),
+//         typeof(MimicSpawnPoint),
+//         typeof(MimicSpawner),
+//         typeof(MimicAI),
     };
 
     // ─────────────────────────────────────────────────────────────────────────

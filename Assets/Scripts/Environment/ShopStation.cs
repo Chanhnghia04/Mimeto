@@ -45,22 +45,36 @@ public class ShopStation : MonoBehaviour, IInteractable
     // Textures (lazy init)
     private Texture2D _bgTex;
     private Texture2D _panelTex;
+    private Texture2D _headerTex;
     private Texture2D _btnTex;
     private Texture2D _btnHoverTex;
     private Texture2D _btnDisabledTex;
     private Texture2D _scanlineTex;
     private Texture2D _hintBgTex;
+    private Texture2D _itemBgTex;
+    private Texture2D _itemBgAltTex;
+    private Texture2D _priceBgTex;
+    private Texture2D _creditsBgTex;
+    private Texture2D _separatorTex;
     private float _noiseOffset = 0f;
 
     // Colors
-    private static readonly Color COL_BG       = new Color(0.020f, 0.020f, 0.027f, 0.95f);
-    private static readonly Color COL_PANEL    = new Color(0.040f, 0.050f, 0.070f, 0.90f);
-    private static readonly Color COL_CYAN     = new Color(0.000f, 0.949f, 1.000f);
-    private static readonly Color COL_GREEN    = new Color(0.224f, 1.000f, 0.078f);
-    private static readonly Color COL_AMBER    = new Color(1.000f, 0.702f, 0.000f);
-    private static readonly Color COL_RED      = new Color(1.000f, 0.200f, 0.200f);
-    private static readonly Color COL_DIM      = new Color(0.400f, 0.500f, 0.600f);
-    private static readonly Color COL_EVENT    = new Color(1.000f, 0.400f, 0.800f);
+    private static readonly Color COL_BG       = new Color(0.010f, 0.012f, 0.020f, 0.96f);
+    private static readonly Color COL_PANEL    = new Color(0.025f, 0.035f, 0.055f, 0.96f);
+    private static readonly Color COL_HEADER   = new Color(0.015f, 0.060f, 0.090f, 0.98f);
+    private static readonly Color COL_CYAN     = new Color(0.000f, 0.878f, 1.000f);
+    private static readonly Color COL_GREEN    = new Color(0.180f, 1.000f, 0.180f);
+    private static readonly Color COL_AMBER    = new Color(1.000f, 0.780f, 0.100f);
+    private static readonly Color COL_GOLD     = new Color(1.000f, 0.843f, 0.000f);
+    private static readonly Color COL_RED      = new Color(1.000f, 0.250f, 0.250f);
+    private static readonly Color COL_DIM      = new Color(0.350f, 0.420f, 0.500f);
+    private static readonly Color COL_EVENT    = new Color(1.000f, 0.350f, 0.750f);
+    private static readonly Color COL_WHITE_DIM = new Color(0.700f, 0.780f, 0.850f);
+
+    // Icon mapping
+    private static readonly string[] ITEM_ICONS = {
+        "♥", "♥♥", "☣", "⛑", "⛑⛑", "⚡", "⚗", "⊞", "◎"
+    };
 
     // ── Unity Callbacks ──────────────────────────────────────────────────────
 
@@ -174,14 +188,20 @@ public class ShopStation : MonoBehaviour, IInteractable
         if (_bgTex != null) return;
         _bgTex          = MakeTex(COL_BG);
         _panelTex       = MakeTex(COL_PANEL);
-        _btnTex         = MakeTex(new Color(0.06f, 0.12f, 0.18f, 0.95f));
-        _btnHoverTex    = MakeTex(new Color(0.00f, 0.30f, 0.40f, 0.95f));
-        _btnDisabledTex = MakeTex(new Color(0.04f, 0.04f, 0.06f, 0.80f));
+        _headerTex      = MakeTex(COL_HEADER);
+        _btnTex         = MakeTex(new Color(0.00f, 0.55f, 0.75f, 0.85f));
+        _btnHoverTex    = MakeTex(new Color(0.00f, 0.75f, 1.00f, 0.95f));
+        _btnDisabledTex = MakeTex(new Color(0.08f, 0.08f, 0.10f, 0.70f));
+        _itemBgTex      = MakeTex(new Color(0.03f, 0.05f, 0.08f, 0.85f));
+        _itemBgAltTex   = MakeTex(new Color(0.04f, 0.06f, 0.10f, 0.85f));
+        _priceBgTex     = MakeTex(new Color(0.10f, 0.07f, 0.00f, 0.60f));
+        _creditsBgTex   = MakeTex(new Color(0.08f, 0.06f, 0.00f, 0.80f));
+        _separatorTex   = MakeTex(new Color(COL_CYAN.r, COL_CYAN.g, COL_CYAN.b, 0.20f));
 
         _scanlineTex = new Texture2D(2, 4);
         for (int y = 0; y < 4; y++)
             for (int x = 0; x < 2; x++)
-                _scanlineTex.SetPixel(x, y, y % 2 == 0 ? new Color(0,0,0,0) : new Color(0,0,0,0.4f));
+                _scanlineTex.SetPixel(x, y, y % 2 == 0 ? new Color(0,0,0,0) : new Color(0,0,0,0.25f));
         _scanlineTex.filterMode = FilterMode.Point;
         _scanlineTex.Apply();
     }
@@ -208,90 +228,133 @@ public class ShopStation : MonoBehaviour, IInteractable
         if (!isOpen || _inventory == null) return;
 
         InitTextures();
-        _noiseOffset += Time.unscaledDeltaTime * 12f;
+        _noiseOffset += Time.unscaledDeltaTime * 8f;
 
         // Full-screen dim overlay
         GUI.depth = -10;
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _bgTex);
 
-        // Scanlines
-        GUI.color = new Color(1f, 1f, 1f, 0.12f);
+        // Scanlines (subtler)
+        GUI.color = new Color(1f, 1f, 1f, 0.06f);
         GUI.DrawTextureWithTexCoords(
             new Rect(0, 0, Screen.width, Screen.height),
             _scanlineTex,
-            new Rect(0, _noiseOffset * 0.05f, Screen.width, Screen.height / 4f));
+            new Rect(0, _noiseOffset * 0.03f, Screen.width, Screen.height / 4f));
         GUI.color = Color.white;
 
         // ── Main panel ──
-        float panelW = Mathf.Min(Screen.width * 0.55f, 550f);
-        float panelH = Mathf.Min(Screen.height * 0.80f, 650f);
+        float panelW = Mathf.Min(Screen.width * 0.52f, 620f);
+        float panelH = Mathf.Min(Screen.height * 0.82f, 720f);
         float px = (Screen.width - panelW) * 0.5f;
         float py = (Screen.height - panelH) * 0.5f;
 
-        GUI.DrawTexture(new Rect(px, py, panelW, panelH), _panelTex);
-        DrawTechCorners(px, py, panelW, panelH, COL_CYAN);
+        // Panel shadow
+        GUI.color = new Color(0, 0, 0, 0.4f);
+        GUI.DrawTexture(new Rect(px + 4f, py + 4f, panelW, panelH), _panelTex);
+        GUI.color = Color.white;
 
-        // ── Header ──
-        float flicker = 0.85f + Mathf.PingPong(Time.unscaledTime * 3f, 0.15f);
+        // Panel body
+        GUI.DrawTexture(new Rect(px, py, panelW, panelH), _panelTex);
+
+        // Outer glow border
+        DrawGlowBorder(px, py, panelW, panelH, COL_CYAN, 2f);
+
+        // ── HEADER SECTION ──
+        float headerH = 110f;
+        GUI.DrawTexture(new Rect(px, py, panelW, headerH), _headerTex);
+
+        // Header bottom line
+        GUI.color = new Color(COL_CYAN.r, COL_CYAN.g, COL_CYAN.b, 0.5f);
+        GUI.DrawTexture(new Rect(px, py + headerH, panelW, 2f), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        // Title
+        float flicker = 0.88f + Mathf.PingPong(Time.unscaledTime * 2.5f, 0.12f);
         GUIStyle titleStyle = new GUIStyle();
-        titleStyle.fontSize = 22;
+        titleStyle.fontSize = Mathf.RoundToInt(Mathf.Min(panelW * 0.045f, 26f));
         titleStyle.fontStyle = FontStyle.Bold;
         titleStyle.normal.textColor = COL_CYAN;
         titleStyle.alignment = TextAnchor.MiddleCenter;
 
         GUI.color = new Color(1f, 1f, 1f, flicker);
-        GUI.Label(new Rect(px, py + 10f, panelW, 35f), "▼  BUY SUPPLIES  ▼", titleStyle);
+        GUI.Label(new Rect(px, py + 8f, panelW, 36f), "━━  SUPPLY STATION  ━━", titleStyle);
         GUI.color = Color.white;
 
         // Market Event Banner
         GUIStyle eventStyle = new GUIStyle();
-        eventStyle.fontSize = 12;
+        eventStyle.fontSize = Mathf.RoundToInt(Mathf.Min(panelW * 0.022f, 13f));
         eventStyle.fontStyle = FontStyle.Bold;
-        eventStyle.normal.textColor = ShopData.CurrentEvent == MarketEvent.Normal ? COL_DIM : COL_EVENT;
         eventStyle.alignment = TextAnchor.MiddleCenter;
-        GUI.Label(new Rect(px, py + 40f, panelW, 20f), ShopData.EventDescription, eventStyle);
 
-        // Decorative line
-        GUI.color = new Color(COL_CYAN.r, COL_CYAN.g, COL_CYAN.b, 0.4f);
-        GUI.DrawTexture(new Rect(px + 20f, py + 62f, panelW - 40f, 1f), Texture2D.whiteTexture);
-        GUI.color = Color.white;
+        if (ShopData.CurrentEvent != MarketEvent.Normal)
+        {
+            // Pulsing event text
+            float pulse = 0.7f + Mathf.PingPong(Time.unscaledTime * 2f, 0.3f);
+            eventStyle.normal.textColor = new Color(COL_EVENT.r, COL_EVENT.g, COL_EVENT.b, pulse);
+            GUI.Label(new Rect(px, py + 42f, panelW, 20f), "★ " + ShopData.EventDescription + " ★", eventStyle);
+        }
+        else
+        {
+            eventStyle.normal.textColor = COL_DIM;
+            GUI.Label(new Rect(px, py + 42f, panelW, 20f), ShopData.EventDescription, eventStyle);
+        }
 
-        // ── Energy Cells display ──
-        GUIStyle credStyle = new GUIStyle();
-        credStyle.fontSize = 18;
-        credStyle.fontStyle = FontStyle.Bold;
-        credStyle.normal.textColor = COL_AMBER;
-        credStyle.alignment = TextAnchor.MiddleCenter;
-        GUI.Label(new Rect(px, py + 65f, panelW, 30f), $"◈  EC: {_inventory.credits}  ◈", credStyle);
+        // ── CREDITS DISPLAY (big, unmissable) ──
+        float credBoxW = panelW * 0.55f;
+        float credBoxH = 38f;
+        float credBoxX = px + (panelW - credBoxW) * 0.5f;
+        float credBoxY = py + 64f;
 
-        // ── Close button ──
+        GUI.DrawTexture(new Rect(credBoxX, credBoxY, credBoxW, credBoxH), _creditsBgTex);
+        DrawGlowBorder(credBoxX, credBoxY, credBoxW, credBoxH, new Color(COL_GOLD.r, COL_GOLD.g, COL_GOLD.b, 0.6f), 1f);
+
+        // Credit icon + amount
+        GUIStyle credLabelStyle = new GUIStyle();
+        credLabelStyle.fontSize = 12;
+        credLabelStyle.normal.textColor = COL_WHITE_DIM;
+        credLabelStyle.alignment = TextAnchor.MiddleCenter;
+        GUI.Label(new Rect(credBoxX, credBoxY, credBoxW, 14f), "YOUR BALANCE", credLabelStyle);
+
+        GUIStyle credAmountStyle = new GUIStyle();
+        credAmountStyle.fontSize = Mathf.RoundToInt(Mathf.Min(panelW * 0.040f, 22f));
+        credAmountStyle.fontStyle = FontStyle.Bold;
+        credAmountStyle.normal.textColor = COL_GOLD;
+        credAmountStyle.alignment = TextAnchor.MiddleCenter;
+        GUI.Label(new Rect(credBoxX, credBoxY + 12f, credBoxW, 28f), $"◈  {_inventory.credits}  EC  ◈", credAmountStyle);
+
+        // ── Close button (top-right) ──
+        float closeBtnSize = 32f;
+        Rect closeRect = new Rect(px + panelW - closeBtnSize - 6f, py + 6f, closeBtnSize, closeBtnSize);
+        bool closeHover = closeRect.Contains(Event.current.mousePosition);
+
         GUIStyle closeStyle = new GUIStyle();
-        closeStyle.fontSize = 18;
+        closeStyle.fontSize = 20;
         closeStyle.fontStyle = FontStyle.Bold;
-        closeStyle.normal.textColor = COL_RED;
+        closeStyle.normal.textColor = closeHover ? Color.white : COL_RED;
         closeStyle.alignment = TextAnchor.MiddleCenter;
-        Rect closeRect = new Rect(px + panelW - 35f, py + 5f, 30f, 30f);
-        if (closeRect.Contains(Event.current.mousePosition))
-            closeStyle.normal.textColor = Color.white;
         if (GUI.Button(closeRect, "✖", closeStyle))
             Toggle(false);
 
-        // ── Scroll area for items ──
-        float scrollY = py + 105f;
-        float scrollH = panelH - 160f;
-        float itemH = 70f;
-        float totalContentH = ShopData.BuyableItems.Count * (itemH + 5f) + 10f;
+        // ── ITEMS SCROLL AREA ──
+        float scrollY = py + headerH + 8f;
+        float scrollH = panelH - headerH - 65f;
+        float itemH = 80f;
+        float itemSpacing = 4f;
+        float totalContentH = ShopData.BuyableItems.Count * (itemH + itemSpacing) + 10f;
 
-        Rect scrollViewRect = new Rect(px + 10f, scrollY, panelW - 20f, scrollH);
-        Rect scrollContentRect = new Rect(0, 0, scrollViewRect.width - 20f, totalContentH);
+        float contentW = panelW - 24f;
+        Rect scrollViewRect = new Rect(px + 8f, scrollY, panelW - 16f, scrollH);
+        Rect scrollContentRect = new Rect(0, 0, contentW - 16f, totalContentH);
 
         _scrollPos = GUI.BeginScrollView(scrollViewRect, _scrollPos, scrollContentRect);
 
-        float itemY = 5f;
-        foreach (ShopItemData item in ShopData.BuyableItems)
+        float itemY = 4f;
+        for (int idx = 0; idx < ShopData.BuyableItems.Count; idx++)
         {
-            DrawBuyItem(5f, itemY, scrollContentRect.width - 10f, itemH, item);
-            itemY += itemH + 5f;
+            ShopItemData item = ShopData.BuyableItems[idx];
+            string icon = idx < ITEM_ICONS.Length ? ITEM_ICONS[idx] : "●";
+            DrawBuyItem(4f, itemY, scrollContentRect.width - 8f, itemH, item, icon, idx % 2 == 1);
+            itemY += itemH + itemSpacing;
         }
 
         GUI.EndScrollView();
@@ -302,68 +365,161 @@ public class ShopStation : MonoBehaviour, IInteractable
             Color sc = _statusIsError ? COL_RED : COL_GREEN;
             float alpha = Mathf.Clamp01(_statusTimer);
 
-            GUI.color = new Color(sc.r, sc.g, sc.b, 0.15f * alpha);
-            GUI.DrawTexture(new Rect(px + 20f, py + panelH - 45f, panelW - 40f, 35f), Texture2D.whiteTexture);
+            // Status background
+            float statusH = 36f;
+            float statusY = py + panelH - statusH - 8f;
+            GUI.color = new Color(sc.r, sc.g, sc.b, 0.18f * alpha);
+            GUI.DrawTexture(new Rect(px + 16f, statusY, panelW - 32f, statusH), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+
+            // Status border
+            GUI.color = new Color(sc.r, sc.g, sc.b, 0.5f * alpha);
+            GUI.DrawTexture(new Rect(px + 16f, statusY, panelW - 32f, 1f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(px + 16f, statusY + statusH, panelW - 32f, 1f), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
             GUIStyle sStyle = new GUIStyle();
-            sStyle.fontSize = 13;
+            sStyle.fontSize = 14;
             sStyle.fontStyle = FontStyle.Bold;
             sStyle.normal.textColor = new Color(sc.r, sc.g, sc.b, alpha);
             sStyle.alignment = TextAnchor.MiddleCenter;
 
             string prefix = _statusIsError ? "✖  " : "✔  ";
-            GUI.Label(new Rect(px, py + panelH - 45f, panelW, 35f), prefix + _statusMsg, sStyle);
+            GUI.Label(new Rect(px, statusY, panelW, statusH), prefix + _statusMsg, sStyle);
         }
+
+        // Tech corners on main panel
+        DrawTechCorners(px, py, panelW, panelH, COL_CYAN, 18f, 2f);
     }
 
     // ── Draw Buy Item Row ────────────────────────────────────────────────────
 
-    void DrawBuyItem(float x, float y, float w, float h, ShopItemData item)
+    void DrawBuyItem(float x, float y, float w, float h, ShopItemData item, string icon, bool alt)
     {
         bool canAfford = _inventory.credits >= item.currentPrice;
+        Rect itemRect = new Rect(x, y, w, h);
+        bool isHover = itemRect.Contains(Event.current.mousePosition);
 
-        // Background
-        GUI.DrawTexture(new Rect(x, y, w, h), canAfford ? _btnTex : _btnDisabledTex);
+        // ── Item background ──
+        Texture2D bg = canAfford ? (alt ? _itemBgAltTex : _itemBgTex) : _btnDisabledTex;
+        GUI.DrawTexture(itemRect, bg);
+
+        // Hover highlight
+        if (isHover && canAfford)
+        {
+            GUI.color = new Color(COL_CYAN.r, COL_CYAN.g, COL_CYAN.b, 0.06f);
+            GUI.DrawTexture(itemRect, Texture2D.whiteTexture);
+            GUI.color = Color.white;
+        }
+
+        // Left accent bar
+        Color accentColor = GetCategoryColor(item.category);
+        GUI.color = canAfford ? accentColor : COL_DIM;
+        GUI.DrawTexture(new Rect(x, y, 3f, h), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        // ── Icon circle ──
+        float iconSize = 40f;
+        float iconX = x + 14f;
+        float iconY = y + (h - iconSize) * 0.5f;
+
+        // Icon background circle (simulated with box)
+        GUI.color = new Color(accentColor.r, accentColor.g, accentColor.b, canAfford ? 0.15f : 0.06f);
+        GUI.DrawTexture(new Rect(iconX, iconY, iconSize, iconSize), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        GUIStyle iconStyle = new GUIStyle();
+        iconStyle.fontSize = 18;
+        iconStyle.fontStyle = FontStyle.Bold;
+        iconStyle.normal.textColor = canAfford ? accentColor : COL_DIM;
+        iconStyle.alignment = TextAnchor.MiddleCenter;
+        GUI.Label(new Rect(iconX, iconY, iconSize, iconSize), icon, iconStyle);
+
+        // ── Text area ──
+        float textX = iconX + iconSize + 12f;
+        float textW = w - iconSize - 170f;
 
         // Category tag
         GUIStyle catStyle = new GUIStyle();
         catStyle.fontSize = 9;
         catStyle.fontStyle = FontStyle.Bold;
-        catStyle.normal.textColor = GetCategoryColor(item.category);
-        GUI.Label(new Rect(x + 12f, y + 5f, 100f, 14f), $"[{item.category.ToString().ToUpper()}]", catStyle);
+        catStyle.normal.textColor = canAfford ? accentColor : COL_DIM;
+        GUI.Label(new Rect(textX, y + 8f, 120f, 14f), $"[ {item.category.ToString().ToUpper()} ]", catStyle);
 
         // Item name
         GUIStyle nameStyle = new GUIStyle();
-        nameStyle.fontSize = 14;
+        nameStyle.fontSize = 15;
         nameStyle.fontStyle = FontStyle.Bold;
         nameStyle.normal.textColor = canAfford ? Color.white : COL_DIM;
-        GUI.Label(new Rect(x + 12f, y + 20f, w - 130f, 22f), item.displayName, nameStyle);
+        GUI.Label(new Rect(textX, y + 22f, textW, 24f), item.displayName, nameStyle);
 
         // Description
         GUIStyle descStyle = new GUIStyle();
-        descStyle.fontSize = 10;
-        descStyle.normal.textColor = canAfford ? new Color(0.6f, 0.7f, 0.8f) : COL_DIM;
-        GUI.Label(new Rect(x + 12f, y + 42f, w - 130f, 18f), item.description, descStyle);
+        descStyle.fontSize = 11;
+        descStyle.normal.textColor = canAfford ? COL_WHITE_DIM : COL_DIM;
+        descStyle.wordWrap = true;
+        GUI.Label(new Rect(textX, y + 46f, textW, 28f), item.description, descStyle);
 
-        // Price
+        // ── PRICE TAG (right side, very visible) ──
+        float priceAreaW = 130f;
+        float priceAreaX = x + w - priceAreaW - 8f;
+
+        // Price background box
+        float priceBoxH = 32f;
+        float priceBoxY = y + 8f;
+        GUI.DrawTexture(new Rect(priceAreaX, priceBoxY, priceAreaW, priceBoxH), _priceBgTex);
+
+        // Price border
+        Color priceColor = canAfford ? COL_GOLD : COL_RED;
+        GUI.color = new Color(priceColor.r, priceColor.g, priceColor.b, 0.4f);
+        GUI.DrawTexture(new Rect(priceAreaX, priceBoxY, priceAreaW, 1f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(priceAreaX, priceBoxY + priceBoxH, priceAreaW, 1f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(priceAreaX, priceBoxY, 1f, priceBoxH), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(priceAreaX + priceAreaW, priceBoxY, 1f, priceBoxH), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        // Price label
+        GUIStyle priceLabelStyle = new GUIStyle();
+        priceLabelStyle.fontSize = 9;
+        priceLabelStyle.normal.textColor = COL_WHITE_DIM;
+        priceLabelStyle.alignment = TextAnchor.MiddleCenter;
+        GUI.Label(new Rect(priceAreaX, priceBoxY, priceAreaW, 12f), "PRICE", priceLabelStyle);
+
+        // Price value (BIG)
         GUIStyle priceStyle = new GUIStyle();
-        priceStyle.fontSize = 14;
+        priceStyle.fontSize = 16;
         priceStyle.fontStyle = FontStyle.Bold;
-        priceStyle.normal.textColor = canAfford ? COL_AMBER : COL_RED;
-        priceStyle.alignment = TextAnchor.MiddleRight;
-        string priceText = item.basePrice != item.currentPrice 
-                            ? $"({item.basePrice}) {item.currentPrice} EC" 
-                            : $"{item.currentPrice} EC";
-        GUI.Label(new Rect(x + w - 195f, y + 12f, 185f, 22f), priceText, priceStyle);
+        priceStyle.normal.textColor = priceColor;
+        priceStyle.alignment = TextAnchor.MiddleCenter;
 
-        // Buy button
-        float btnW = 95f;
-        float btnH = 32f;
-        float btnX = x + w - btnW - 10f;
-        float btnY = y + (h - btnH) * 0.5f;
+        string priceText;
+        if (item.basePrice != item.currentPrice)
+        {
+            // Show strikethrough old price + new price
+            priceText = $"{item.currentPrice} EC";
 
-        if (DrawButton(btnX, btnY, btnW, btnH, canAfford ? "BUY" : "NO ENERGY", canAfford ? COL_CYAN : COL_DIM, canAfford))
+            // Draw old price with line through
+            GUIStyle oldPriceStyle = new GUIStyle();
+            oldPriceStyle.fontSize = 10;
+            oldPriceStyle.normal.textColor = COL_DIM;
+            oldPriceStyle.alignment = TextAnchor.MiddleCenter;
+            GUI.Label(new Rect(priceAreaX, priceBoxY + 10f, priceAreaW * 0.4f, 18f), $"({item.basePrice})", oldPriceStyle);
+            GUI.Label(new Rect(priceAreaX + priceAreaW * 0.35f, priceBoxY + 10f, priceAreaW * 0.65f, 20f), priceText, priceStyle);
+        }
+        else
+        {
+            priceText = $"{item.currentPrice} EC";
+            GUI.Label(new Rect(priceAreaX, priceBoxY + 11f, priceAreaW, 20f), priceText, priceStyle);
+        }
+
+        // ── BUY BUTTON ──
+        float btnW = priceAreaW;
+        float btnH = 28f;
+        float btnX = priceAreaX;
+        float btnY = y + h - btnH - 8f;
+
+        string btnLabel = canAfford ? "◈  BUY" : "✖  NO EC";
+        if (DrawButton(btnX, btnY, btnW, btnH, btnLabel, canAfford ? Color.white : COL_DIM, canAfford))
         {
             TryBuyItem(item);
         }
@@ -393,6 +549,11 @@ public class ShopStation : MonoBehaviour, IInteractable
 
         switch (item.id)
         {
+            case "antidote":
+                _inventory.antidotes++;
+                ShowStatus("Antidote đã thêm vào túi đồ!", false);
+                break;
+
             case "health_pack":
                 if (_survival != null)
                     _survival.Heal(50f);
@@ -465,20 +626,20 @@ public class ShopStation : MonoBehaviour, IInteractable
         if (_hintBgTex == null)
         {
             _hintBgTex = new Texture2D(1, 1);
-            _hintBgTex.SetPixel(0, 0, new Color(0.02f, 0.02f, 0.03f, 0.85f));
+            _hintBgTex.SetPixel(0, 0, new Color(0.02f, 0.02f, 0.03f, 0.88f));
             _hintBgTex.Apply();
         }
 
-        float hintW = 260f;
-        float hintH = 32f;
+        float hintW = 280f;
+        float hintH = 36f;
         float hintX = (Screen.width - hintW) * 0.5f;
-        float hintY = (Screen.height * 0.5f) + 40f; // Dưới tâm màn hình 40px
+        float hintY = (Screen.height * 0.5f) + 45f;
 
         GUI.DrawTexture(new Rect(hintX, hintY, hintW, hintH), _hintBgTex);
-        DrawTechCorners(hintX, hintY, hintW, hintH, new Color(COL_CYAN.r, COL_CYAN.g, COL_CYAN.b, 0.8f), 8f, 2f);
+        DrawGlowBorder(hintX, hintY, hintW, hintH, new Color(COL_CYAN.r, COL_CYAN.g, COL_CYAN.b, 0.7f), 1f);
 
         GUIStyle hintStyle = new GUIStyle();
-        hintStyle.fontSize = 14;
+        hintStyle.fontSize = 15;
         hintStyle.fontStyle = FontStyle.Bold;
         hintStyle.normal.textColor = COL_CYAN;
         hintStyle.alignment = TextAnchor.MiddleCenter;
@@ -502,7 +663,15 @@ public class ShopStation : MonoBehaviour, IInteractable
         GUI.DrawTexture(btnRect, enabled ? (isHover ? _btnHoverTex : _btnTex) : _btnDisabledTex);
 
         if (enabled)
-            DrawTechCorners(x, y, w, h, new Color(labelColor.r, labelColor.g, labelColor.b, isHover ? 0.9f : 0.4f), 6f, 1f);
+        {
+            Color borderCol = isHover ? COL_CYAN : new Color(COL_CYAN.r, COL_CYAN.g, COL_CYAN.b, 0.3f);
+            GUI.color = borderCol;
+            GUI.DrawTexture(new Rect(x, y, w, 1f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x, y + h, w, 1f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x, y, 1f, h), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x + w, y, 1f, h), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+        }
 
         GUIStyle btnStyle = new GUIStyle();
         btnStyle.fontSize = 12;
@@ -516,6 +685,17 @@ public class ShopStation : MonoBehaviour, IInteractable
 
         GUI.Label(btnRect, label, btnStyle);
         return clicked && enabled;
+    }
+
+    void DrawGlowBorder(float x, float y, float w, float h, Color color, float thick = 2f)
+    {
+        GUI.color = color;
+        Texture2D tex = Texture2D.whiteTexture;
+        GUI.DrawTexture(new Rect(x, y, w, thick), tex);             // top
+        GUI.DrawTexture(new Rect(x, y + h - thick, w, thick), tex); // bottom
+        GUI.DrawTexture(new Rect(x, y, thick, h), tex);             // left
+        GUI.DrawTexture(new Rect(x + w - thick, y, thick, h), tex); // right
+        GUI.color = Color.white;
     }
 
     void DrawTechCorners(float x, float y, float w, float h, Color color, float len = 12f, float thick = 2f)

@@ -478,9 +478,6 @@ public class CipherNote : MonoBehaviour, IInteractable
         {
             inv.SyncCipherNoteServerRpc(noteIndex, digits, transform.position);
         }
-
-        parentCipher?.OnNoteFound(noteIndex, digits);
-        Destroy(gameObject);
     }
 
 #if UNITY_EDITOR

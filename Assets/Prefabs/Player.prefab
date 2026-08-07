@@ -355,6 +355,7 @@ MonoBehaviour:
   hasBat: 0
   healthPacks: 0
   oxygenTanks: 0
+  antidotes: 0
   hasEscapeKey: 0
   rareLootCount: 0
 --- !u!114 &1961056957831625758
@@ -610,8 +611,8 @@ Animator:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1863494784221845881}
   m_Enabled: 1
-  m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 0}
+  m_Avatar: {fileID: 9000000, guid: 9590dec8ee8807348acdda696ff502f2, type: 3}
+  m_Controller: {fileID: 9100000, guid: cf359951920a1254c8145956330c620c, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0

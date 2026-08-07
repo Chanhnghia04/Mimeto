@@ -152,6 +152,9 @@ public class InventoryUI : MonoBehaviour
         {
             if (Keyboard.current.digit1Key.wasPressedThisFrame) TryEquipMask(false);
             else if (Keyboard.current.digit2Key.wasPressedThisFrame) TryEquipMask(true);
+            else if (Keyboard.current.digit3Key.wasPressedThisFrame) TryUseAntidote();
+            else if (Keyboard.current.digit4Key.wasPressedThisFrame) TryUseHealthPack();
+            else if (Keyboard.current.digit5Key.wasPressedThisFrame) TryUseOxygenTank();
         }
 
         UpdateUI();
@@ -257,7 +260,57 @@ public class InventoryUI : MonoBehaviour
     private void TryEquipMask(bool advanced)
     {
         if (survival == null || inventory == null) return;
-        if (advanced) { if (inventory.advancedGasMasks > 0) { inventory.advancedGasMasks--; survival.EquipMask(GasMaskType.Advanced); } }
-        else { if (inventory.basicGasMasks > 0) { inventory.basicGasMasks--; survival.EquipMask(GasMaskType.Basic); } }
+
+        // Prevent spamming the same mask type
+        if (advanced && survival.activeMaskType == GasMaskType.Advanced) return;
+        if (!advanced && survival.activeMaskType == GasMaskType.Basic) return;
+
+        if (advanced) 
+        { 
+            if (inventory.advancedGasMasks > 0) 
+            { 
+                if (survival.activeMaskType == GasMaskType.Basic) inventory.basicGasMasks++;
+                inventory.advancedGasMasks--; 
+                survival.EquipMask(GasMaskType.Advanced); 
+            } 
+        }
+        else 
+        { 
+            if (inventory.basicGasMasks > 0) 
+            { 
+                if (survival.activeMaskType == GasMaskType.Advanced) inventory.advancedGasMasks++;
+                inventory.basicGasMasks--; 
+                survival.EquipMask(GasMaskType.Basic); 
+            } 
+        }
+    }
+
+    private void TryUseAntidote()
+    {
+        if (inventory == null || inventory.antidotes <= 0) return;
+        
+        RandomEventManager rem = FindAnyObjectByType<RandomEventManager>();
+        if (rem != null && rem.infectedClientId == inventory.OwnerClientId)
+        {
+            inventory.antidotes--;
+            rem.CureInfectionServerRpc(inventory.OwnerClientId);
+            Debug.Log("[InventoryUI] Used Antidote!");
+        }
+    }
+
+    private void TryUseHealthPack()
+    {
+        if (inventory == null || inventory.healthPacks <= 0 || survival == null) return;
+        inventory.healthPacks--;
+        survival.Heal(50f);
+        Debug.Log("[InventoryUI] Used Health Pack!");
+    }
+
+    private void TryUseOxygenTank()
+    {
+        if (inventory == null || inventory.oxygenTanks <= 0 || survival == null) return;
+        inventory.oxygenTanks--;
+        survival.currentOxygen = survival.maxOxygen;
+        Debug.Log("[InventoryUI] Used Oxygen Tank!");
     }
 }

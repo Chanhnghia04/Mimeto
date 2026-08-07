@@ -386,47 +386,65 @@ public class PlayerSurvival : NetworkBehaviour
     {
         if (currentHealth <= 0) return;
 
-        // Nếu Server gọi hàm này (do AI đánh trúng)
-        if (IsServer && !IsOwner)
+        if (IsServer)
         {
-            TakeDamageClientRpc(amount, reason);
+            // Trừ máu trực tiếp trên Server và đồng bộ xuống mọi Client
+            ApplyDamageLogic(amount, reason);
         }
-        else if (IsOwner) // Nếu là Client tự mất oxy/chảy máu
+        else if (IsOwner)
         {
-            ApplyDamageLocally(amount, reason);
+            // Nếu Client tự mất máu (ngạt thở, té ngã), yêu cầu Server trừ máu
+            TakeDamageServerRpc(amount, reason);
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void TakeDamageServerRpc(float amount, string reason)
+    {
+        if (currentHealth <= 0) return;
+        ApplyDamageLogic(amount, reason);
+    }
+
+    private void ApplyDamageLogic(float amount, string reason)
+    {
+        currentHealth -= amount;
+        if (currentHealth <= 0)
+        {
+            currentHealth = 0;
+        }
+        
+        UpdateHealthClientRpc(currentHealth, reason);
+        
+        // Host (Server) tự gọi hàm Die hoặc phát âm thanh vì ClientRpc có thể không chạy trên Host nếu logic bọc sai
+        if (IsOwner)
+        {
+            PlayHitSound(amount);
+            if (currentHealth <= 0) Die(reason);
         }
     }
 
     [ClientRpc]
-    public void TakeDamageClientRpc(float amount, string reason)
+    public void UpdateHealthClientRpc(float newHealth, string reason)
     {
+        currentHealth = newHealth;
+        
         if (IsOwner)
         {
-            ApplyDamageLocally(amount, reason);
+            PlayHitSound(maxHealth - newHealth); // pass amount roughly
+            if (currentHealth <= 0)
+            {
+                Die(reason);
+            }
         }
     }
 
-    private void ApplyDamageLocally(float amount, string reason)
+    private void PlayHitSound(float amount)
     {
-        if (currentHealth <= 0) return;
-
-        currentHealth -= amount;
-
-        // Play Hit Sound
         if (sfxSource != null && damageHitClip != null && amount > 0.1f)
         {
             sfxSource.clip = damageHitClip;
             sfxSource.Play();
         }
-
-        if (currentHealth <= 0)
-        {
-            currentHealth = 0; // Bug Fix: clamp to 0 to prevent negative health display
-            Die(reason);
-        }
-
-        // Báo cho Server biết máu hiện tại để AI (chạy trên Server) không cắn xác chết
-        UpdateHealthServerRpc(currentHealth);
     }
 
     public void Heal(float amount)
@@ -440,6 +458,16 @@ public class PlayerSurvival : NetworkBehaviour
     public void UpdateHealthServerRpc(float newHealth)
     {
         currentHealth = newHealth;
+        UpdateHealthClientRpc(newHealth);
+    }
+
+    [ClientRpc]
+    public void UpdateHealthClientRpc(float newHealth)
+    {
+        if (!IsOwner && !IsServer)
+        {
+            currentHealth = newHealth;
+        }
     }
 //
     private float bleedEndTime = 0f;
@@ -724,6 +752,11 @@ public class PlayerSurvival : NetworkBehaviour
         // Tắt HUD hiển thị trong các scene menu để không đè lên RoomInfoPanel
         string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         if (sceneName != "Map" && sceneName != "PollutedZone") 
+            return;
+
+        // Ẩn thanh HUD khi đang mở Tủ Đồ, Cheat hoặc các UI khác để tránh đè lên nhau
+        PlayerController pc = GetComponent<PlayerController>();
+        if (pc != null && pc.IsUIOpen())
             return;
 
         InitHUD();

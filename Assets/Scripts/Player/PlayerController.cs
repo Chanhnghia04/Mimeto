@@ -104,9 +104,12 @@ public class PlayerController : NetworkBehaviour
         }
 
         // Tránh tình trạng 2 player spawn đè lên nhau ở (0,0,0)
-        if (IsServer)
+        if (IsOwner)
         {
-            transform.position += new Vector3(UnityEngine.Random.Range(-1.5f, 1.5f), 0, UnityEngine.Random.Range(-1.5f, 1.5f));
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Map" || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Waiting")
+            {
+                transform.position += new Vector3(UnityEngine.Random.Range(-1.5f, 1.5f), 0, UnityEngine.Random.Range(-1.5f, 1.5f));
+            }
         }
 
         if (!IsOwner)
@@ -282,7 +285,9 @@ public class PlayerController : NetworkBehaviour
         wasGrounded = controller.isGrounded;
         landDipOffset = Mathf.Lerp(landDipOffset, 0, Time.deltaTime * landDipSpeed);
 
-        bool canMove = !IsUIOpen() && !PlayerSurvival.IsGameOverUIOpen();
+        bool uiOpen = IsUIOpen();
+        bool canMove = !uiOpen && !PlayerSurvival.IsGameOverUIOpen();
+        
         UpdateVisualHeldItem();
         
         // Gọi Camera Effects ở cuối Update để tránh độ trễ 1 frame
@@ -413,6 +418,8 @@ public class PlayerController : NetworkBehaviour
     // Hàm này hiện tại là public để bạn có thể gọi từ Animation Event
     public void ExecutePunch()
     {
+        if (isGhostMode) return;
+        
         float actualRange = punchRange;
         float actualDamage = punchDamage;
         PlayerInventory inv = GetComponent<PlayerInventory>();
@@ -455,21 +462,6 @@ public class PlayerController : NetworkBehaviour
         {
             // Bỏ qua chính bản thân người chơi
             if (h.collider.transform.root == transform.root) continue;
-
-            MimicAI mimic = h.collider.GetComponentInParent<MimicAI>();
-            if (mimic != null)
-            {
-                NetworkObject netObj = mimic.GetComponent<NetworkObject>();
-                if (netObj != null && IsSpawned)
-                {
-                    DealDamageToEnemyServerRpc(netObj.NetworkObjectId, actualDamage, true);
-                }
-                else
-                {
-                    mimic.TakeDamage(actualDamage); // Fallback offline
-                }
-                break; // Chỉ gây sát thương cho 1 con mỗi lần đấm
-            }
             
             MutantAI mutant = h.collider.GetComponentInParent<MutantAI>();
             if (mutant != null)
@@ -481,7 +473,7 @@ public class PlayerController : NetworkBehaviour
                 }
                 else
                 {
-                    mutant.TakeDamage(actualDamage);
+//                     mutant.TakeDamage(actualDamage);
                     mutant.ForceTarget(this); // Fallback offline
                 }
                 break;
@@ -494,17 +486,12 @@ public class PlayerController : NetworkBehaviour
     {
         if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(enemyNetworkObjectId, out NetworkObject enemyObj))
         {
-            if (isMimic)
-            {
-                MimicAI mimic = enemyObj.GetComponent<MimicAI>();
-                if (mimic != null) mimic.TakeDamage(damage);
-            }
-            else
+            if (!isMimic)
             {
                 MutantAI mutant = enemyObj.GetComponent<MutantAI>();
                 if (mutant != null)
                 {
-                    mutant.TakeDamage(damage);
+//                     mutant.TakeDamage(damage);
                     // Find the player who dealt damage to force target
                     if (NetworkManager.Singleton.ConnectedClients.TryGetValue(rpcParams.Receive.SenderClientId, out var client))
                     {
@@ -622,7 +609,7 @@ public class PlayerController : NetworkBehaviour
     private float _uiCheckTimer = 0f;
     private bool _cachedUiOpen = false;
 
-    private bool IsUIOpen()
+    public bool IsUIOpen()
     {
         // 1. Kiểm tra nhanh (fast path) bằng cờ bool hoặc tham chiếu đã có sẵn
         if (isShopMode) return true;
@@ -642,7 +629,7 @@ public class PlayerController : NetworkBehaviour
         if (OpenMinigameCount > 0) return true;
         
         // 2. Kiểm tra chậm (slow path): Quét toàn Scene 4 lần/giây thay vì 60 lần/giây để chống giật lag (Optimize)
-        _uiCheckTimer -= Time.deltaTime;
+        _uiCheckTimer -= Time.unscaledDeltaTime;
         if (_uiCheckTimer <= 0f)
         {
             _uiCheckTimer = 0.25f; // Chờ 0.25s mới quét lại

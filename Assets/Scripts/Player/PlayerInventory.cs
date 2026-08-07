@@ -29,6 +29,7 @@ public class PlayerInventory : NetworkBehaviour
     [Header("Shop Consumables")]
     public int healthPacks = 0;
     public int oxygenTanks = 0;
+    public int antidotes = 0;
 
     [Header("Escape & Loot")]
     public bool hasEscapeKey = false;
@@ -36,73 +37,118 @@ public class PlayerInventory : NetworkBehaviour
 
     void Start()
     {
-        if (GlobalPlayerData.hasSavedData)
-        {
-            circuits = GlobalPlayerData.circuits;
-            metalPipes = GlobalPlayerData.metalPipes;
-            ironPlates = GlobalPlayerData.ironPlates;
-            chemicals = GlobalPlayerData.chemicals;
-            plasticPipes = GlobalPlayerData.plasticPipes;
-            scrapBatteries = GlobalPlayerData.scrapBatteries;
-            credits = GlobalPlayerData.credits;
-            basicGasMasks = GlobalPlayerData.basicGasMasks;
-            advancedGasMasks = GlobalPlayerData.advancedGasMasks;
-            hasUVFlashlight = GlobalPlayerData.hasUVFlashlight;
-            hasCrowbar = GlobalPlayerData.hasCrowbar;
-            hasShovel = GlobalPlayerData.hasShovel;
-            hasMachete = GlobalPlayerData.hasMachete;
-            hasAxe = GlobalPlayerData.hasAxe;
-            hasBat = GlobalPlayerData.hasBat;
-            rareLootCount = GlobalPlayerData.rareLootCount;
-            healthPacks = GlobalPlayerData.healthPacks;
-            oxygenTanks = GlobalPlayerData.oxygenTanks;
-        }
+        // Moved to OnNetworkSpawn to check IsOwner
     }
 
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+        
+        if (IsOwner)
+        {
+            if (GlobalPlayerData.hasSavedData)
+            {
+                circuits = GlobalPlayerData.circuits;
+                metalPipes = GlobalPlayerData.metalPipes;
+                ironPlates = GlobalPlayerData.ironPlates;
+                chemicals = GlobalPlayerData.chemicals;
+                plasticPipes = GlobalPlayerData.plasticPipes;
+                scrapBatteries = GlobalPlayerData.scrapBatteries;
+                credits = GlobalPlayerData.credits;
+                basicGasMasks = GlobalPlayerData.basicGasMasks;
+                advancedGasMasks = GlobalPlayerData.advancedGasMasks;
+                hasUVFlashlight = GlobalPlayerData.hasUVFlashlight;
+                hasCrowbar = GlobalPlayerData.hasCrowbar;
+                hasShovel = GlobalPlayerData.hasShovel;
+                hasMachete = GlobalPlayerData.hasMachete;
+                hasAxe = GlobalPlayerData.hasAxe;
+                hasBat = GlobalPlayerData.hasBat;
+                rareLootCount = GlobalPlayerData.rareLootCount;
+                healthPacks = GlobalPlayerData.healthPacks;
+                oxygenTanks = GlobalPlayerData.oxygenTanks;
+                antidotes = GlobalPlayerData.antidotes;
+            }
+
+            if (!IsServer)
+            {
+                InitSaveDataServerRpc(credits);
+            }
+        }
+
         if (IsServer && IsOwner)
         {
             MatchSeed.Value = (int)(System.DateTime.Now.Ticks % 100000000);
         }
+        if (MatchSeed.Value != 0)
+        {
+            GlobalMatchSeed = MatchSeed.Value;
+        }
+    }
+
+    [ServerRpc]
+    public void InitSaveDataServerRpc(int initialCredits)
+    {
+        credits = initialCredits;
     }
 
     void Update()
     {
-        if (GlobalMatchSeed == 0 && MatchSeed.Value != 0)
+        if (MatchSeed.Value != 0 && GlobalMatchSeed != MatchSeed.Value)
         {
             GlobalMatchSeed = MatchSeed.Value;
-            Debug.Log($"[MapSync] GlobalMatchSeed set to: {GlobalMatchSeed}");
+            Debug.Log($"[MapSync] GlobalMatchSeed updated to: {GlobalMatchSeed}");
         }
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        base.OnNetworkDespawn();
+        GlobalMatchSeed = 0;
+    }
+
+    /// <summary>
+    /// Tạo seed mới cho mỗi lần vào Map.
+    /// Gọi bởi Host trước khi LoadScene("Map").
+    /// </summary>
+    public void RegenerateSeed()
+    {
+        if (!IsServer) return;
+        MatchSeed.Value = (int)(System.DateTime.Now.Ticks % 100000000);
+        GlobalMatchSeed = MatchSeed.Value;
+        Debug.Log($"[PlayerInventory] Seed mới cho màn chơi: {GlobalMatchSeed}");
     }
 
     public override void OnDestroy()
     {
         base.OnDestroy(); // NetworkBehaviour requires base.OnDestroy()
+        GlobalMatchSeed = 0;
         
-        GlobalPlayerData.circuits = circuits;
-        GlobalPlayerData.metalPipes = metalPipes;
-        GlobalPlayerData.ironPlates = ironPlates;
-        GlobalPlayerData.chemicals = chemicals;
-        GlobalPlayerData.plasticPipes = plasticPipes;
-        GlobalPlayerData.scrapBatteries = scrapBatteries;
-        GlobalPlayerData.credits = credits;
-        GlobalPlayerData.basicGasMasks = basicGasMasks;
-        GlobalPlayerData.advancedGasMasks = advancedGasMasks;
-        GlobalPlayerData.hasUVFlashlight = hasUVFlashlight;
-        GlobalPlayerData.hasCrowbar = hasCrowbar;
-        GlobalPlayerData.hasShovel = hasShovel;
-        GlobalPlayerData.hasMachete = hasMachete;
-        GlobalPlayerData.hasAxe = hasAxe;
-        GlobalPlayerData.hasBat = hasBat;
-        GlobalPlayerData.rareLootCount = rareLootCount;
-        GlobalPlayerData.healthPacks = healthPacks;
-        GlobalPlayerData.oxygenTanks = oxygenTanks;
-        GlobalPlayerData.hasSavedData = true;
+        if (IsOwner)
+        {
+            GlobalPlayerData.circuits = circuits;
+            GlobalPlayerData.metalPipes = metalPipes;
+            GlobalPlayerData.ironPlates = ironPlates;
+            GlobalPlayerData.chemicals = chemicals;
+            GlobalPlayerData.plasticPipes = plasticPipes;
+            GlobalPlayerData.scrapBatteries = scrapBatteries;
+            GlobalPlayerData.credits = credits;
+            GlobalPlayerData.basicGasMasks = basicGasMasks;
+            GlobalPlayerData.advancedGasMasks = advancedGasMasks;
+            GlobalPlayerData.hasUVFlashlight = hasUVFlashlight;
+            GlobalPlayerData.hasCrowbar = hasCrowbar;
+            GlobalPlayerData.hasShovel = hasShovel;
+            GlobalPlayerData.hasMachete = hasMachete;
+            GlobalPlayerData.hasAxe = hasAxe;
+            GlobalPlayerData.hasBat = hasBat;
+            GlobalPlayerData.rareLootCount = rareLootCount;
+            GlobalPlayerData.healthPacks = healthPacks;
+            GlobalPlayerData.oxygenTanks = oxygenTanks;
+            GlobalPlayerData.antidotes = antidotes;
+            GlobalPlayerData.hasSavedData = true;
 
-        // Lưu xuống ổ cứng
-        GlobalPlayerData.Save();
+            // Lưu xuống ổ cứng
+            GlobalPlayerData.Save();
+        }
     }
 
     public void AddScrap(string type, int amount)
@@ -152,6 +198,30 @@ public class PlayerInventory : NetworkBehaviour
         }
 
         Debug.Log($"Added {amount} {type}. Inventory: C={circuits}, MP={metalPipes}, IP={ironPlates}, Ch={chemicals}, Pl={plasticPipes}, Bat={scrapBatteries}");
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestPickupItemServerRpc(Vector3 pos, string itemType, int amount, ServerRpcParams rpcParams = default)
+    {
+        Collider[] colls = Physics.OverlapSphere(pos, 2.0f);
+        foreach (var col in colls)
+        {
+            ScrapItem scrap = col.GetComponent<ScrapItem>();
+            if (scrap != null && scrap.scrapType == itemType)
+            {
+                var clientId = rpcParams.Receive.SenderClientId;
+                AddScrapClientRpc(itemType, amount, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } });
+                SyncDestroyItemClientRpc(pos, itemType);
+                Destroy(scrap.rootObject != null ? scrap.rootObject : scrap.gameObject);
+                break;
+            }
+        }
+    }
+
+    [ClientRpc]
+    public void AddScrapClientRpc(string itemType, int amount, ClientRpcParams clientRpcParams = default)
+    {
+        AddScrap(itemType, amount);
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -242,19 +312,30 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void SyncAssemblyPartServerRpc(string partName, Vector3 pos)
     {
-        SyncAssemblyPartClientRpc(partName, pos);
+        Collider[] colls = Physics.OverlapSphere(pos, 0.5f);
+        foreach (var col in colls)
+        {
+            EscapePart part = col.GetComponent<EscapePart>();
+            if (part != null && part.partName == partName)
+            {
+                SyncAssemblyPartClientRpc(partName, pos);
+                part.parentAssembly?.OnPartCollected(part.partName);
+                Destroy(part.gameObject);
+                break;
+            }
+        }
     }
 
     [ClientRpc]
     public void SyncAssemblyPartClientRpc(string partName, Vector3 pos)
     {
-        if (IsOwner) return; // Người nhặt tự xử lý local
+        if (IsServer) return; // Server đã xóa
         
         Collider[] colls = Physics.OverlapSphere(pos, 0.5f);
         foreach (var col in colls)
         {
             EscapePart part = col.GetComponent<EscapePart>();
-            if (part != null)
+            if (part != null && part.partName == partName)
             {
                 part.parentAssembly?.OnPartCollected(part.partName);
                 Destroy(part.gameObject);
@@ -266,19 +347,30 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void SyncCipherNoteServerRpc(int noteIndex, string digits, Vector3 pos)
     {
-        SyncCipherNoteClientRpc(noteIndex, digits, pos);
+        Collider[] colls = Physics.OverlapSphere(pos, 0.5f);
+        foreach (var col in colls)
+        {
+            CipherNote note = col.GetComponent<CipherNote>();
+            if (note != null && note.noteIndex == noteIndex)
+            {
+                SyncCipherNoteClientRpc(noteIndex, digits, pos);
+                note.parentCipher?.OnNoteFound(note.noteIndex, note.digits);
+                Destroy(note.gameObject);
+                break;
+            }
+        }
     }
 
     [ClientRpc]
     public void SyncCipherNoteClientRpc(int noteIndex, string digits, Vector3 pos)
     {
-        if (IsOwner) return; // Người nhặt tự xử lý local
+        if (IsServer) return; // Server đã xử lý
         
         Collider[] colls = Physics.OverlapSphere(pos, 0.5f);
         foreach (var col in colls)
         {
             CipherNote note = col.GetComponent<CipherNote>();
-            if (note != null)
+            if (note != null && note.noteIndex == noteIndex)
             {
                 note.parentCipher?.OnNoteFound(note.noteIndex, note.digits);
                 Destroy(note.gameObject);
@@ -355,6 +447,7 @@ public class PlayerInventory : NetworkBehaviour
     {
         if (IsOwner) return; // Người chơi local đã cộng/trừ tiền trực tiếp rồi, không cập nhật lại nữa.
         credits += amount;
+        if (credits < 0) credits = 0;
     }
 
     /// <summary>
@@ -365,6 +458,7 @@ public class PlayerInventory : NetworkBehaviour
         if (credits >= amount)
         {
             credits -= amount;
+            if (credits < 0) credits = 0;
             GlobalPlayerData.credits = credits;
             if (IsSpawned)
             {
@@ -420,6 +514,7 @@ public class PlayerInventory : NetworkBehaviour
 
         healthPacks = 0;
         oxygenTanks = 0;
+        antidotes = 0;
         
         Debug.Log("<color=red>[Inventory]</color> All items lost due to death.");
     }

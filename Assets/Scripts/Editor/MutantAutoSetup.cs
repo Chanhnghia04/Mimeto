@@ -83,19 +83,19 @@ public static class MutantAutoSetup
         Undo.RegisterCreatedObjectUndo(spawnerGo, "Auto: MutantSpawner");
 
         MutantSpawner spawner = spawnerGo.AddComponent<MutantSpawner>();
-        spawner.mutantPrefab                = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+        var mutantPrefabObj = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+        spawner.enemyPrefabs                = new GameObject[] { mutantPrefabObj };
         spawner.mutantsToSpawn              = 1;
         //spawner.autoFindSpawnPoints         = true;
         //spawner.shuffleSpawnPoints          = true;
+        spawner.completelyRandomSpawn       = false; // Default to spawn points
         spawner.globalMinDistanceFromPlayer = 20f;
-        //spawner.navMeshSampleRadius         = 5f;
-        spawner.playerTag                   = "Player";
-
+        
         EditorUtility.SetDirty(spawnerGo);
         Selection.activeGameObject = spawnerGo;
 
-        if (spawner.mutantPrefab == null)
-            Debug.LogWarning("[MutantAutoSetup] ⚠ Không tìm thấy prefab Mutant tại đường dẫn " + PrefabPath);
+        if (mutantPrefabObj == null)
+            Debug.LogWarning("[MutantAutoSetup] Không tìm thấy prefab Mutant tại đường dẫn " + PrefabPath);
 
         return true;
     }
