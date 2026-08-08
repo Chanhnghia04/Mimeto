@@ -61,7 +61,8 @@ public static class GlobalPlayerData
         };
 
         string json = JsonUtility.ToJson(data);
-        PlayerPrefs.SetString("Mimeto_SaveData", json);
+        string key = "Mimeto_SaveData" + Application.dataPath.GetHashCode();
+        PlayerPrefs.SetString(key, json);
         PlayerPrefs.Save();
         hasSavedData = true;
         Debug.Log("[GlobalPlayerData] Dữ liệu đã được LƯU vào ổ cứng.");
@@ -69,9 +70,10 @@ public static class GlobalPlayerData
 
     public static void Load()
     {
-        if (PlayerPrefs.HasKey("Mimeto_SaveData"))
+        string key = "Mimeto_SaveData" + Application.dataPath.GetHashCode();
+        if (PlayerPrefs.HasKey(key))
         {
-            string json = PlayerPrefs.GetString("Mimeto_SaveData");
+            string json = PlayerPrefs.GetString(key);
             PlayerDataSave data = JsonUtility.FromJson<PlayerDataSave>(json);
 
             circuits = data.circuits;
@@ -105,7 +107,8 @@ public static class GlobalPlayerData
 
     public static void ClearData()
     {
-        PlayerPrefs.DeleteKey("Mimeto_SaveData");
+        string key = "Mimeto_SaveData" + Application.dataPath.GetHashCode();
+        PlayerPrefs.DeleteKey(key);
         PlayerPrefs.Save();
         hasSavedData = false;
         

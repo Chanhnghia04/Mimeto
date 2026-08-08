@@ -365,16 +365,16 @@ AnimatorStateMachine:
     m_Position: {x: 270, y: -30, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 63525515699045435}
-    m_Position: {x: 550, y: 60, z: 0}
+    m_Position: {x: 550, y: -10, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 242585703251908639}
-    m_Position: {x: 540, y: 130, z: 0}
+    m_Position: {x: 570, y: 80, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 4714129840577402894}
     m_Position: {x: 270, y: 190, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 5417503462191796675}
-    m_Position: {x: 580, y: 220, z: 0}
+    m_Position: {x: 570, y: 190, z: 0}
   m_ChildStateMachines: []
   m_AnyStateTransitions:
   - {fileID: -2743489087307440815}

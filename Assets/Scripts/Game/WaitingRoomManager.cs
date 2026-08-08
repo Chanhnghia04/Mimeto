@@ -49,6 +49,14 @@ public class WaitingRoomManager : NetworkBehaviour
 
         if (IsServer)
         {
+            // Dọn dẹp tàn dư quái vật từ màn chơi trước (những AI dùng NavMeshAgent)
+            foreach (var agent in FindObjectsByType<UnityEngine.AI.NavMeshAgent>(FindObjectsSortMode.None))
+            {
+                var netObj = agent.GetComponent<NetworkObject>();
+                if (netObj != null && netObj.IsSpawned) netObj.Despawn(true);
+                else Destroy(agent.gameObject);
+            }
+
             // Thêm players hiện có
             foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
             {

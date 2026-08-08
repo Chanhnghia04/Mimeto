@@ -146,14 +146,21 @@ public class PlayerController : NetworkBehaviour
             {
                 cam.gameObject.tag = "MainCamera";
             }
+            
+            // Cập nhật vị trí cho Vivox 3D Audio
+            if (VivoxManager.Instance != null)
+            {
+                VivoxManager.Instance.SetLocalPlayerTransform(transform, cam != null ? cam.transform : transform);
+            }
         }
     }
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
-        animator = GetComponentInChildren<Animator>();
         networkAnimator = GetComponentInChildren<ClientNetworkAnimator>();
+        if (networkAnimator != null) animator = networkAnimator.Animator;
+        if (animator == null) animator = GetComponentInChildren<Animator>();
         if (animator != null) animator.applyRootMotion = false;
 
         playerInput = GetComponent<UnityEngine.InputSystem.PlayerInput>();
@@ -216,7 +223,9 @@ public class PlayerController : NetworkBehaviour
         if (controller == null)
         {
             controller = GetComponent<CharacterController>();
-            animator = GetComponentInChildren<Animator>();
+            networkAnimator = GetComponentInChildren<ClientNetworkAnimator>();
+            if (networkAnimator != null) animator = networkAnimator.Animator;
+            if (animator == null) animator = GetComponentInChildren<Animator>();
             Camera cam = GetComponentInChildren<Camera>();
             if (cam != null) playerCamera = cam.transform;
             _inventoryUI = GetComponent<InventoryUI>();
