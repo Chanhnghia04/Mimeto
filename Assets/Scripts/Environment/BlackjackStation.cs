@@ -109,7 +109,7 @@ public class BlackjackStation : MonoBehaviour, IInteractable
         if (isOpen) return;
         PlayerInventory inv = interactor.GetComponentInParent<PlayerInventory>()
                            ?? interactor.GetComponentInChildren<PlayerInventory>();
-        if (inv == null) return;
+        if (inv == null || !inv.IsOwner) return;
 
         _inventory = inv;
         isOpen     = true;

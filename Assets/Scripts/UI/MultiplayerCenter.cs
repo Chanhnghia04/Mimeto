@@ -93,6 +93,7 @@ public class MultiplayerCenter : MonoBehaviour
         {
             UpdateStatus("Đang khởi tạo...");
             await LobbyManager.Instance.InitializeAsync();
+            await VivoxManager.Instance.LoginAsync(); // <--- FIX: Đăng nhập Vivox
             UpdateStatus("Sẵn sàng! Chọn Host hoặc Client.");
         }
         catch (Exception e)
@@ -179,6 +180,7 @@ public class MultiplayerCenter : MonoBehaviour
         {
             NetworkManager.Singleton.Shutdown();
         }
+        _ = VivoxManager.Instance.LeaveChannelAsync();
         _ = LobbyManager.Instance.LeaveLobby();
         UnityEngine.SceneManagement.SceneManager.LoadScene("StartGame");
     }
@@ -208,6 +210,9 @@ public class MultiplayerCenter : MonoBehaviour
 
             // 3. Lưu relay code vào lobby
             await LobbyManager.Instance.UpdateRelayCode(relayJoinCode);
+
+            // 3.5. Join Vivox Channel
+            await VivoxManager.Instance.JoinChannelAsync(lobby.Id);
 
             // 4. Setup transport
             RelayServerData relayServerData = new RelayServerData(allocation, "dtls");
@@ -348,6 +353,7 @@ public class MultiplayerCenter : MonoBehaviour
             NetworkManager.Singleton.Shutdown();
         }
 
+        _ = VivoxManager.Instance.LeaveChannelAsync();
         await LobbyManager.Instance.LeaveLobby();
         await Task.Delay(500); // Đợi NetworkManager Shutdown hoàn tất
 
@@ -433,6 +439,7 @@ public class MultiplayerCenter : MonoBehaviour
             SetClientInteractable(false);
 
             var lobby = await LobbyManager.Instance.JoinLobbyById(lobbyId);
+            await VivoxManager.Instance.JoinChannelAsync(lobby.Id);
             await ConnectToRelay();
         }
         catch (Exception e)
@@ -464,6 +471,7 @@ public class MultiplayerCenter : MonoBehaviour
             SetClientInteractable(false);
 
             var lobby = await LobbyManager.Instance.JoinLobbyByCode(code);
+            await VivoxManager.Instance.JoinChannelAsync(lobby.Id);
             await ConnectToRelay();
         }
         catch (Exception e)

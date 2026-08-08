@@ -75,7 +75,7 @@ public class InteractionSystem : MonoBehaviour
     void Update()
     {
         PlayerController pc = GetComponentInParent<PlayerController>();
-        if (pc != null && pc.isGhostMode) return;
+        if (pc != null && (!pc.IsOwner || pc.isGhostMode)) return;
 
         // Bug Fix: block interaction while any UI panel is open or already picking up
         if (_interactAction != null && _interactAction.WasPressedThisFrame() && !IsUIOpen() && !isPickingUp)

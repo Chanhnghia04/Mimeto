@@ -24,7 +24,10 @@ public class FixProjectIssues : EditorWindow
             // 3. Fix Canvases
             FixAllCanvases();
 
-            Debug.Log("<color=lime>Đã sửa xong toàn bộ lỗi UI và Mutant!</color>");
+            // 4. Fix NetworkObject on Stations (Blackjack, Dice, Slot)
+            FixStationNetworkObjects();
+
+            Debug.Log("<color=lime>Đã sửa xong toàn bộ lỗi UI, Mutant và Lỗi Trạm 2 Thế Giới!</color>");
         }
         finally
         {
@@ -146,6 +149,53 @@ public class FixProjectIssues : EditorWindow
                 EditorSceneManager.MarkSceneDirty(scene);
                 EditorSceneManager.SaveScene(scene);
                 Debug.Log($"[AutoFix] Đã sửa UI Canvas Scaler trong scene {scene.name}.");
+            }
+        }
+    }
+
+    static void FixStationNetworkObjects()
+    {
+        string[] scenes = { "Assets/Scenes/Waiting.unity" };
+        foreach (var path in scenes)
+        {
+            var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
+            bool changed = false;
+            
+            // Tìm các Station
+            var stations = new List<MonoBehaviour>();
+            stations.AddRange(Object.FindObjectsByType<BlackjackStation>(FindObjectsInactive.Include, FindObjectsSortMode.None));
+            stations.AddRange(Object.FindObjectsByType<DiceBetStation>(FindObjectsInactive.Include, FindObjectsSortMode.None));
+            stations.AddRange(Object.FindObjectsByType<SlotMachineStation>(FindObjectsInactive.Include, FindObjectsSortMode.None));
+
+            foreach (var station in stations)
+            {
+                // Xóa NetworkObject và NetworkTransform thừa ở các object con (ví dụ BoxColliderFix)
+                var netObjs = station.GetComponentsInChildren<NetworkObject>(true);
+                foreach (var netObj in netObjs)
+                {
+                    if (netObj.gameObject != station.gameObject)
+                    {
+                        Object.DestroyImmediate(netObj, true);
+                        changed = true;
+                    }
+                }
+
+                var netTransforms = station.GetComponentsInChildren<Unity.Netcode.Components.NetworkTransform>(true);
+                foreach (var netTrans in netTransforms)
+                {
+                    if (netTrans.gameObject != station.gameObject)
+                    {
+                        Object.DestroyImmediate(netTrans, true);
+                        changed = true;
+                    }
+                }
+            }
+
+            if (changed)
+            {
+                EditorSceneManager.MarkSceneDirty(scene);
+                EditorSceneManager.SaveScene(scene);
+                Debug.Log($"[AutoFix] Đã xóa NetworkObject thừa khỏi các Station trong scene {scene.name} (Khắc phục lỗi 2 thế giới).");
             }
         }
     }

@@ -117,7 +117,10 @@ public class VivoxManager : MonoBehaviour
 
             await VivoxService.Instance.JoinPositionalChannelAsync(currentChannelName, ChatCapability.AudioOnly, props, channelOptions);
             isJoined = true;
-            Debug.Log($"[VivoxManager] Joined 3D Voice Channel: {currentChannelName}");
+            // MUTE mặc định khi vừa join
+            isMicMuted = true;
+            VivoxService.Instance.MuteInputDevice();
+            Debug.Log($"[VivoxManager] Joined 3D Voice Channel: {currentChannelName} (MUTED by default, press V to toggle)");
         }
         catch (Exception e)
         {
@@ -226,6 +229,9 @@ public class VivoxManager : MonoBehaviour
         localCameraTransform = cameraT;
     }
 
+    private float micStatusTimer = 0f;
+    private bool isMicMuted = true;
+
     private void Update()
     {
         // Liên tục cập nhật vị trí 3D cho Vivox nếu đã join channel và có player
@@ -239,6 +245,54 @@ public class VivoxManager : MonoBehaviour
                 localCameraTransform.up,        // Listener Up
                 currentChannelName              // Channel name
             );
+        }
+
+        // Cập nhật timer hiển thị thông báo Mic
+        if (micStatusTimer > 0f)
+        {
+            micStatusTimer -= Time.deltaTime;
+        }
+
+        // --- TOGGLE VOICE CHAT bằng phím V ---
+        if (isLoggedIn && isJoined)
+        {
+            if (Input.GetKeyDown(KeyCode.V))
+            {
+                isMicMuted = !isMicMuted;
+                if (isMicMuted)
+                {
+                    VivoxService.Instance.MuteInputDevice();
+                    Debug.Log("[VivoxManager] Ngừng nói (Mic MUTED)");
+                }
+                else
+                {
+                    VivoxService.Instance.UnmuteInputDevice();
+                    Debug.Log("[VivoxManager] Đang nói (Mic UNMUTED)");
+                }
+                micStatusTimer = 2.5f; // Hiển thị thông báo 2.5 giây
+            }
+        }
+    }
+
+    private void OnGUI()
+    {
+        if (micStatusTimer > 0f)
+        {
+            GUIStyle style = new GUIStyle();
+            style.fontSize = 28;
+            style.fontStyle = FontStyle.Bold;
+            style.alignment = TextAnchor.MiddleCenter;
+
+            string text = isMicMuted ? "🎤 MIC BỊ TẮT (MUTED)" : "🎤 ĐANG BẬT MIC (UNMUTED)";
+            style.normal.textColor = isMicMuted ? Color.red : Color.green;
+
+            // Draw shadow
+            GUIStyle shadow = new GUIStyle(style);
+            shadow.normal.textColor = Color.black;
+            GUI.Label(new Rect(Screen.width / 2 - 198, 42, 400, 50), text, shadow);
+
+            // Draw text
+            GUI.Label(new Rect(Screen.width / 2 - 200, 40, 400, 50), text, style);
         }
     }
 

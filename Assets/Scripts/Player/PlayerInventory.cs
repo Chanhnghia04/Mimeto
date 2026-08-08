@@ -233,8 +233,6 @@ public class PlayerInventory : NetworkBehaviour
     [ClientRpc]
     public void SyncDestroyItemClientRpc(Vector3 pos, string itemType)
     {
-        // Ignore on the client that actually picked it up (they destroyed it locally already)
-        if (IsOwner) return;
 
         // Tăng bán kính tìm kiếm lên 2.0f để bù trừ sai lệch vị trí qua mạng
         Collider[] colls = Physics.OverlapSphere(pos, 2.0f);
@@ -437,17 +435,27 @@ public class PlayerInventory : NetworkBehaviour
     }
 
     [ServerRpc(RequireOwnership = false)]
-    public void AddCreditsServerRpc(int amount)
+    public void AddCreditsServerRpc(int amount, ServerRpcParams rpcParams = default)
     {
-        UpdateCreditsClientRpc(amount);
+        UpdateSharedCreditsClientRpc(amount, rpcParams.Receive.SenderClientId);
     }
 
     [ClientRpc]
-    public void UpdateCreditsClientRpc(int amount)
+    public void UpdateSharedCreditsClientRpc(int amount, ulong senderId)
     {
-        if (IsOwner) return; // Người chơi local đã cộng/trừ tiền trực tiếp rồi, không cập nhật lại nữa.
-        credits += amount;
-        if (credits < 0) credits = 0;
+        if (Unity.Netcode.NetworkManager.Singleton.LocalClientId == senderId) return; // Sender updated locally
+        
+        // Find local player and update
+        PlayerInventory[] allInvs = FindObjectsByType<PlayerInventory>(FindObjectsSortMode.None);
+        foreach(var inv in allInvs)
+        {
+            if (inv.IsOwner)
+            {
+                inv.credits += amount;
+                if (inv.credits < 0) inv.credits = 0;
+                GlobalPlayerData.credits = inv.credits;
+            }
+        }
     }
 
     /// <summary>

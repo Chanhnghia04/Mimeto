@@ -61,6 +61,8 @@ public class ExilerAI : NetworkBehaviour
 
     void Update()
     {
+        if (Unity.Netcode.NetworkManager.Singleton != null && !Unity.Netcode.NetworkManager.Singleton.IsServer) return;
+
         // Chạy trên Server. Nếu game không start server, quái sẽ đứng im!
         if (currentState == ExilerState.Dead) return;
 
