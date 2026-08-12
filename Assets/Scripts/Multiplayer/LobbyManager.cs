@@ -91,7 +91,7 @@ public class LobbyManager : MonoBehaviour
     /// <summary>
     /// Tạo lobby mới (Public hoặc Private)
     /// </summary>
-    public async Task<Lobby> CreateLobby(string lobbyName, int maxPlayers, bool isPrivate)
+    public async Task<Lobby> CreateLobby(string lobbyName, int maxPlayers, bool isPrivate, string relayJoinCode)
     {
         try
         {
@@ -101,7 +101,7 @@ public class LobbyManager : MonoBehaviour
                 Player = GetPlayer(),
                 Data = new Dictionary<string, DataObject>
                 {
-                    { KEY_RELAY_CODE, new DataObject(DataObject.VisibilityOptions.Member, "") },
+                    { KEY_RELAY_CODE, new DataObject(DataObject.VisibilityOptions.Member, relayJoinCode) },
                     { KEY_GAME_STARTED, new DataObject(DataObject.VisibilityOptions.Public, "false", DataObject.IndexOptions.S1) }
                 }
             };

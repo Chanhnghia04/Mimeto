@@ -473,6 +473,8 @@ public class PlayerController : NetworkBehaviour
             if (h.collider.transform.root == transform.root) continue;
             
             MutantAI mutant = h.collider.GetComponentInParent<MutantAI>();
+            ExilerAI exiler = h.collider.GetComponentInParent<ExilerAI>();
+
             if (mutant != null)
             {
                 NetworkObject netObj = mutant.GetComponent<NetworkObject>();
@@ -482,8 +484,21 @@ public class PlayerController : NetworkBehaviour
                 }
                 else
                 {
-//                     mutant.TakeDamage(actualDamage);
+                    mutant.TakeDamage(actualDamage);
                     mutant.ForceTarget(this); // Fallback offline
+                }
+                break;
+            }
+            else if (exiler != null)
+            {
+                NetworkObject netObj = exiler.GetComponent<NetworkObject>();
+                if (netObj != null && IsSpawned)
+                {
+                    DealDamageToEnemyServerRpc(netObj.NetworkObjectId, actualDamage, true);
+                }
+                else
+                {
+                    exiler.TakeDamage(actualDamage);
                 }
                 break;
             }
@@ -500,13 +515,21 @@ public class PlayerController : NetworkBehaviour
                 MutantAI mutant = enemyObj.GetComponent<MutantAI>();
                 if (mutant != null)
                 {
-//                     mutant.TakeDamage(damage);
+                    mutant.TakeDamage(damage);
                     // Find the player who dealt damage to force target
                     if (NetworkManager.Singleton.ConnectedClients.TryGetValue(rpcParams.Receive.SenderClientId, out var client))
                     {
                         PlayerController attacker = client.PlayerObject.GetComponent<PlayerController>();
                         if (attacker != null) mutant.ForceTarget(attacker);
                     }
+                }
+            }
+            else
+            {
+                ExilerAI exiler = enemyObj.GetComponent<ExilerAI>();
+                if (exiler != null)
+                {
+                    exiler.TakeDamage(damage);
                 }
             }
         }

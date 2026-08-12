@@ -54,9 +54,27 @@ public class ItemNotificationManager : MonoBehaviour
         TextMeshProUGUI text = go.transform.Find("Text").GetComponent<TextMeshProUGUI>();
 
         string key = type.ToLower();
-        if (spriteMap.ContainsKey(key))
+        if (spriteMap.ContainsKey(key) && spriteMap[key] != null)
         {
             icon.sprite = spriteMap[key];
+        }
+        else
+        {
+            // Fallback cực mạnh: Load thẳng từ Resources nếu Inspector bị mất link
+            string iconName = "";
+            switch (key)
+            {
+                case "circuit": iconName = "Scrap_electrical-circuit_Icon"; break;
+                case "metal_pipe": iconName = "Scrap_MetalPipe_Icon"; break;
+                case "iron_plate": iconName = "Scrap_IronPlate_Icon"; break; 
+                case "chemical": iconName = "Scrap_Chemical_Icon"; break;
+                case "plastic_pipe": iconName = "Scrap_PlasticPipe_Icon"; break;
+                case "battery": iconName = "Scrap_Battery_Icon"; break;
+            }
+            if (!string.IsNullOrEmpty(iconName))
+            {
+                icon.sprite = Resources.Load<Sprite>("Icons/" + iconName);
+            }
         }
 
         text.text = $"+{amount} {type.Replace("_", " ")}";

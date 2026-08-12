@@ -10,10 +10,12 @@ public class ExilerAI : NetworkBehaviour
     
     [Header("Current State")]
     public ExilerState currentState = ExilerState.Idle;
+    private NetworkVariable<int> _netState = new NetworkVariable<int>((int)ExilerState.Idle);
+    private NetworkVariable<float> _netSpeed = new NetworkVariable<float>(0f);
 
     [Header("Exiler Stats")]
     public float maxHealth = 150f;
-    public float currentHealth;
+    public NetworkVariable<float> currentHealth = new NetworkVariable<float>(150f);
     public float patrolSpeed = 2.0f;
     public float chaseSpeed = 5.5f;
     public float attackRange = 2.0f;
@@ -52,16 +54,32 @@ public class ExilerAI : NetworkBehaviour
         agent = GetComponent<NavMeshAgent>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
         
-        currentHealth = maxHealth;
+        if (IsServer) currentHealth.Value = maxHealth;
         currentState = ExilerState.Patrol;
         agent.speed = patrolSpeed;
 
         if (obstacleMask == 0) obstacleMask = LayerMask.GetMask("Default", "Environment", "Wall");
     }
 
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+        if (agent == null) agent = GetComponent<NavMeshAgent>();
+        if (!IsServer && agent != null)
+        {
+            agent.enabled = false;
+        }
+    }
+
     void Update()
     {
-        if (Unity.Netcode.NetworkManager.Singleton != null && !Unity.Netcode.NetworkManager.Singleton.IsServer) return;
+        UpdateAnimations();
+
+        if (Unity.Netcode.NetworkManager.Singleton != null && !Unity.Netcode.NetworkManager.Singleton.IsServer) 
+        {
+            if (agent != null && agent.enabled) agent.enabled = false;
+            return;
+        }
 
         // Chạy trên Server. Nếu game không start server, quái sẽ đứng im!
         if (currentState == ExilerState.Dead) return;
@@ -73,7 +91,6 @@ public class ExilerAI : NetworkBehaviour
         }
 
         UpdateState();
-        UpdateAnimations();
     }
 
     private void UpdateState()
@@ -281,7 +298,7 @@ public class ExilerAI : NetworkBehaviour
         agent.isStopped = false;
         
         // Kích hoạt cuồng nộ (Frenzy) nếu quái mất nửa máu hoặc Trăng Máu
-        bool isFrenzied = currentHealth <= maxHealth * 0.5f || RandomEventManager.IsBloodMoonActive;
+        bool isFrenzied = currentHealth.Value <= maxHealth * 0.5f || RandomEventManager.IsBloodMoonActive;
         agent.speed = isFrenzied ? chaseSpeed * 1.3f : chaseSpeed;
         
         // Thuật toán bọc lót (Intercept) đoán hướng di chuyển của người chơi
@@ -368,7 +385,7 @@ public class ExilerAI : NetworkBehaviour
         agent.velocity = Vector3.zero;
         agent.isStopped = true;
 
-        bool isFrenzied = currentHealth <= maxHealth * 0.5f;
+        bool isFrenzied = currentHealth.Value <= maxHealth * 0.5f;
         float currentCooldown = isFrenzied ? attackCooldown * 0.5f : attackCooldown;
 
         if (Time.time >= lastAttackTime + currentCooldown)
@@ -397,10 +414,25 @@ public class ExilerAI : NetworkBehaviour
     {
         if (animator != null)
         {
-            float currentSpeed = agent.velocity.magnitude;
+            float currentSpeed = 0f;
+            ExilerState stateToUse = currentState;
+
+            if (IsServer)
+            {
+                currentSpeed = agent.velocity.magnitude;
+                _netSpeed.Value = currentSpeed;
+                _netState.Value = (int)currentState;
+            }
+            else
+            {
+                currentSpeed = _netSpeed.Value;
+                stateToUse = (ExilerState)_netState.Value;
+            }
             
             float animSpeed = 0f;
-            if (!agent.isStopped && currentSpeed > 0.1f)
+            bool isStopped = (stateToUse == ExilerState.Idle || stateToUse == ExilerState.Alert || stateToUse == ExilerState.Attack || stateToUse == ExilerState.Dead);
+
+            if (!isStopped && currentSpeed > 0.1f)
             {
                 if (currentSpeed <= patrolSpeed + 0.5f) 
                     animSpeed = 0.5f; 
@@ -413,10 +445,18 @@ public class ExilerAI : NetworkBehaviour
         }
     }
 
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestTakeDamageServerRpc(float damage)
+    {
+        TakeDamage(damage);
+    }
+
     public void TakeDamage(float damage)
     {
-       
+        if (!IsServer) return; // FIX: Prevent local damage on client
         
+        currentHealth.Value -= damage;
+
         // Nếu đang không truy đuổi mà bị bắn lén, lập tức vào trạng thái Alert
         if (currentState == ExilerState.Patrol || currentState == ExilerState.Idle || currentState == ExilerState.Investigate)
         {
@@ -448,7 +488,7 @@ public class ExilerAI : NetworkBehaviour
             }
         }
 
-        if (currentHealth <= 0)
+        if (currentHealth.Value <= 0)
         {
             Die();
         }
@@ -456,6 +496,8 @@ public class ExilerAI : NetworkBehaviour
 
     private void Die()
     {
+        if (!IsServer) return; // FIX: Despawn and Die logic should run on Server
+
         currentState = ExilerState.Dead;
         agent.isStopped = true;
         

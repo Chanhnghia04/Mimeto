@@ -26,7 +26,7 @@ public class SlotMachineStation : MonoBehaviour, IInteractable
     // Three-of-a-kind: PAY[sym] * bet
 
     // ── Game state ────────────────────────────────────────────────────────────
-    enum State { Idle, Spinning, Result }
+    enum State { Idle, WaitingForServer, Spinning, Result }
     private State   _state    = State.Idle;
     private int     _bet      = 10;
     private int[]   _result   = new int[3];
@@ -63,6 +63,25 @@ public class SlotMachineStation : MonoBehaviour, IInteractable
             for (int x = 0; x < 2; x++)
                 _scanline.SetPixel(x, y, y % 2 == 0 ? new Color(0,0,0,0) : new Color(0,0,0,0.35f));
         _scanline.Apply();
+    }
+
+    void OnEnable() { PlayerInventory.OnSlotSpinResult += HandleSlotResult; }
+    void OnDisable() { PlayerInventory.OnSlotSpinResult -= HandleSlotResult; }
+
+    void HandleSlotResult(int r0, int r1, int r2)
+    {
+        if (_state != State.WaitingForServer) return;
+        _result[0] = r0; _result[1] = r1; _result[2] = r2;
+        _state = State.Spinning;
+        _spinStart = Time.unscaledTime;
+        _msg = "S P I N N I N G . . .";
+        _leverT = 1f;
+        for (int i = 0; i < 3; i++)
+        {
+            _spinVal[i] = 0f;
+            _stopped[i] = false;
+            _stopAt[i]  = 1.1f + i * 0.6f;
+        }
     }
 
     Texture2D Mk(Color c) { var t = new Texture2D(1,1); t.SetPixel(0,0,c); t.Apply(); return t; }
@@ -124,18 +143,9 @@ public class SlotMachineStation : MonoBehaviour, IInteractable
     {
         if (_inventory.credits < _bet || _bet < 10)
         { _msg = "!! INSUFFICIENT COINS !!"; return; }
-        _inventory.SpendCredits(_bet);
-        _state = State.Spinning; _win = false;
-        _spinStart = Time.unscaledTime;
-        _msg = "S P I N N I N G . . .";
-        _leverT = 1f;
-        for (int i = 0; i < 3; i++)
-        {
-            _result[i]  = WeightedPick();
-            _spinVal[i] = 0f;
-            _stopped[i] = false;
-            _stopAt[i]  = 1.1f + i * 0.6f;
-        }
+        _state = State.WaitingForServer; _win = false;
+        _msg = "W A I T I N G . . .";
+        _inventory.RequestSlotSpinServerRpc(_bet);
     }
 
     int WeightedPick()
@@ -169,12 +179,12 @@ public class SlotMachineStation : MonoBehaviour, IInteractable
         if (a == b && b == c)
         {
             float m = PAY[a]; int pay = Mathf.RoundToInt(_bet * m);
-            _inventory.AddCredits(pay); _win = true; _flash = 1f;
+            _win = true; _flash = 1f;
             _msg = a == 0 ? $">>> LUCKY 7 JACKPOT! x{m:0} = +{pay} EC <<<" : $">>> THREE OF A KIND x{m:0.0} = +{pay} EC <<<";
             Boom();
         }
         else if (a == b || b == c || a == c)
-        { _inventory.AddCredits(_bet); _win = false; _msg = "TWO MATCH — Bet returned"; }
+        { _win = false; _msg = "TWO MATCH — Bet returned"; }
         else
         { _win = false; _msg = "No match. Try again!"; }
     }

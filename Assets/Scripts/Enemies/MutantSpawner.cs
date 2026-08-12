@@ -52,8 +52,9 @@ public class MutantSpawner : NetworkBehaviour
         }
     }
 
-    private void OnDestroy()
+    public override void OnDestroy()
     {
+        base.OnDestroy();
         CancelInvoke(nameof(SpawnMutants));
     }
 

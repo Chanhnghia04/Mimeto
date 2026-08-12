@@ -58,7 +58,7 @@ public class ChestSlotUI : MonoBehaviour, IPointerClickHandler, IPointerEnterHan
         }
 
         if (itemNameText != null)
-            itemNameText.text = ChestUI.GetDisplayName(entry.itemType);
+            itemNameText.text = "";
 
         if (amountText != null)
             amountText.text = $"x{entry.amount}";

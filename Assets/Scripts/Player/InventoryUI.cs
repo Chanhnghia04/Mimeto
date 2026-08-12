@@ -234,16 +234,38 @@ public class InventoryUI : MonoBehaviour
 
     private Sprite GetSpriteForType(string type)
     {
+        Sprite sp = null;
         switch (type)
         {
-            case "circuit": return circuitSprite;
-            case "metal_pipe": return pipeSprite;
-            case "iron_plate": return ironPlateSprite;
-            case "chemical": return chemicalSprite;
-            case "plastic_pipe": return plasticSprite;
-            case "battery": return batterySprite;
+            case "circuit": sp = circuitSprite; break;
+            case "metal_pipe": sp = pipeSprite; break;
+            case "iron_plate": sp = ironPlateSprite; break;
+            case "chemical": sp = chemicalSprite; break;
+            case "plastic_pipe": sp = plasticSprite; break;
+            case "battery": sp = batterySprite; break;
         }
-        return null;
+
+        // --- HỆ THỐNG LOAD ẢNH TUYỆT ĐỐI (TRÁNH LỖI TRẮNG XÓA) ---
+        if (sp == null)
+        {
+            string iconName = "";
+            switch (type)
+            {
+                case "circuit": iconName = "Scrap_electrical-circuit_Icon"; break;
+                case "metal_pipe": iconName = "Scrap_MetalPipe_Icon"; break;
+                case "iron_plate": iconName = "Scrap_IronPlate_Icon"; break; // Chữ P hoa đúng file trên ổ cứng
+                case "chemical": iconName = "Scrap_Chemical_Icon"; break;
+                case "plastic_pipe": iconName = "Scrap_PlasticPipe_Icon"; break;
+                case "battery": iconName = "Scrap_Battery_Icon"; break;
+            }
+            if (!string.IsNullOrEmpty(iconName))
+            {
+                // Load thẳng từ thư mục Resources/Icons/ của Unity (cực kỳ ổn định)
+                sp = Resources.Load<Sprite>("Icons/" + iconName);
+            }
+        }
+
+        return sp;
     }
 
     public void SwapSlots(int index1, int index2)

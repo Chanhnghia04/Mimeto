@@ -7,6 +7,8 @@ public class IconGenerator : EditorWindow
     public GameObject targetModel;
     public int imageSize = 256;
     public Vector3 modelRotation = new Vector3(15f, 45f, 0f);
+    public float cameraZoom = 1.2f; // Thêm thanh trượt zoom
+    public Vector2 cameraOffset = Vector2.zero; // Thêm tinh chỉnh vị trí
 
     [MenuItem("Tools/Mimeto/3D Model To UI Icon")]
     public static void ShowWindow()
@@ -22,6 +24,11 @@ public class IconGenerator : EditorWindow
         targetModel = (GameObject)EditorGUILayout.ObjectField("Kéo 3D Model vào đây", targetModel, typeof(GameObject), true);
         imageSize = EditorGUILayout.IntSlider("Kích thước ảnh", imageSize, 64, 1024);
         modelRotation = EditorGUILayout.Vector3Field("Góc xoay Model", modelRotation);
+        
+        GUILayout.Space(10);
+        GUILayout.Label("Tùy chỉnh Camera", EditorStyles.boldLabel);
+        cameraZoom = EditorGUILayout.Slider("Độ Zoom (Càng lớn càng xa)", cameraZoom, 0.1f, 5f);
+        cameraOffset = EditorGUILayout.Vector2Field("Dời Tâm Camera (X, Y)", cameraOffset);
 
         GUILayout.Space(20);
 
@@ -47,16 +54,27 @@ public class IconGenerator : EditorWindow
         MonoBehaviour[] scripts = instance.GetComponentsInChildren<MonoBehaviour>();
         foreach (var script in scripts) DestroyImmediate(script);
 
+        // --- TÍNH TOÁN KÍCH THƯỚC (AUTO-FRAMING) ---
+        Renderer[] renderers = instance.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0) return;
+
+        Bounds bounds = renderers[0].bounds;
+        foreach (Renderer r in renderers) bounds.Encapsulate(r.bounds);
+
         // Canh chỉnh Camera
         GameObject camObj = new GameObject("PhotoCamera");
         Camera cam = camObj.AddComponent<Camera>();
-        cam.transform.position = studioPos + new Vector3(0, 0.5f, -2f);
-        cam.transform.LookAt(instance.transform.position + Vector3.up * 0.5f);
+        
+        // Camera nhìn thẳng vào tâm (center) của Model thay vì tọa độ gốc
+        cam.transform.position = bounds.center + new Vector3(cameraOffset.x, cameraOffset.y, -10f);
+        cam.transform.LookAt(bounds.center + new Vector3(cameraOffset.x, cameraOffset.y, 0));
         
         cam.clearFlags = CameraClearFlags.SolidColor;
-        cam.backgroundColor = new Color(0, 0, 0, 0); // Nền trong suốt (Transparent)
+        cam.backgroundColor = new Color(0, 0, 0, 0); // Nền trong suốt
         cam.orthographic = true;
-        cam.orthographicSize = 1f; // Chỉnh độ zoom (có thể tự chỉnh lại cho vừa)
+        
+        // Tự động tính toán Orthographic Size dựa trên chiều dài lớn nhất của vật thể
+        cam.orthographicSize = bounds.extents.magnitude * cameraZoom;
 
         // Setup Render Texture
         RenderTexture rt = new RenderTexture(imageSize, imageSize, 24);
