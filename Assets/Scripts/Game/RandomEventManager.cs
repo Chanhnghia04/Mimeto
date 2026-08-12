@@ -90,6 +90,25 @@ public class RandomEventManager : NetworkBehaviour
     private Coroutine activeInfectionSymptomCoroutine;
     private AudioSource _thunderAudioSource;
 
+    [Header("Sci-Fi WOW HUD")]
+    private bool _showWarningUI = false;
+    private string _uiEventName = "";
+    private string _uiEventDesc = "";
+    private Color _uiEventColor = Color.red;
+    private float _uiTimer = 0f;
+    private float _uiDuration = 8.5f;
+    private float _uiTypewriterProgress = 0f;
+    private float _uiNoiseOffset = 0f;
+    private float _uiStripeOffset = 0f;
+
+    private bool _guiStylesReady = false;
+    private GUIStyle _uiTitleStyle;
+    private GUIStyle _uiSubtitleStyle;
+    private Texture2D _uiAccentTex;
+    private Texture2D _uiScanlineTex;
+    private Texture2D _uiStripeTex;
+    private Texture2D _uiGridTex;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -181,6 +200,12 @@ public class RandomEventManager : NetworkBehaviour
 
     private void Update()
     {
+        // Cập nhật vị trí mặt trăng máu (client & server) để nó luôn ở xa trên trời
+        if (_visualBloodMoon != null && _visualBloodMoon.activeSelf && Camera.main != null)
+        {
+            _visualBloodMoon.transform.position = Camera.main.transform.position + new Vector3(3000f, 1500f, 3000f);
+        }
+
         if (!IsServer || eventTriggered) return;
 
         eventTimer -= Time.deltaTime;
@@ -277,72 +302,224 @@ public class RandomEventManager : NetworkBehaviour
 
     private IEnumerator ShowWarningUIRoutine(string eventName, string eventDesc, GameEvent ev)
     {
-        if (warningTextUI == null) yield break;
+        if (warningTextUI != null) {
+            Transform root = warningTextUI.transform.parent;
+            if (root == null || root.GetComponent<UnityEngine.Canvas>() != null) root = warningTextUI.transform;
+            root.gameObject.SetActive(false);
+        }
 
-        // Chọn màu theo loại event
         Color eventColor;
         switch (ev)
         {
             case GameEvent.BloodMoon:
-                eventColor = new Color(1f, 0.15f, 0.15f); // Đỏ máu
+                eventColor = new Color(1f, 0.15f, 0.15f); 
                 break;
             case GameEvent.ToxicFog:
-                eventColor = new Color(0.3f, 1f, 0.3f);   // Xanh lục độc
+                eventColor = new Color(0.3f, 1f, 0.3f);   
                 break;
             case GameEvent.Thunderstorm:
-                eventColor = new Color(0.4f, 0.6f, 1f);   // Xanh lơ sấm sét
+                eventColor = new Color(0.4f, 0.6f, 1f);   
+                break;
+            case GameEvent.Infection:
+                eventColor = new Color(0.8f, 0.2f, 1f);   
                 break;
             default:
-                eventColor = new Color(1f, 0.8f, 0.2f);   // Vàng cảnh báo
+                eventColor = new Color(1f, 0.8f, 0.2f);   
                 break;
         }
 
-        string hexColor = ColorUtility.ToHtmlStringRGB(eventColor);
-        warningTextUI.text = $"<color=#{hexColor}><size=150%>⚠ {eventName} ⚠</size></color>\n{eventDesc}";
-        
-        warningTextUI.gameObject.SetActive(true); // Đảm bảo text được bật lại
+        _uiEventName = eventName;
+        _uiEventDesc = eventDesc;
+        _uiEventColor = eventColor;
+        _uiDuration = 8.5f;
+        _uiTimer = _uiDuration;
+        _uiTypewriterProgress = 0f;
+        _showWarningUI = true;
 
-        Transform root = warningTextUI.transform.parent;
-        if (root == null || root.GetComponent<UnityEngine.Canvas>() != null) root = warningTextUI.transform; // If parent is canvas, fallback to text
-        
-        root.gameObject.SetActive(true);
-        CanvasGroup cg = root.GetComponent<CanvasGroup>();
-        if (cg == null) cg = root.gameObject.AddComponent<CanvasGroup>();
-
-        // ── Fade In (1s) ──
-        float fadeInTime = 1f;
-        for (float t = 0; t < fadeInTime; t += Time.deltaTime)
+        while (_uiTimer > 0)
         {
-            cg.alpha = t / fadeInTime;
+            _uiTimer -= Time.deltaTime;
+            _uiNoiseOffset += Time.deltaTime * 20f;
+            _uiTypewriterProgress += Time.deltaTime * 60f;
+            _uiStripeOffset += Time.deltaTime * 1.5f;
             yield return null;
         }
-        cg.alpha = 1f;
 
-        // ── Hold với hiệu ứng Glitch flicker (7s) ──
-        float holdTime = 7f;
-        float elapsed = 0f;
-        while (elapsed < holdTime)
+        _showWarningUI = false;
+    }
+
+    private void OnGUI()
+    {
+        if (!_showWarningUI) return;
+        EnsureGUIStyles();
+
+        float vWidth = 1920f;
+        float vHeight = 1080f;
+        Vector3 scale = new Vector3(Screen.width / vWidth, Screen.height / vHeight, 1f);
+        GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, scale);
+        
+        float t = 1f - (_uiTimer / _uiDuration); 
+        float alpha = 1f;
+
+        if (t < 0.1f) alpha = Mathf.Lerp(0f, 1f, t / 0.1f);
+        else if (t > 0.9f) alpha = Mathf.Lerp(1f, 0f, (t - 0.9f) / 0.1f); 
+        
+        float animT = 1f;
+        if (t < 0.15f) animT = t / 0.15f;
+        else if (t > 0.85f) animT = 1f - ((t - 0.85f) / 0.15f);
+        float smoothAnim = 1f - Mathf.Pow(1f - animT, 3f); 
+        
+        float pulse = Mathf.Abs(Mathf.Sin(Time.time * 6f));
+        
+        // ── 1. SCREEN VIGNETTE / DIMMING ──
+        GUI.color = new Color(0.05f, 0f, 0f, alpha * 0.45f);
+        GUI.DrawTexture(new Rect(0, 0, vWidth, vHeight), _uiAccentTex);
+        
+        // Cinematic borders
+        GUI.color = new Color(0, 0, 0, alpha * 0.95f);
+        float barH = 120f * smoothAnim;
+        GUI.DrawTexture(new Rect(0, 0, vWidth, barH), _uiAccentTex);
+        GUI.DrawTexture(new Rect(0, vHeight - barH, vWidth, barH), _uiAccentTex);
+
+        // Heavy Glitch Offset
+        float glitchX = 0f;
+        float glitchY = 0f;
+        if (t > 0.1f && t < 0.9f && Random.value > 0.9f) 
         {
-            // Ngẫu nhiên 5% cơ hội flicker mỗi frame — tạo cảm giác nhiễu sóng
-            if (Random.value < 0.05f)
-            {
-                cg.alpha = Random.Range(0.3f, 0.7f);
-                yield return new WaitForSeconds(0.05f);
-                cg.alpha = 1f;
+            alpha *= Random.Range(0.2f, 0.9f);
+            glitchX = Random.Range(-30f, 30f);
+            glitchY = Random.Range(-15f, 15f);
+        }
+
+        float bw = vWidth;
+        float maxBh = 180f;
+        float bh = maxBh * smoothAnim;
+        if (bh < 2f) bh = 2f; 
+        
+        float by = vHeight * 0.15f + (maxBh - bh) / 2f + glitchY; 
+
+        // Banner Base
+        GUI.color = new Color(_uiEventColor.r * 0.15f, _uiEventColor.g * 0.15f, _uiEventColor.b * 0.15f, alpha * 0.95f);
+        GUI.DrawTexture(new Rect(glitchX, by, bw, bh), _uiAccentTex);
+        
+        GUI.color = new Color(_uiEventColor.r, _uiEventColor.g, _uiEventColor.b, alpha * 0.15f);
+        GUI.DrawTextureWithTexCoords(new Rect(glitchX, by, bw, bh), _uiGridTex, new Rect(_uiNoiseOffset * 0.1f, 0, bw / 32f, bh / 32f));
+        
+        GUI.color = new Color(1f, 1f, 1f, alpha * 0.15f);
+        GUI.DrawTextureWithTexCoords(new Rect(glitchX, by, bw, bh), _uiScanlineTex, new Rect(0, _uiNoiseOffset * 0.1f, bw, bh / 2f));
+        
+        if (bh > 24f) {
+            // Hazard Stripes
+            GUI.color = new Color(_uiEventColor.r, _uiEventColor.g, _uiEventColor.b, alpha * (0.6f + pulse * 0.4f));
+            GUI.DrawTextureWithTexCoords(new Rect(glitchX, by, bw, 24f), _uiStripeTex, new Rect(_uiStripeOffset, 0, bw / 50f, 1));
+            GUI.DrawTextureWithTexCoords(new Rect(glitchX, by + bh - 24f, bw, 24f), _uiStripeTex, new Rect(-_uiStripeOffset, 0, bw / 50f, 1));
+
+            // Inner Bright Lines
+            GUI.color = new Color(1f, 1f, 1f, alpha * 0.8f);
+            GUI.DrawTexture(new Rect(glitchX, by + 24f, bw, 2f), _uiAccentTex);
+            GUI.DrawTexture(new Rect(glitchX, by + bh - 26f, bw, 2f), _uiAccentTex);
+
+            float boxW = 1680f;
+            float boxX = (vWidth - boxW) / 2f + glitchX;
+            DrawTechCorners(boxX, by + 12f, boxW, bh - 24f, _uiEventColor, alpha);
+
+            // Warning Icons & Data Barcodes
+            GUIStyle warningStyle = new GUIStyle { fontSize = 70, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            warningStyle.normal.textColor = new Color(_uiEventColor.r, _uiEventColor.g, _uiEventColor.b, alpha * (0.5f + pulse * 0.5f));
+            GUI.Label(new Rect(boxX + 40f, by + (bh - 80f) / 2f, 80f, 80f), "⚠", warningStyle);
+            GUI.Label(new Rect(boxX + boxW - 120f, by + (bh - 80f) / 2f, 80f, 80f), "⚠", warningStyle);
+            
+            GUIStyle smallTechStyle = new GUIStyle { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
+            smallTechStyle.normal.textColor = new Color(_uiEventColor.r, _uiEventColor.g, _uiEventColor.b, alpha * 0.7f);
+            GUI.Label(new Rect(boxX + 160f, by + 35f, 300f, 30f), $"SYS_OVERRIDE // {Time.frameCount}", smallTechStyle);
+            smallTechStyle.alignment = TextAnchor.MiddleRight;
+            GUI.Label(new Rect(boxX + boxW - 460f, by + bh - 65f, 300f, 30f), $"HAZARD_LVL_MAX", smallTechStyle);
+
+            Vector2 textOffset = (pulse > 0.8f && Random.value > 0.7f) ? new Vector2(Random.Range(-12f, 12f), Random.Range(-6f, 6f)) : Vector2.zero;
+            
+            // Text Scrambling Effect
+            string displayTitle = _uiEventName.ToUpper();
+            if (t < 0.2f && Random.value > (t / 0.2f)) {
+                char[] chars = new char[displayTitle.Length];
+                string charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+                for(int i=0; i<chars.Length; i++) chars[i] = (displayTitle[i] == ' ') ? ' ' : charset[Random.Range(0, charset.Length)];
+                displayTitle = new string(chars);
             }
-            elapsed += Time.deltaTime;
-            yield return null;
+
+            // Extreme Chromatic Aberration
+            if (pulse > 0.5f && Random.value > 0.4f) {
+                _uiTitleStyle.normal.textColor = new Color(1f, 0f, 0f, alpha * 0.9f);
+                GUI.Label(new Rect(boxX + textOffset.x - 10f, by + (bh - 100f) / 2f + textOffset.y, boxW, 100f), displayTitle, _uiTitleStyle);
+                _uiTitleStyle.normal.textColor = new Color(0f, 1f, 1f, alpha * 0.9f);
+                GUI.Label(new Rect(boxX + textOffset.x + 10f, by + (bh - 100f) / 2f + textOffset.y, boxW, 100f), displayTitle, _uiTitleStyle);
+            }
+            
+            _uiTitleStyle.normal.textColor = new Color(1f, 1f, 1f, alpha); // Solid white core
+            GUI.Label(new Rect(boxX + textOffset.x, by + (bh - 100f) / 2f + textOffset.y, boxW, 100f), displayTitle, _uiTitleStyle);
+            
+            // Fast data stream particles
+            GUI.color = new Color(_uiEventColor.r, _uiEventColor.g, _uiEventColor.b, alpha * 0.8f);
+            for(int i=0; i<25; i++) {
+                float px = Mathf.Repeat(Time.time * 600f * (1f + i*0.1f) + i*150f, vWidth);
+                float py = by + Mathf.PingPong(Time.time * 100f + i*99f, bh - 6f) + 3f;
+                GUI.DrawTexture(new Rect(px, py, 20f + (i%5)*15f, 3f), _uiAccentTex);
+            }
         }
 
-        // ── Fade Out (1.5s) ──
-        float fadeOutTime = 1.5f;
-        for (float t = 0; t < fadeOutTime; t += Time.deltaTime)
-        {
-            cg.alpha = 1f - (t / fadeOutTime);
-            yield return null;
+        GUI.matrix = Matrix4x4.identity;
+    }
+
+    private void DrawTechCorners(float x, float y, float w, float h, Color color, float alpha)
+    {
+        GUI.color = new Color(color.r, color.g, color.b, alpha * 0.8f);
+        float len = 50f;
+        float thick = 6f;
+        GUI.DrawTexture(new Rect(x, y, len, thick), _uiAccentTex);
+        GUI.DrawTexture(new Rect(x, y, thick, len), _uiAccentTex);
+        GUI.DrawTexture(new Rect(x + w - len, y, len, thick), _uiAccentTex);
+        GUI.DrawTexture(new Rect(x + w - thick, y, thick, len), _uiAccentTex);
+        GUI.DrawTexture(new Rect(x, y + h - thick, len, thick), _uiAccentTex);
+        GUI.DrawTexture(new Rect(x, y + h - len, thick, len), _uiAccentTex);
+        GUI.DrawTexture(new Rect(x + w - len, y + h - thick, len, thick), _uiAccentTex);
+        GUI.DrawTexture(new Rect(x + w - thick, y + h - len, thick, len), _uiAccentTex);
+    }
+
+    private void EnsureGUIStyles()
+    {
+        if (_guiStylesReady) return;
+        _guiStylesReady = true;
+
+        _uiAccentTex = new Texture2D(1, 1);
+        _uiAccentTex.SetPixel(0, 0, Color.white);
+        _uiAccentTex.Apply();
+
+        _uiScanlineTex = new Texture2D(2, 4);
+        for(int y=0; y<4; y++) for(int x=0; x<2; x++) _uiScanlineTex.SetPixel(x, y, y % 2 == 0 ? new Color(0,0,0,0) : new Color(0,0,0,0.6f));
+        _uiScanlineTex.filterMode = FilterMode.Point;
+        _uiScanlineTex.Apply();
+
+        _uiStripeTex = new Texture2D(64, 64);
+        for (int y = 0; y < 64; y++) {
+            for (int x = 0; x < 64; x++) {
+                bool isStripe = ((x + y) % 32) < 16;
+                _uiStripeTex.SetPixel(x, y, isStripe ? Color.white : new Color(1,1,1,0));
+            }
         }
-        cg.alpha = 0f;
-        root.gameObject.SetActive(false);
+        _uiStripeTex.wrapMode = TextureWrapMode.Repeat;
+        _uiStripeTex.Apply();
+
+        _uiGridTex = new Texture2D(32, 32);
+        for(int y=0; y<32; y++) {
+            for(int x=0; x<32; x++) {
+                bool isBorder = (x == 0 || y == 0);
+                _uiGridTex.SetPixel(x, y, isBorder ? new Color(1,1,1,0.5f) : new Color(0,0,0,0));
+            }
+        }
+        _uiGridTex.wrapMode = TextureWrapMode.Repeat;
+        _uiGridTex.Apply();
+
+        _uiTitleStyle = new GUIStyle { fontSize = 68, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+        _uiSubtitleStyle = new GUIStyle { fontSize = 32, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, richText = true };
     }
 
     // ==========================================
@@ -408,9 +585,29 @@ public class RandomEventManager : NetworkBehaviour
     // Buff quái vật: speed ×1.5, detection ×2.
     // Quái spawn SAU event cũng bị buff nhờ IsBloodMoonActive.
 
+    private GameObject _visualBloodMoon;
+
     private IEnumerator BloodMoonRoutine()
     {
         if (!_backedUp) BackupRenderSettings();
+
+        // Spawn or show Blood Moon Sphere
+        if (_visualBloodMoon == null)
+        {
+            _visualBloodMoon = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            _visualBloodMoon.name = "VisualBloodMoon";
+            Destroy(_visualBloodMoon.GetComponent<Collider>());
+            MeshRenderer mr = _visualBloodMoon.GetComponent<MeshRenderer>();
+            Material mat = new Material(Shader.Find("Unlit/Color"));
+            mat.color = new Color(1f, 0.05f, 0.05f); // Deep red
+            mr.material = mat;
+            _visualBloodMoon.transform.localScale = new Vector3(800f, 800f, 800f);
+            
+            // Try to place it far away in the sky
+            Vector3 camPos = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
+            _visualBloodMoon.transform.position = camPos + new Vector3(3000f, 1500f, 3000f);
+        }
+        _visualBloodMoon.SetActive(true);
 
         // ── Phase 1: Visual Fade In — Bầu trời chuyển đỏ ────────────────────
         RenderSettings.fog = true;
@@ -467,6 +664,11 @@ public class RandomEventManager : NetworkBehaviour
 
         // ── Phase 5: Visual Fade Out — Bầu trời trở lại bình thường ─────────
         Debug.Log("[BloodMoon] Trăng Máu đang lặn...");
+        
+        if (_visualBloodMoon != null)
+        {
+            _visualBloodMoon.SetActive(false);
+        }
 
         float curFogDensity = RenderSettings.fogDensity;
         Color curFogColor = RenderSettings.fogColor;

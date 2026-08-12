@@ -83,6 +83,9 @@ public class ShopStation : MonoBehaviour, IInteractable
         ShopData.RollMarketEvent();
     }
 
+    void OnEnable() { PlayerInventory.OnShopBuyResult += HandleShopBuyResult; }
+    void OnDisable() { PlayerInventory.OnShopBuyResult -= HandleShopBuyResult; }
+
     void Update()
     {
         // Tìm local player
@@ -540,13 +543,23 @@ public class ShopStation : MonoBehaviour, IInteractable
 
     void TryBuyItem(ShopItemData item)
     {
-        if (!_inventory.SpendCredits(item.currentPrice))
+        if (_inventory.credits < item.currentPrice)
         {
             ShowStatus("Không đủ Energy Cells!", true);
             PlaySound(errorSound);
             return;
         }
 
+        ShowStatus("Processing purchase...", false);
+        _inventory.RequestBuyItemServerRpc(item.id, item.currentPrice);
+    }
+
+    void HandleShopBuyResult(string itemId)
+    {
+        int index = ShopData.BuyableItems.FindIndex(x => x.id == itemId);
+        if (index == -1) return;
+
+        ShopItemData item = ShopData.BuyableItems[index];
         switch (item.id)
         {
             case "antidote":
@@ -555,19 +568,14 @@ public class ShopStation : MonoBehaviour, IInteractable
                 break;
 
             case "health_pack":
-                if (_survival != null)
-                    _survival.Heal(50f);
-                else
-                    _inventory.healthPacks++;
-                ShowStatus("Health Pack đã dùng! (+50 HP)", false);
+                _inventory.healthPacks++;
+                ShowStatus("Health Pack đã thêm vào túi đồ!", false);
                 break;
 
             case "full_health_kit":
-                if (_survival != null)
-                    _survival.Heal(_survival.maxHealth);
-                else
-                    _inventory.healthPacks++;
-                ShowStatus("Full Health Kit đã dùng! (MAX HP)", false);
+                // Giả sử kit to cho 2 cục máu nhỏ, hoặc 1 biến riêng. Ở đây cho 2 health pack.
+                _inventory.healthPacks += 2;
+                ShowStatus("2x Health Pack đã thêm vào túi đồ!", false);
                 break;
 
             case "basic_gas_mask":
@@ -596,21 +604,11 @@ public class ShopStation : MonoBehaviour, IInteractable
                 break;
 
             case "oxygen_tank":
-                if (_survival != null)
-                    _survival.currentOxygen = _survival.maxOxygen;
-                else
-                {
-                    _inventory.oxygenTanks++;
-                    ShowStatus("Inventory is full!", true);
-                    PlaySound(errorSound);
-                    _inventory.AddCredits(item.currentPrice); 
-                    return;
-                }
-                ShowStatus("Oxygen Tank đã dùng! (MAX O₂)", false);
+                _inventory.oxygenTanks++;
+                ShowStatus("Oxygen Tank đã thêm vào túi đồ!", false);
                 break;
 
             default:
-                _inventory.AddCredits(item.currentPrice);
                 ShowStatus($"Item không hợp lệ: {item.id}", true);
                 return;
         }

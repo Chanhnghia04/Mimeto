@@ -21,7 +21,7 @@ public class DiceBetStation : MonoBehaviour, IInteractable
     private static readonly Color SPOTLIGHT   = new Color(1.00f, 0.96f, 0.80f);
 
     // ── State ─────────────────────────────────────────────────────────────────
-    enum State { Idle, Rolling, Result }
+    enum State { Idle, WaitingForServer, Rolling, Result }
     private State  _state    = State.Idle;
     private int    _bet      = 10;
     private int[]  _pDice    = new int[2]{1,1};
@@ -81,6 +81,24 @@ public class DiceBetStation : MonoBehaviour, IInteractable
 
     Texture2D Mk(Color c) { var t=new Texture2D(1,1); t.SetPixel(0,0,c); t.Apply(); return t; }
 
+    void OnEnable() { PlayerInventory.OnDiceRollResult += HandleDiceResult; }
+    void OnDisable() { PlayerInventory.OnDiceRollResult -= HandleDiceResult; }
+
+    void HandleDiceResult(int p1, int p2, int d1, int d2)
+    {
+        if (_state != State.WaitingForServer) return;
+        _pDice[0] = p1; _pDice[1] = p2;
+        _dDice[0] = d1; _dDice[1] = d2;
+        _state = State.Rolling; _win = false; _shakeT = 1f;
+        _rollT = Time.unscaledTime;
+        _msg = "ROLLIN' . . .";
+        for(int i=0;i<2;i++) {
+            _pAnim[i]=1f; _dAnim[i]=1f;
+            _pStopped[i]=false; _dStopped[i]=false;
+            _pStop[i]=1.0f+i*0.45f; _dStop[i]=1.25f+i*0.45f;
+        }
+    }
+
     public void Interact(GameObject interactor)
     {
         if (isOpen) return;
@@ -132,16 +150,9 @@ public class DiceBetStation : MonoBehaviour, IInteractable
     void StartRoll()
     {
         if (_inventory.credits < _bet || _bet < 10) { _msg="!! NOT ENOUGH COINS, HOMIE !!"; return; }
-        _inventory.SpendCredits(_bet);
-        _state=State.Rolling; _win=false; _shakeT=1f;
-        _rollT=Time.unscaledTime;
-        _msg="ROLLIN' . . .";
-        for(int i=0;i<2;i++) {
-            _pDice[i]=Random.Range(1,7); _dDice[i]=Random.Range(1,7);
-            _pAnim[i]=1f; _dAnim[i]=1f;
-            _pStopped[i]=false; _dStopped[i]=false;
-            _pStop[i]=1.0f+i*0.45f; _dStop[i]=1.25f+i*0.45f;
-        }
+        _state = State.WaitingForServer;
+        _msg="WAITING FOR SERVER...";
+        _inventory.RequestDiceRollServerRpc(_bet);
     }
 
     void DoRoll(float dt)
@@ -164,13 +175,13 @@ public class DiceBetStation : MonoBehaviour, IInteractable
         bool doubles = _pDice[0]==_pDice[1];
         if(pt>dt2) {
             int pay = doubles ? Mathf.RoundToInt(_bet*2.5f) : _bet*2;
-            _inventory.AddCredits(pay); _win=true; _flash=1f;
+            _win=true; _flash=1f;
             _msg=doubles ? $"DOUBLE DOWN! ×2.5 = +{pay} EC 🔥" : $"YOU WIN! {pt} vs {dt2} = +{pay} EC";
             ThrowChips();
         } else if(pt<dt2) {
             _win=false; _msg=$"DEALER WINS  {dt2} vs {pt}  —  Tough break";
         } else {
-            _inventory.AddCredits(_bet); _win=false;
+            _win=false;
             _msg=$"PUSH  {pt}={dt2}  —  Bet back in ya pocket";
         }
     }

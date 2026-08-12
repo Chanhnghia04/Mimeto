@@ -83,7 +83,7 @@ public class ChestUI : MonoBehaviour
         _playerInventory  = inventory;
 
         if (titleText != null)
-            titleText.text = "🗃  RƯƠNG";
+            titleText.text = "";
 
         RebuildSlots();
 
@@ -145,24 +145,16 @@ public class ChestUI : MonoBehaviour
     {
         if (_playerInventory == null || _currentChest == null) return;
 
-        // Chuyển item vào kho Player
-        _playerInventory.AddScrap(entry.itemType, entry.amount);
-        
-        // Đồng bộ mạng: báo cho các client khác xoá item này khỏi rương
-        _playerInventory.SyncLootChestItemServerRpc(_currentChest.transform.position, entry.itemType);
-        
-        Debug.Log($"[ChestUI] Lấy từ rương: {entry.itemType} x{entry.amount}");
+        _playerInventory.RequestLootChestItemServerRpc(_currentChest.transform.position, entry.itemType);
+        Debug.Log($"[ChestUI] Gửi yêu cầu lấy từ rương: {entry.itemType}");
+    }
 
-        // Xoá item khỏi rương
-        _currentChest.RemoveItem(entry);
-
-        // Cập nhật lại UI
-        RebuildSlots();
-
-        // Nếu rương hết đồ, đóng UI
-        if (_currentChest.isEmpty)
+    public void RefreshIfOpen(Chest chest)
+    {
+        if (chestPanel != null && chestPanel.activeSelf && _currentChest == chest)
         {
-            Close();
+            RebuildSlots();
+            if (_currentChest.isEmpty) Close();
         }
     }
 
@@ -170,16 +162,35 @@ public class ChestUI : MonoBehaviour
 
     Sprite GetSpriteForType(string type)
     {
+        Sprite sp = null;
         switch (type)
         {
-            case "circuit":      return circuitSprite;
-            case "metal_pipe":   return metalPipeSprite;
-            case "iron_plate":   return ironPlateSprite;
-            case "chemical":     return chemicalSprite;
-            case "plastic_pipe": return plasticPipeSprite;
-            case "battery":      return batterySprite;
-            default:             return null;
+            case "circuit":      sp = circuitSprite; break;
+            case "metal_pipe":   sp = metalPipeSprite; break;
+            case "iron_plate":   sp = ironPlateSprite; break;
+            case "chemical":     sp = chemicalSprite; break;
+            case "plastic_pipe": sp = plasticPipeSprite; break;
+            case "battery":      sp = batterySprite; break;
         }
+
+        if (sp == null)
+        {
+            string iconName = "";
+            switch (type)
+            {
+                case "circuit": iconName = "Scrap_electrical-circuit_Icon"; break;
+                case "metal_pipe": iconName = "Scrap_MetalPipe_Icon"; break;
+                case "iron_plate": iconName = "Scrap_IronPlate_Icon"; break; 
+                case "chemical": iconName = "Scrap_Chemical_Icon"; break;
+                case "plastic_pipe": iconName = "Scrap_PlasticPipe_Icon"; break;
+                case "battery": iconName = "Scrap_Battery_Icon"; break;
+            }
+            if (!string.IsNullOrEmpty(iconName))
+            {
+                sp = Resources.Load<Sprite>("Icons/" + iconName);
+            }
+        }
+        return sp;
     }
 
     // ── Lấy tên hiển thị đẹp hơn ─────────────────────────────────────────────

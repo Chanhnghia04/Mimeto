@@ -9,9 +9,11 @@ public class MutantAI : NetworkBehaviour
     
     [Header("Current State")]
     public MutantState currentState = MutantState.Patrol;
+    private NetworkVariable<int> _netState = new NetworkVariable<int>((int)MutantState.Patrol);
+    private NetworkVariable<float> _netSpeed = new NetworkVariable<float>(0f);
 
     [Header("Mutant Stats")]
-    public float health = 300f;
+    public NetworkVariable<float> health = new NetworkVariable<float>(300f);
     public float patrolSpeed = 1.5f;
     public float chargeSpeed = 8.5f;
     public float attackRange = 2.5f;
@@ -48,11 +50,28 @@ public class MutantAI : NetworkBehaviour
         currentState = MutantState.Patrol;
     }
 
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+        if (agent == null) agent = GetComponent<NavMeshAgent>();
+        if (!IsServer && agent != null)
+        {
+            agent.enabled = false;
+        }
+    }
+
     void Update()
     {
+        UpdateAnimator();
+
         // Server-only: prevent all clients from running AI logic independently
-        if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsServer) return;
-        if (health <= 0 || isDead) return;
+        if (Unity.Netcode.NetworkManager.Singleton != null && !Unity.Netcode.NetworkManager.Singleton.IsServer) 
+        {
+            if (agent != null && agent.enabled) agent.enabled = false;
+            return;
+        }
+        
+        if (health.Value <= 0 || isDead) return;
         
         switch (currentState)
         {
@@ -286,22 +305,43 @@ public class MutantAI : NetworkBehaviour
     {
         if (animator == null || animator.runtimeAnimatorController == null) return;
         
-        float currentSpeed = agent.velocity.magnitude;
+        float currentSpeed = 0f;
+        MutantState stateToUse = currentState;
+
+        if (IsServer)
+        {
+            currentSpeed = agent.velocity.magnitude;
+            _netSpeed.Value = currentSpeed;
+            _netState.Value = (int)currentState;
+        }
+        else
+        {
+            currentSpeed = _netSpeed.Value;
+            stateToUse = (MutantState)_netState.Value;
+        }
+
         animator.SetFloat("Speed", currentSpeed);
-        animator.SetBool("IsRunning", currentState == MutantState.Charge);
-        animator.SetBool("IsConfuse", currentState == MutantState.Confused);
+        animator.SetBool("IsRunning", stateToUse == MutantState.Charge);
+        animator.SetBool("IsConfuse", stateToUse == MutantState.Confused);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestTakeDamageServerRpc(float amount)
+    {
+        TakeDamage(amount);
     }
 
     public void TakeDamage(float amount)
     {
+        if (!IsServer) return; // FIX: Prevent local damage on client
         if (isDead) return;
 
-        health -= amount;
+        health.Value -= amount;
         
         // Bị đánh đau quá thì rống lên và nhắm vào người chơi gần nhất
         ListenForHeartbeats(); 
 
-        if (health <= 0)
+        if (health.Value <= 0)
         {
             Die();
         }
@@ -320,6 +360,8 @@ public class MutantAI : NetworkBehaviour
 
     void Die()
     {
+        if (!IsServer) return; // FIX: Ensure Die logic and ClientRpc are only called from Server
+
         isDead = true;
         agent.enabled = false;
         
@@ -332,7 +374,16 @@ public class MutantAI : NetworkBehaviour
         if (col != null) col.enabled = false;
         
         this.enabled = false;
-        Destroy(gameObject, 5f);
+        StartCoroutine(DespawnAfterDelay(5f)); // FIX: NetworkObject.Despawn instead of Destroy
+    }
+
+    private System.Collections.IEnumerator DespawnAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (IsServer)
+        {
+            GetComponent<NetworkObject>().Despawn(true);
+        }
     }
 
     private float originalSpeed = -1f;

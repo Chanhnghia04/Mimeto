@@ -201,28 +201,34 @@ public class MultiplayerCenter : MonoBehaviour
             UpdateHostStatus($"Đang tạo phòng {mode}...");
             SetHostInteractable(false);
 
-            // 1. Tạo Lobby
-            var lobby = await LobbyManager.Instance.CreateLobby(lobbyName, maxPlayers, isPrivate);
-
-            // 2. Tạo Relay
+            // 1. Tạo Relay trước để lấy Join Code ngay lập tức
             Allocation allocation = await RelayService.Instance.CreateAllocationAsync(maxPlayers - 1);
             string relayJoinCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
 
-            // 3. Lưu relay code vào lobby
-            await LobbyManager.Instance.UpdateRelayCode(relayJoinCode);
+            // 2. Tạo Lobby và lưu relay code ngay lúc tạo
+            var lobby = await LobbyManager.Instance.CreateLobby(lobbyName, maxPlayers, isPrivate, relayJoinCode);
 
-            // 3.5. Join Vivox Channel
+            // 3. Join Vivox Channel
             await VivoxManager.Instance.JoinChannelAsync(lobby.Id);
 
             // 4. Setup transport
+            var netManager = NetworkManager.Singleton;
+            if (netManager == null)
+            {
+                netManager = FindAnyObjectByType<NetworkManager>();
+                if (netManager == null)
+                {
+                    throw new Exception("Không tìm thấy NetworkManager trong scene. Hãy đảm bảo NetworkManager prefab được đặt vào scene StartGame.");
+                }
+            }
+            
             RelayServerData relayServerData = new RelayServerData(allocation, "dtls");
-            NetworkManager.Singleton.GetComponent<UnityTransport>().SetRelayServerData(relayServerData);
+            netManager.GetComponent<UnityTransport>().SetRelayServerData(relayServerData);
 
-            // 5. Connection approval
-            NetworkManager.Singleton.ConnectionApprovalCallback = ApprovalCheck;
+            // Không dùng ConnectionApproval của Netcode nữa vì Relay/Lobby đã khóa phòng rồi.
 
             // 6. Start Host
-            if (NetworkManager.Singleton.StartHost())
+            if (netManager.StartHost())
             {
                 UpdateStatus($"Host started! (1/{maxPlayers})");
 
@@ -488,17 +494,6 @@ public class MultiplayerCenter : MonoBehaviour
     private async Task ConnectToRelay()
     {
         string relayCode = LobbyManager.Instance.GetRelayCodeFromLobby();
-        int attempts = 0;
-        
-        // Loop retry in case Host is still generating/uploading the Relay code
-        while (string.IsNullOrEmpty(relayCode) && attempts < 10)
-        {
-            UpdateClientStatus("Đang đồng bộ mạng...");
-            await Task.Delay(1000); // Đợi 1 giây
-            await LobbyManager.Instance.ForceRefreshLobby(); // Ép cập nhật lobby ngay lập tức
-            relayCode = LobbyManager.Instance.GetRelayCodeFromLobby();
-            attempts++;
-        }
 
         if (string.IsNullOrEmpty(relayCode))
         {
@@ -512,10 +507,18 @@ public class MultiplayerCenter : MonoBehaviour
         JoinAllocation joinAllocation = await RelayService.Instance.JoinAllocationAsync(relayCode);
         RelayServerData relayServerData = new RelayServerData(joinAllocation, "dtls");
         
-        var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        var netManager = NetworkManager.Singleton;
+        if (netManager == null)
+        {
+            netManager = FindAnyObjectByType<NetworkManager>();
+        }
+
+        var transport = netManager.GetComponent<UnityTransport>();
         transport.SetRelayServerData(relayServerData);
 
-        if (NetworkManager.Singleton.StartClient())
+        // Không dùng ConnectionApproval của Netcode nữa.
+
+        if (netManager.StartClient())
         {
             UpdateClientStatus("Đang kết nối...");
         }

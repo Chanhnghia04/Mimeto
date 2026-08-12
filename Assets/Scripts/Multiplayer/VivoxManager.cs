@@ -234,48 +234,64 @@ public class VivoxManager : MonoBehaviour
 
     private void Update()
     {
-        // Liên tục cập nhật vị trí 3D cho Vivox nếu đã join channel và có player
-        if (isJoined && isLoggedIn && localPlayerTransform != null && localCameraTransform != null)
-        {
-            // Set3DPosition: (speakerPos, listenerPos, forward, up, channelName)
-            VivoxService.Instance.Set3DPosition(
-                localCameraTransform.position,  // Speaker Pos
-                localCameraTransform.position,  // Listener Pos
-                localCameraTransform.forward,   // Listener Forward
-                localCameraTransform.up,        // Listener Up
-                currentChannelName              // Channel name
-            );
-        }
-
         // Cập nhật timer hiển thị thông báo Mic
         if (micStatusTimer > 0f)
         {
             micStatusTimer -= Time.deltaTime;
         }
 
-        // --- TOGGLE VOICE CHAT bằng phím V ---
-        if (isLoggedIn && isJoined)
+        // --- KIỂM TRA SCENE ---
+        // Vô hiệu hóa hoàn toàn tính năng voice khi ở scene StartGame
+        bool isStartGameScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "StartGame";
+
+        if (!isStartGameScene)
         {
-            if (Input.GetKeyDown(KeyCode.V))
+            // --- TOGGLE VOICE CHAT bằng phím V ---
+            if (UnityEngine.InputSystem.Keyboard.current != null && 
+                UnityEngine.InputSystem.Keyboard.current.vKey.wasPressedThisFrame)
             {
-                isMicMuted = !isMicMuted;
-                if (isMicMuted)
+                if (isLoggedIn && isJoined)
                 {
-                    VivoxService.Instance.MuteInputDevice();
-                    Debug.Log("[VivoxManager] Ngừng nói (Mic MUTED)");
+                    isMicMuted = !isMicMuted;
+                    micStatusTimer = 2.5f;
+
+                    if (isMicMuted)
+                    {
+                        VivoxService.Instance.MuteInputDevice();
+                        Debug.Log("[VivoxManager] Ngừng nói (Mic MUTED)");
+                    }
+                    else
+                    {
+                        VivoxService.Instance.UnmuteInputDevice();
+                        Debug.Log("[VivoxManager] Đang nói (Mic UNMUTED)");
+                    }
                 }
-                else
-                {
-                    VivoxService.Instance.UnmuteInputDevice();
-                    Debug.Log("[VivoxManager] Đang nói (Mic UNMUTED)");
-                }
-                micStatusTimer = 2.5f; // Hiển thị thông báo 2.5 giây
             }
         }
-    }
 
+        // Liên tục cập nhật vị trí 3D cho Vivox nếu đã join channel và có player
+        try
+        {
+            if (isJoined && isLoggedIn && localPlayerTransform != null && localCameraTransform != null)
+            {
+                VivoxService.Instance.Set3DPosition(
+                    localCameraTransform.position,
+                    localCameraTransform.position,
+                    localCameraTransform.forward,
+                    localCameraTransform.up,
+                    currentChannelName
+                );
+            }
+        }
+        catch (Exception e)
+        {
+            // Bỏ qua lỗi ngầm để không làm hỏng script
+        }
+    }
     private void OnGUI()
     {
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "StartGame") return;
+
         if (micStatusTimer > 0f)
         {
             GUIStyle style = new GUIStyle();
@@ -283,8 +299,12 @@ public class VivoxManager : MonoBehaviour
             style.fontStyle = FontStyle.Bold;
             style.alignment = TextAnchor.MiddleCenter;
 
-            string text = isMicMuted ? "🎤 MIC BỊ TẮT (MUTED)" : "🎤 ĐANG BẬT MIC (UNMUTED)";
-            style.normal.textColor = isMicMuted ? Color.red : Color.green;
+            string text = "";
+            if (isLoggedIn && isJoined)
+            {
+                text = isMicMuted ? "🎤 MIC BỊ TẮT (MUTED)" : "🎤 ĐANG BẬT MIC (UNMUTED)";
+                style.normal.textColor = isMicMuted ? Color.red : Color.green;
+            }
 
             // Draw shadow
             GUIStyle shadow = new GUIStyle(style);

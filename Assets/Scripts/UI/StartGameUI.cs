@@ -38,7 +38,7 @@ public class StartGameUI : MonoBehaviour
         }
 
         // Nếu không có MultiplayerCenter, thử tìm con trong Canvas hiện tại
-        var canvas = FindFirstObjectByType<Canvas>();
+        var canvas = FindAnyObjectByType<Canvas>();
         if (canvas != null)
         {
             var mp = canvas.transform.Find("MultiplayerPanel");

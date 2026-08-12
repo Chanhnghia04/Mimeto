@@ -1,4 +1,5 @@
 using UnityEngine;
+using Unity.Netcode;
 
 /// <summary>
 /// Singleton trung tâm — chọn random 1 trong 4 phương thức thoát mỗi màn.
@@ -12,7 +13,7 @@ using UnityEngine;
 ///   4. EscapeManager sẽ tự random bật 1 cái mỗi màn.
 /// </summary>
 [DefaultExecutionOrder(-50)]
-public class EscapeManager : MonoBehaviour
+public class EscapeManager : NetworkBehaviour
 {
     public static EscapeManager Instance { get; private set; }
 
@@ -24,7 +25,10 @@ public class EscapeManager : MonoBehaviour
     public EscapeMethodType specificMethodToForce;
 
     public EscapeMethodType CurrentMethod    { get; private set; }
-    public bool             IsEscapeUnlocked { get; private set; }
+    
+    public NetworkVariable<bool> isEscapeUnlockedNet = new NetworkVariable<bool>(false);
+    public bool             IsEscapeUnlocked { get { return isEscapeUnlockedNet.Value; } private set { } }
+    
     public bool             IsReadyToAssemble { get; set; } = false;
     public string           ProgressMessage  { get; private set; } = "";
     public float            ProgressValue    { get; private set; } = 0f;
@@ -33,6 +37,46 @@ public class EscapeManager : MonoBehaviour
     public event System.Action OnEscapeUnlocked;
 
     // ─────────────────────────────────────────────────────────────────────────
+
+    public NetworkVariable<bool> isBeaconBuiltNet = new NetworkVariable<bool>(false);
+    public NetworkVariable<bool> isReactorShutdownNet = new NetworkVariable<bool>(false);
+    public NetworkVariable<int> assembleStepsNet = new NetworkVariable<int>(0);
+
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+        isEscapeUnlockedNet.OnValueChanged += (oldVal, newVal) =>
+        {
+            if (!oldVal && newVal)
+            {
+                ReportProgress("✓ Escape conditions met! Head to the Escape Door now!", 1f);
+                Debug.Log("<color=lime>[EscapeManager] ✓ ESCAPE UNLOCKED!</color>");
+                OnEscapeUnlocked?.Invoke();
+            }
+        };
+
+        // Đồng bộ muộn cho Late Joiner
+        isBeaconBuiltNet.OnValueChanged += (oldVal, newVal) => {
+            if (newVal) Object.FindAnyObjectByType<EscapeBeacon>()?.ForceBuild();
+        };
+        isReactorShutdownNet.OnValueChanged += (oldVal, newVal) => {
+            if (newVal) Object.FindAnyObjectByType<EscapeReactor>()?.ForceShutdown();
+        };
+        assembleStepsNet.OnValueChanged += (oldVal, newVal) => {
+            if (newVal > oldVal) {
+                var ex = Object.FindAnyObjectByType<ExtractionSystem>();
+                if (ex != null) for(int i=0; i<(newVal - oldVal); i++) ex.ForceAssembleStep();
+            }
+        };
+        
+        // Kích hoạt ngay nếu trạng thái đã hoàn thành lúc join
+        if (isBeaconBuiltNet.Value) Object.FindAnyObjectByType<EscapeBeacon>()?.ForceBuild();
+        if (isReactorShutdownNet.Value) Object.FindAnyObjectByType<EscapeReactor>()?.ForceShutdown();
+        if (assembleStepsNet.Value > 0) {
+            var ex = Object.FindAnyObjectByType<ExtractionSystem>();
+            if (ex != null) for(int i=0; i<assembleStepsNet.Value; i++) ex.ForceAssembleStep();
+        }
+    }
 
     void Awake()
     {
@@ -314,11 +358,11 @@ public class EscapeManager : MonoBehaviour
     /// <summary>Method script gọi hàm này khi player hoàn thành yêu cầu thoát.</summary>
     public void UnlockEscape()
     {
-        if (IsEscapeUnlocked) return;
-        IsEscapeUnlocked = true;
-        ReportProgress("✓ Escape conditions met! Head to the Escape Door now!", 1f);
-        Debug.Log("<color=lime>[EscapeManager] ✓ ESCAPE UNLOCKED!</color>");
-        OnEscapeUnlocked?.Invoke();
+        if (IsServer)
+        {
+            if (isEscapeUnlockedNet.Value) return;
+            isEscapeUnlockedNet.Value = true;
+        }
     }
 
     /// <summary>Method script gọi để cập nhật tiến độ hiển thị trên HUD.</summary>

@@ -108,6 +108,7 @@ public class PlayerSurvival : NetworkBehaviour
 
     // Fix: proper timer to avoid Debug.LogWarning spam based on FPS
     private float nextWarningTime = 0f;
+    private float accumulatedDamage = 0f;
 
     [Header("Audio")]
     public AudioSource breathingSource;
@@ -215,12 +216,15 @@ public class PlayerSurvival : NetworkBehaviour
             if (currentOxygen <= 0)
             {
                 currentOxygen = 0;
-                // Trừ máu trực tiếp khi hết Oxy thay vì dùng TakeDamage để tránh spam RPC
-                currentHealth -= 5f * Time.deltaTime;
-                if (currentHealth <= 0)
+                float tickDamage = 5f * Time.deltaTime;
+                accumulatedDamage += tickDamage;
+                currentHealth -= tickDamage; // Dự đoán ở Client
+                
+                if (accumulatedDamage >= 1f || currentHealth <= 0)
                 {
-                    currentHealth = 0;
-                    Die("Suffocated!");
+                    if (IsServer) ApplyDamageLogic(accumulatedDamage, "Suffocated!");
+                    else TakeDamageServerRpc(accumulatedDamage, "Suffocated!");
+                    accumulatedDamage = 0f;
                 }
                 
                 if (Time.time >= nextWarningTime)
@@ -239,37 +243,60 @@ public class PlayerSurvival : NetworkBehaviour
             }
         }
 
-        // --- STAMINA LOGIC ---
+        // --- STAMINA LOGIC (FACADE PATTERN) ---
         PlayerController pc = GetComponent<PlayerController>();
-        if (pc != null && pc.isSprinting)
+        var staminaSys = GetComponent<Mimeto.PlayerSystems.StaminaSystem>();
+        
+        if (staminaSys != null)
         {
-            currentStamina -= staminaDepletionRate * Time.deltaTime;
-            if (currentStamina <= 0) 
+            if (pc != null && pc.isSprinting) staminaSys.DepleteStamina(Time.deltaTime);
+            else staminaSys.RestoreStamina(Time.deltaTime);
+            
+            // Đồng bộ ngược lại biến cũ để UI hiện tại không bị vỡ (Step 3)
+            currentStamina = staminaSys.currentStamina; 
+            
+            if (pc != null) 
             {
-                currentStamina = 0;
-                pc.isExhausted = true; // Đánh dấu là đã kiệt sức
+                if (!staminaSys.HasStamina()) pc.isExhausted = true;
+                else if (staminaSys.currentStamina >= staminaSys.maxStamina * 0.2f) pc.isExhausted = false;
             }
         }
         else
         {
-            currentStamina += staminaRestoreRate * Time.deltaTime;
-            if (currentStamina > maxStamina) currentStamina = maxStamina;
-            
-            // Hồi lại ít nhất 20% lực mới cho phép chạy tiếp để tránh bị giật khựng
-            if (currentStamina >= maxStamina * 0.2f && pc != null)
+            // Fallback: Logic cũ phòng trường hợp bạn chưa kéo component vào Prefab
+            if (pc != null && pc.isSprinting)
             {
-                pc.isExhausted = false;
+                currentStamina -= staminaDepletionRate * Time.deltaTime;
+                if (currentStamina <= 0) 
+                {
+                    currentStamina = 0;
+                    pc.isExhausted = true;
+                }
+            }
+            else
+            {
+                currentStamina += staminaRestoreRate * Time.deltaTime;
+                if (currentStamina > maxStamina) currentStamina = maxStamina;
+                
+                if (currentStamina >= maxStamina * 0.2f && pc != null)
+                {
+                    pc.isExhausted = false;
+                }
             }
         }
 
         // --- BLEED LOGIC ---
         if (Time.time < bleedEndTime && currentHealth > 0 && !isDead)
         {
-            currentHealth -= bleedDps * Time.deltaTime;
-            if (currentHealth <= 0)
+            float tickDamage = bleedDps * Time.deltaTime;
+            accumulatedDamage += tickDamage;
+            currentHealth -= tickDamage; // Dự đoán ở Client
+            
+            if (accumulatedDamage >= 1f || currentHealth <= 0)
             {
-                currentHealth = 0;
-                Die("Bled out from Mutant attack!");
+                if (IsServer) ApplyDamageLogic(accumulatedDamage, "Bled out from Mutant attack!");
+                else TakeDamageServerRpc(accumulatedDamage, "Bled out from Mutant attack!");
+                accumulatedDamage = 0f;
             }
         }
         // -------------------
@@ -407,10 +434,23 @@ public class PlayerSurvival : NetworkBehaviour
 
     private void ApplyDamageLogic(float amount, string reason)
     {
-        currentHealth -= amount;
-        if (currentHealth <= 0)
+        var healthSys = GetComponent<Mimeto.PlayerSystems.HealthSystem>();
+        if (healthSys != null)
         {
-            currentHealth = 0;
+            // Chuyển giao quyền lực cho HealthSystem
+            healthSys.TakeDamage(amount);
+            
+            // Đồng bộ lại biến cũ để UI không bị vỡ (Step 3)
+            currentHealth = healthSys.currentHealth.Value;
+        }
+        else
+        {
+            // Logic cũ (Fallback)
+            currentHealth -= amount;
+            if (currentHealth <= 0)
+            {
+                currentHealth = 0;
+            }
         }
         
         UpdateHealthClientRpc(currentHealth, reason);
@@ -450,21 +490,58 @@ public class PlayerSurvival : NetworkBehaviour
     public void Heal(float amount)
     {
         if (currentHealth <= 0 || isDead) return;
-        currentHealth = Mathf.Min(currentHealth + amount, maxHealth);
-        UpdateHealthServerRpc(currentHealth);
+        
+        currentHealth = Mathf.Min(currentHealth + amount, maxHealth); // Dự đoán ở Client
+        
+        if (IsServer)
+        {
+            ApplyHealLogic(amount);
+        }
+        else if (IsOwner)
+        {
+            HealServerRpc(amount);
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void HealServerRpc(float amount)
+    {
+        if (currentHealth <= 0 || isDead) return;
+        ApplyHealLogic(amount);
     }
 
     [ServerRpc(RequireOwnership = false)]
     public void UpdateHealthServerRpc(float newHealth)
     {
+        var healthSys = GetComponent<Mimeto.PlayerSystems.HealthSystem>();
+        if (healthSys != null)
+        {
+            healthSys.currentHealth.Value = newHealth;
+        }
         currentHealth = newHealth;
         UpdateHealthClientRpc(newHealth);
+    }
+
+    private void ApplyHealLogic(float amount)
+    {
+        var healthSys = GetComponent<Mimeto.PlayerSystems.HealthSystem>();
+        if (healthSys != null)
+        {
+            healthSys.Heal(amount);
+            currentHealth = healthSys.currentHealth.Value;
+        }
+        else
+        {
+            currentHealth = Mathf.Min(currentHealth + amount, maxHealth);
+        }
+        
+        UpdateHealthClientRpc(currentHealth);
     }
 
     [ClientRpc]
     public void UpdateHealthClientRpc(float newHealth)
     {
-        if (!IsOwner && !IsServer)
+        if (!IsServer)
         {
             currentHealth = newHealth;
         }

@@ -23,7 +23,7 @@ public class BlackjackStation : MonoBehaviour, IInteractable
     private static readonly Color PUSH_COLOR   = new Color(0.80f, 0.80f, 0.40f);
 
     // ── Game State ───────────────────────────────────────────────────────────
-    enum GameState { Idle, PlayerTurn, DealerTurn, GameOver }
+    enum GameState { Idle, WaitingForServer, PlayerTurn, DealerTurn, GameOver }
     private GameState state = GameState.Idle;
     private int betAmount = 10;
     private string statusMessage = "Place your bet and press DEAL";
@@ -70,6 +70,62 @@ public class BlackjackStation : MonoBehaviour, IInteractable
         _feltTex    = MakeFeltTexture();
         _cardFrontTex = MakeTex(1, 1, IVORY);
         _gradientTex  = MakeGradientH(new Color(1f, 0.82f, 0.1f, 0.6f), new Color(0.5f, 0.3f, 0.0f, 0f));
+    }
+
+    void OnEnable() {
+        PlayerInventory.OnBlackjackStartResult += HandleStart;
+        PlayerInventory.OnBlackjackHitResult += HandleHit;
+        PlayerInventory.OnBlackjackStandResult += HandleStand;
+    }
+    void OnDisable() {
+        PlayerInventory.OnBlackjackStartResult -= HandleStart;
+        PlayerInventory.OnBlackjackHitResult -= HandleHit;
+        PlayerInventory.OnBlackjackStandResult -= HandleStand;
+    }
+
+    Card IntToCard(int c) {
+        string[] suits = { "♠", "♣", "♦", "♥" };
+        string[] ranks = { "A","2","3","4","5","6","7","8","9","10","J","Q","K" };
+        int suitIdx = c / 13;
+        int rankIdx = c % 13;
+        int val = rankIdx + 1; if (val > 10) val = 10;
+        return new Card { suit = suits[suitIdx], rank = ranks[rankIdx], value = val };
+    }
+
+    void HandleStart(int[] pHand, int[] dHand) {
+        if (state != GameState.WaitingForServer) return;
+        playerHand.Clear(); dealerHand.Clear();
+        foreach(int c in pHand) playerHand.Add(IntToCard(c));
+        foreach(int c in dHand) dealerHand.Add(IntToCard(c));
+        dealerHand[1].isHidden = true;
+        
+        state = GameState.PlayerTurn;
+        statusMessage = "Your turn  —  HIT or STAND?";
+        
+        if (GetScore(playerHand) == 21) { statusMessage = "✦ BLACKJACK! Natural 21! ✦"; EndGameCheck(); }
+    }
+    
+    void HandleHit(int card) {
+        if (state != GameState.WaitingForServer) return;
+        playerHand.Add(IntToCard(card));
+        int score = GetScore(playerHand);
+        
+        if (score > 21) {
+            statusMessage = "BUST  —  Over 21";
+            EndGameCheck();
+        } else if (playerHand.Count >= 5) {
+            statusMessage = "❇  NGŨ LINH  —  Five Card Charlie!  ❇";
+            EndGameCheck();
+        } else {
+            state = GameState.PlayerTurn;
+            statusMessage = $"Card dealt  ({score} pts)  —  HIT or STAND?";
+        }
+    }
+    
+    void HandleStand(int[] drawn) {
+        if (state != GameState.WaitingForServer) return;
+        foreach(int c in drawn) dealerHand.Add(IntToCard(c));
+        EndGameCheck();
     }
 
     // ── Texture helpers ───────────────────────────────────────────────────────
@@ -176,31 +232,6 @@ public class BlackjackStation : MonoBehaviour, IInteractable
         }
     }
 
-    // ── Game Logic ─────────────────────────────────────────────────────────────
-    void InitDeck()
-    {
-        deck.Clear();
-        string[] suits  = { "♠", "♣", "♦", "♥" };
-        string[] ranks  = { "A","2","3","4","5","6","7","8","9","10","J","Q","K" };
-        for (int i = 0; i < 4; i++)
-            for (int j = 0; j < 13; j++)
-            {
-                int val = j + 1; if (val > 10) val = 10;
-                deck.Add(new Card { suit = suits[i], rank = ranks[j], value = val });
-            }
-        for (int i = 0; i < deck.Count; i++)
-        {
-            Card t = deck[i]; int r = Random.Range(i, deck.Count);
-            deck[i] = deck[r]; deck[r] = t;
-        }
-    }
-
-    Card DrawCard()
-    {
-        if (deck.Count == 0) InitDeck();
-        Card c = deck[0]; deck.RemoveAt(0); return c;
-    }
-
     void ResetGame()
     {
         state         = GameState.Idle;
@@ -215,50 +246,26 @@ public class BlackjackStation : MonoBehaviour, IInteractable
         if (_inventory.credits < betAmount || _inventory.credits < 10)
         { statusMessage = "⚠  INSUFFICIENT FUNDS  ( min 10 EC )"; return; }
 
-        _inventory.SpendCredits(betAmount);
-        InitDeck();
-        playerHand.Clear(); dealerHand.Clear();
-
-        playerHand.Add(DrawCard()); dealerHand.Add(DrawCard());
-        playerHand.Add(DrawCard());
-        Card hidden = DrawCard(); hidden.isHidden = true; dealerHand.Add(hidden);
-
-        state         = GameState.PlayerTurn;
-        statusMessage = "Your turn  —  HIT or STAND?";
-
-        if (GetScore(playerHand) == 21) { statusMessage = "✦ BLACKJACK! Natural 21! ✦"; EndGame(); }
+        state = GameState.WaitingForServer;
+        statusMessage = "Waiting for dealer...";
+        _inventory.RequestBlackjackStartServerRpc(betAmount);
     }
 
     void Hit()
     {
-        playerHand.Add(DrawCard());
-        int score = GetScore(playerHand);
-
-        if (score > 21)
-        {
-            statusMessage = "BUST  —  Over 21";
-            EndGame();
-        }
-        else if (playerHand.Count >= 5)
-        {
-            statusMessage = "❇  NGŨ LINH  —  Five Card Charlie!  ❇";
-            EndGame();
-        }
-        else
-        {
-            statusMessage = $"Card dealt  ({score} pts)  —  HIT or STAND?";
-        }
+        state = GameState.WaitingForServer;
+        statusMessage = "Waiting for card...";
+        _inventory.RequestBlackjackHitServerRpc();
     }
 
     void Stand()
     {
-        state = GameState.DealerTurn;
-        if (dealerHand.Count > 1) dealerHand[1].isHidden = false;
-        while (GetScore(dealerHand) < 17) dealerHand.Add(DrawCard());
-        EndGame();
+        state = GameState.WaitingForServer;
+        statusMessage = "Dealer's turn...";
+        _inventory.RequestBlackjackStandServerRpc();
     }
 
-    void EndGame()
+    void EndGameCheck()
     {
         state = GameState.GameOver;
         if (dealerHand.Count > 1) dealerHand[1].isHidden = false;
@@ -270,21 +277,19 @@ public class BlackjackStation : MonoBehaviour, IInteractable
         { statusMessage = "BUST  —  Better luck next time"; lastResultWin = false; }
         else if (playerHand.Count >= 5 && pScore <= 21)
         {
-            // Ngũ Linh / Five Card Charlie — thắng bất kể dealer, payout 2×
             statusMessage = "❇  NGŨ LINH  —  Five Card Charlie! 2×  ❇";
-            _inventory.AddCredits(betAmount * 2);
             lastResultWin = true;
         }
         else if (dScore > 21)
-        { statusMessage = "✦  DEALER BUST  —  You Win!  ✦"; _inventory.AddCredits(betAmount * 2); lastResultWin = true; }
+        { statusMessage = "✦  DEALER BUST  —  You Win!  ✦"; lastResultWin = true; }
         else if (pScore == 21 && playerHand.Count == 2)
-        { statusMessage = "✦  BLACKJACK  —  2.5× Payout!  ✦"; _inventory.AddCredits(Mathf.RoundToInt(betAmount * 2.5f)); lastResultWin = true; }
+        { statusMessage = "✦  BLACKJACK  —  2.5× Payout!  ✦"; lastResultWin = true; }
         else if (pScore > dScore)
-        { statusMessage = "✦  VICTORY  —  You Win!  ✦"; _inventory.AddCredits(betAmount * 2); lastResultWin = true; }
+        { statusMessage = "✦  VICTORY  —  You Win!  ✦"; lastResultWin = true; }
         else if (pScore < dScore)
         { statusMessage = "Dealer wins  —  Try again"; lastResultWin = false; }
         else
-        { statusMessage = "PUSH  —  Bet returned"; _inventory.AddCredits(betAmount); lastResultWin = false; }
+        { statusMessage = "PUSH  —  Bet returned"; lastResultWin = false; }
 
 
         if (lastResultWin)

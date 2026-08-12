@@ -7,6 +7,20 @@ public class PlayerInventory : NetworkBehaviour
     public NetworkVariable<int> MatchSeed = new NetworkVariable<int>(0);
     public static int GlobalMatchSeed = 0;
 
+    // --- Events for Server-Authoritative Minigames & Shop ---
+    public static event System.Action<int, int, int> OnSlotSpinResult;
+    public static event System.Action<int, int, int, int> OnDiceRollResult;
+    public static event System.Action<int[], int[]> OnBlackjackStartResult;
+    public static event System.Action<int> OnBlackjackHitResult;
+    public static event System.Action<int[]> OnBlackjackStandResult;
+    public static event System.Action<string> OnShopBuyResult;
+
+    // --- Blackjack Server State (per player) ---
+    private List<int> _bjDeck = new List<int>();
+    private List<int> _bjPlayerHand = new List<int>();
+    private List<int> _bjDealerHand = new List<int>();
+    private int _bjBetAmount = 0;
+
     public int circuits = 0;
     public int metalPipes = 0;
     public int ironPlates = 0;
@@ -75,6 +89,27 @@ public class PlayerInventory : NetworkBehaviour
             }
         }
 
+        // --- ĐỒNG BỘ TIỀN TỆ CHUNG TỪ HOST CHO CLIENT MỚI VÀO ---
+        if (IsServer && !IsOwner)
+        {
+            // Lấy Inventory của Host
+            if (NetworkManager.Singleton.ConnectedClients.TryGetValue(NetworkManager.ServerClientId, out var hostClient))
+            {
+                if (hostClient.PlayerObject != null && hostClient.PlayerObject.TryGetComponent(out PlayerInventory hostInv))
+                {
+                    // Cập nhật NGAY LẬP TỨC trên Server cho Inventory của Client này
+                    this.credits = hostInv.credits;
+
+                    // Gửi số tiền hiện tại của Host cho Client này
+                    ClientRpcParams clientRpcParams = new ClientRpcParams
+                    {
+                        Send = new ClientRpcSendParams { TargetClientIds = new[] { OwnerClientId } }
+                    };
+                    SyncInitialCreditsClientRpc(hostInv.credits, clientRpcParams);
+                }
+            }
+        }
+
         if (IsServer && IsOwner)
         {
             MatchSeed.Value = (int)(System.DateTime.Now.Ticks % 100000000);
@@ -88,7 +123,16 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc]
     public void InitSaveDataServerRpc(int initialCredits)
     {
-        credits = initialCredits;
+        // Chức năng cũ, Client nộp tiền save của nó lên (dù hiện tại ta ưu tiên dùng tiền của Host)
+        // credits = initialCredits;
+    }
+
+    [ClientRpc]
+    public void SyncInitialCreditsClientRpc(int hostCredits, ClientRpcParams rpcParams = default)
+    {
+        credits = hostCredits;
+        GlobalPlayerData.credits = hostCredits;
+        Debug.Log($"[Tiền Tệ Chung] Đã đồng bộ số tiền từ Host: {credits}");
     }
 
     void Update()
@@ -207,8 +251,11 @@ public class PlayerInventory : NetworkBehaviour
         foreach (var col in colls)
         {
             ScrapItem scrap = col.GetComponent<ScrapItem>();
-            if (scrap != null && scrap.scrapType == itemType)
+            if (scrap != null && scrap.scrapType == itemType && scrap.gameObject.activeInHierarchy)
             {
+                // Tắt ngay lập tức để chặn các RPC nhặt đồ khác trong cùng một frame
+                scrap.gameObject.SetActive(false);
+
                 var clientId = rpcParams.Receive.SenderClientId;
                 AddScrapClientRpc(itemType, amount, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } });
                 SyncDestroyItemClientRpc(pos, itemType);
@@ -249,28 +296,49 @@ public class PlayerInventory : NetworkBehaviour
     }
 
     [ServerRpc(RequireOwnership = false)]
-    public void SyncLootChestItemServerRpc(Vector3 chestPos, string itemType)
+    public void RequestLootChestItemServerRpc(Vector3 chestPos, string itemType, ServerRpcParams rpcParams = default)
     {
-        SyncLootChestItemClientRpc(chestPos, itemType);
-    }
-
-    [ClientRpc]
-    public void SyncLootChestItemClientRpc(Vector3 chestPos, string itemType)
-    {
-        if (IsOwner) return; // The one who looted it already removed it locally
-
-        // Find the chest at chestPos
         Collider[] colls = Physics.OverlapSphere(chestPos, 1.0f);
         foreach (var col in colls)
         {
             Chest chest = col.GetComponent<Chest>();
             if (chest != null)
             {
-                // Remove the item from this chest
+                var entry = chest.items.Find(e => e.itemType == itemType);
+                if (entry != null)
+                {
+                    int amount = entry.amount;
+                    var clientId = rpcParams.Receive.SenderClientId;
+                    AddScrapClientRpc(itemType, amount, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } });
+                    
+                    chest.RemoveItem(entry);
+                    ChestUI ui = Object.FindAnyObjectByType<ChestUI>();
+                    if (ui != null) ui.RefreshIfOpen(chest);
+                    
+                    SyncLootChestItemClientRpc(chestPos, itemType);
+                }
+                break;
+            }
+        }
+    }
+
+    [ClientRpc]
+    public void SyncLootChestItemClientRpc(Vector3 chestPos, string itemType)
+    {
+        if (IsServer) return; // Server already removed it
+
+        Collider[] colls = Physics.OverlapSphere(chestPos, 1.0f);
+        foreach (var col in colls)
+        {
+            Chest chest = col.GetComponent<Chest>();
+            if (chest != null)
+            {
                 var entry = chest.items.Find(e => e.itemType == itemType);
                 if (entry != null)
                 {
                     chest.RemoveItem(entry);
+                    ChestUI ui = Object.FindAnyObjectByType<ChestUI>();
+                    if (ui != null) ui.RefreshIfOpen(chest);
                 }
                 break;
             }
@@ -280,30 +348,23 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void SyncEscapeEventServerRpc(int eventId)
     {
-        SyncEscapeEventClientRpc(eventId);
-    }
-
-    [ClientRpc]
-    public void SyncEscapeEventClientRpc(int eventId)
-    {
+        if (EscapeManager.Instance == null) return;
+        
         if (eventId == 0) // Unlock Escape Door
         {
-            EscapeManager.Instance?.UnlockEscape();
+            EscapeManager.Instance.UnlockEscape();
         }
         else if (eventId == 1) // Beacon Build
         {
-            EscapeBeacon beacon = Object.FindAnyObjectByType<EscapeBeacon>();
-            if (beacon != null) beacon.ForceBuild();
+            EscapeManager.Instance.isBeaconBuiltNet.Value = true;
         }
         else if (eventId == 2) // Reactor Meltdown
         {
-            EscapeReactor reactor = Object.FindAnyObjectByType<EscapeReactor>();
-            if (reactor != null) reactor.ForceShutdown();
+            EscapeManager.Instance.isReactorShutdownNet.Value = true;
         }
         else if (eventId == 3) // Extraction System Assemble step
         {
-            ExtractionSystem ex = Object.FindAnyObjectByType<ExtractionSystem>();
-            if (ex != null) ex.ForceAssembleStep();
+            EscapeManager.Instance.assembleStepsNet.Value++;
         }
     }
 
@@ -419,11 +480,14 @@ public class PlayerInventory : NetworkBehaviour
         plasticPipes = 0;
         scrapBatteries = 0;
         
-        credits += totalValue;
-        GlobalPlayerData.credits = credits;
         if (IsSpawned)
         {
             AddCreditsServerRpc(totalValue);
+        }
+        else
+        {
+            credits += totalValue;
+            GlobalPlayerData.credits = credits;
         }
         
         Debug.Log($"[Store] Sold all scrap for {totalValue} Energy Cells!");
@@ -437,13 +501,37 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void AddCreditsServerRpc(int amount, ServerRpcParams rpcParams = default)
     {
-        UpdateSharedCreditsClientRpc(amount, rpcParams.Receive.SenderClientId);
+        // Khi client bán đồ, gọi hàm này để thêm tiền (amount > 0)
+        // Nếu client muốn trừ tiền, ta chặn lại để tránh hack
+        if (amount < 0) 
+        {
+            Debug.LogWarning("[Security] Chặn yêu cầu trừ tiền trái phép từ Client!");
+            return;
+        }
+        
+        AddCreditsServerInternal(amount);
+    }
+
+    private void AddCreditsServerInternal(int amount)
+    {
+        if (!IsServer) return;
+
+        // Cập nhật NGAY LẬP TỨC trên Server cho tất cả PlayerInventory
+        PlayerInventory[] allInvs = FindObjectsByType<PlayerInventory>(FindObjectsSortMode.None);
+        foreach(var inv in allInvs)
+        {
+            inv.credits += amount;
+            if (inv.credits < 0) inv.credits = 0;
+            if (inv.IsOwner) GlobalPlayerData.credits = inv.credits;
+        }
+
+        UpdateSharedCreditsClientRpc(amount);
     }
 
     [ClientRpc]
-    public void UpdateSharedCreditsClientRpc(int amount, ulong senderId)
+    public void UpdateSharedCreditsClientRpc(int amount)
     {
-        if (Unity.Netcode.NetworkManager.Singleton.LocalClientId == senderId) return; // Sender updated locally
+        if (IsServer) return; // Host đã cập nhật ở AddCreditsServerInternal rồi, không cộng đúp
         
         // Find local player and update
         PlayerInventory[] allInvs = FindObjectsByType<PlayerInventory>(FindObjectsSortMode.None);
@@ -459,31 +547,42 @@ public class PlayerInventory : NetworkBehaviour
     }
 
     /// <summary>
-    /// Trừ credits nếu đủ tiền. Trả về true nếu thành công.
+    /// Trừ credits. Trả về true nếu thành công. 
+    /// CHÚ Ý: CHỈ NÊN GỌI TRÊN SERVER để phân xử công bằng!
     /// </summary>
     public bool SpendCredits(int amount)
     {
         if (credits >= amount)
         {
-            credits -= amount;
-            if (credits < 0) credits = 0;
-            GlobalPlayerData.credits = credits;
-            if (IsSpawned)
+            // Trừ ngay lập tức trên Server cho TẤT CẢ mọi người
+            if (IsServer) 
             {
-                AddCreditsServerRpc(-amount);
+                AddCreditsServerInternal(-amount);
+                return true;
             }
-            return true;
+            else 
+            {
+                // Nếu là Client gọi trực tiếp (ví dụ mua Shop mà chưa check Server), 
+                // thì ta chỉ trừ ảo để hiển thị, chờ Server xác nhận.
+                credits -= amount;
+                if (credits < 0) credits = 0;
+                GlobalPlayerData.credits = credits;
+                return true;
+            }
         }
         return false;
     }
 
     public void AddCredits(int amount)
     {
-        credits += amount;
-        GlobalPlayerData.credits = credits;
         if (IsSpawned)
         {
             AddCreditsServerRpc(amount);
+        }
+        else
+        {
+            credits += amount;
+            GlobalPlayerData.credits = credits;
         }
     }
 
@@ -574,5 +673,164 @@ public class PlayerInventory : NetworkBehaviour
         style.alignment = TextAnchor.MiddleCenter;
 
         GUI.Label(new Rect(px, py, panelW, panelH), $"◈  EC: {credits}  ◈", style);
+    }
+
+    // ====================================================================================
+    // SERVER-AUTHORITATIVE MINIGAMES & SHOP LOGIC
+    // ====================================================================================
+
+    // --- SHOP ---
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestBuyItemServerRpc(string itemId, int price, ServerRpcParams rpcParams = default)
+    {
+        if (credits < price) return;
+        SpendCredits(price); // deducts on server, syncs to client
+        BuyItemResultClientRpc(itemId, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
+    }
+    
+    [ClientRpc]
+    public void BuyItemResultClientRpc(string itemId, ClientRpcParams rpcParams = default)
+    {
+        OnShopBuyResult?.Invoke(itemId);
+    }
+
+    // --- SLOT MACHINE ---
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestSlotSpinServerRpc(int betAmount, ServerRpcParams rpcParams = default)
+    {
+        if (credits < betAmount || betAmount < 10) return;
+        SpendCredits(betAmount);
+        
+        int[] WGHT = { 1, 3, 6, 6, 6, 6, 4 };
+        float[] PAY = { 10f, 5f, 2.5f, 2f, 2f, 2f, 3f };
+        int[] result = new int[3];
+        
+        for (int i=0; i<3; i++) {
+            int tot = 0; foreach(int w in WGHT) tot += w;
+            int r = Random.Range(0, tot);
+            for(int j=0; j<WGHT.Length; j++) { r-=WGHT[j]; if(r<0) { result[i] = j; break; } }
+            if (result[i] == 0 && r >= 0) result[i] = WGHT.Length - 1;
+        }
+        
+        int a = result[0], b = result[1], c = result[2];
+        if (a == b && b == c) AddCredits(Mathf.RoundToInt(betAmount * PAY[a]));
+        else if (a == b || b == c || a == c) AddCredits(betAmount);
+        
+        SlotSpinResultClientRpc(result[0], result[1], result[2], new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
+    }
+
+    [ClientRpc]
+    public void SlotSpinResultClientRpc(int r0, int r1, int r2, ClientRpcParams rpcParams = default)
+    {
+        OnSlotSpinResult?.Invoke(r0, r1, r2);
+    }
+
+    // --- DICE DUEL ---
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestDiceRollServerRpc(int betAmount, ServerRpcParams rpcParams = default)
+    {
+        if (credits < betAmount || betAmount < 10) return;
+        SpendCredits(betAmount);
+        
+        int p1 = Random.Range(1, 7); int p2 = Random.Range(1, 7);
+        int d1 = Random.Range(1, 7); int d2 = Random.Range(1, 7);
+        int pt = p1 + p2; int dt2 = d1 + d2;
+        
+        if (pt > dt2) AddCredits((p1 == p2) ? Mathf.RoundToInt(betAmount * 2.5f) : betAmount * 2);
+        else if (pt == dt2) AddCredits(betAmount);
+        
+        DiceRollResultClientRpc(p1, p2, d1, d2, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
+    }
+
+    [ClientRpc]
+    public void DiceRollResultClientRpc(int p1, int p2, int d1, int d2, ClientRpcParams rpcParams = default)
+    {
+        OnDiceRollResult?.Invoke(p1, p2, d1, d2);
+    }
+
+    // --- BLACKJACK ---
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestBlackjackStartServerRpc(int betAmount, ServerRpcParams rpcParams = default)
+    {
+        if (credits < betAmount || betAmount < 10) return;
+        SpendCredits(betAmount);
+        _bjBetAmount = betAmount;
+        
+        _bjDeck.Clear();
+        for(int i=0; i<52; i++) _bjDeck.Add(i);
+        for(int i=0; i<52; i++) { int r = Random.Range(i, 52); int t = _bjDeck[i]; _bjDeck[i] = _bjDeck[r]; _bjDeck[r] = t; }
+        
+        _bjPlayerHand.Clear(); _bjDealerHand.Clear();
+        _bjPlayerHand.Add(_bjDeck[0]); _bjDeck.RemoveAt(0);
+        _bjDealerHand.Add(_bjDeck[0]); _bjDeck.RemoveAt(0);
+        _bjPlayerHand.Add(_bjDeck[0]); _bjDeck.RemoveAt(0);
+        _bjDealerHand.Add(_bjDeck[0]); _bjDeck.RemoveAt(0); // hidden
+        
+        if (GetBjScore(_bjPlayerHand) == 21) AddCredits(Mathf.RoundToInt(_bjBetAmount * 2.5f));
+        
+        BlackjackStartClientRpc(_bjPlayerHand.ToArray(), _bjDealerHand.ToArray(), new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
+    }
+
+    [ClientRpc]
+    public void BlackjackStartClientRpc(int[] playerHand, int[] dealerHand, ClientRpcParams rpcParams = default)
+    {
+        OnBlackjackStartResult?.Invoke(playerHand, dealerHand);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestBlackjackHitServerRpc(ServerRpcParams rpcParams = default)
+    {
+        if (_bjDeck.Count == 0) return;
+        int card = _bjDeck[0]; _bjDeck.RemoveAt(0);
+        _bjPlayerHand.Add(card);
+        
+        int pScore = GetBjScore(_bjPlayerHand);
+        if (pScore <= 21 && _bjPlayerHand.Count >= 5) AddCredits(_bjBetAmount * 2); // Charlie
+        
+        BlackjackHitClientRpc(card, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
+    }
+
+    [ClientRpc]
+    public void BlackjackHitClientRpc(int card, ClientRpcParams rpcParams = default)
+    {
+        OnBlackjackHitResult?.Invoke(card);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestBlackjackStandServerRpc(ServerRpcParams rpcParams = default)
+    {
+        int pScore = GetBjScore(_bjPlayerHand);
+        if (pScore > 21 || _bjPlayerHand.Count >= 5) return; // Already resolved
+        
+        List<int> drawn = new List<int>();
+        while (GetBjScore(_bjDealerHand) < 17) {
+            int card = _bjDeck[0]; _bjDeck.RemoveAt(0);
+            _bjDealerHand.Add(card);
+            drawn.Add(card);
+        }
+        
+        int dScore = GetBjScore(_bjDealerHand);
+        if (dScore > 21 || pScore > dScore) AddCredits(_bjBetAmount * 2);
+        else if (pScore == dScore) AddCredits(_bjBetAmount);
+        
+        BlackjackStandClientRpc(drawn.ToArray(), new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
+    }
+
+    [ClientRpc]
+    public void BlackjackStandClientRpc(int[] drawnCards, ClientRpcParams rpcParams = default)
+    {
+        OnBlackjackStandResult?.Invoke(drawnCards);
+    }
+
+    private int GetBjScore(List<int> hand) {
+        int score = 0, aces = 0;
+        foreach(int c in hand) {
+            int val = (c % 13) + 1;
+            if (val > 10) val = 10;
+            score += val;
+            if (val == 1) aces++;
+        }
+        while (aces > 0 && score + 10 <= 21) { score += 10; aces--; }
+        return score;
     }
 }
