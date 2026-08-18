@@ -31,7 +31,7 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
     {
         if (isActivated) return;
 
-        PlayerInventory inventory = interactor.GetComponent<PlayerInventory>();
+        PlayerInventory inventory = interactor.GetComponentInParent<PlayerInventory>();
         if (inventory != null)
         {
             // Kiểm tra trạng thái mở khóa từ hệ thống nhiệm vụ mới (EscapeManager)
@@ -69,12 +69,11 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
         if (inventory != null)
             finalRareLoot = inventory.rareLootCount;
         
-        // Tùy chọn: Tạm dừng game hoặc vô hiệu hóa điều khiển ở đây
-        Time.timeScale = 0.1f; // Slow motion lúc win cho ngầu
         
+        // Hiệu ứng Slow motion đã được chuyển sang PlayerSurvival để đồng bộ cho mọi người
         Debug.Log($"<color=green>[VICTORY]</color> Escape door opened! You successfully escaped!");
 
-        PlayerSurvival ps = inventory.GetComponent<PlayerSurvival>();
+        PlayerSurvival ps = inventory != null ? inventory.GetComponent<PlayerSurvival>() : null;
         if (ps != null)
         {
             ps.DeclareVictoryServerRpc();
@@ -168,7 +167,12 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
 
         if (GUI.Button(new Rect(windowRect.x + 150, windowRect.y + 160, 300, 60), "ASSEMBLE PARTS", btnStyle))
         {
-            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            GameObject player = null;
+            if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.LocalClient != null && Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject != null)
+            {
+                player = Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject.gameObject;
+            }
+
             if (player != null)
             {
                 PlayerInventory inv = player.GetComponent<PlayerInventory>();
@@ -215,6 +219,8 @@ public class ExtractionSystem : MonoBehaviour, IInteractable
         if (GUI.Button(new Rect(windowRect.x + 250, windowRect.y + 320, 100, 40), "CLOSE", GUI.skin.button))
         {
             isAssembling = false;
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
     }
 

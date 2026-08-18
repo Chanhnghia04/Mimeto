@@ -10,7 +10,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -4471780607728732771, guid: f1f9de7f2c5d86c458eec0805c85dfc9, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 4077116606
+      value: 2197410662
       objectReference: {fileID: 0}
     - target: {fileID: -4471780607728732771, guid: f1f9de7f2c5d86c458eec0805c85dfc9, type: 3}
       propertyPath: InScenePlacedSourceGlobalObjectIdHash
@@ -59,6 +59,10 @@ PrefabInstance:
     - target: {fileID: 4769085231134356196, guid: f1f9de7f2c5d86c458eec0805c85dfc9, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5072377951627017906, guid: f1f9de7f2c5d86c458eec0805c85dfc9, type: 3}
+      propertyPath: m_WarningMessage
+      value: 
       objectReference: {fileID: 0}
     - target: {fileID: 8458132902521818565, guid: f1f9de7f2c5d86c458eec0805c85dfc9, type: 3}
       propertyPath: axeSprite

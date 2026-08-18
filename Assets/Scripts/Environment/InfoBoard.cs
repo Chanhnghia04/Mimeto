@@ -24,6 +24,11 @@ public class InfoBoard : MonoBehaviour, IInteractable
         _wh.Apply();
     }
 
+    void OnDisable()
+    {
+        if (isOpen) { isOpen = false; PlayerController.OpenMinigameCount--; }
+    }
+
     public void Interact(GameObject interactor)
     {
         if (isOpen) return;

@@ -192,14 +192,17 @@ public class EscapeReactor : MonoBehaviour, IInteractable
         fx.maxRadius = explosionRadius;
 
         // Tính toán sát thương nổ với Player
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player != null)
+        GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
+        foreach (GameObject player in players)
         {
-            float dist = Vector3.Distance(transform.position, player.transform.position);
-            if (dist <= explosionRadius)
+            if (player != null)
             {
-                PlayerSurvival ps = player.GetComponent<PlayerSurvival>();
-                if (ps != null) ps.TakeDamage(9999f, "Nổ Lò Phản Ứng!");
+                float dist = Vector3.Distance(transform.position, player.transform.position);
+                if (dist <= explosionRadius)
+                {
+                    PlayerSurvival ps = player.GetComponent<PlayerSurvival>();
+                    if (ps != null) ps.TakeDamage(9999f, "Nổ Lò Phản Ứng!");
+                }
             }
         }
 

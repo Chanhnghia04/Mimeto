@@ -84,8 +84,20 @@ public class InteractionSystem : MonoBehaviour
         }
     }
 
+    private void RefreshUIReferences()
+    {
+        if (_inventoryUI == null) _inventoryUI = FindAnyObjectByType<InventoryUI>();
+        if (_craftingUI == null)  _craftingUI  = FindAnyObjectByType<CraftingUI>();
+        if (_chestUI == null)     _chestUI     = FindAnyObjectByType<ChestUI>();
+        if (_shopStation == null) _shopStation = FindAnyObjectByType<ShopStation>();
+        if (_sellStation == null) _sellStation = FindAnyObjectByType<ScrapSellStation>();
+        if (_blackjackStation == null) _blackjackStation = FindAnyObjectByType<BlackjackStation>();
+    }
+
     private bool IsUIOpen()
     {
+        RefreshUIReferences();
+        
         if (_inventoryUI != null && _inventoryUI.inventoryPanel != null && _inventoryUI.inventoryPanel.activeSelf) return true;
         if (_craftingUI  != null && _craftingUI.craftingPanel  != null && _craftingUI.craftingPanel.activeSelf)  return true;
         if (_chestUI     != null && _chestUI.chestPanel        != null && _chestUI.chestPanel.activeSelf)        return true;
@@ -108,6 +120,26 @@ public class InteractionSystem : MonoBehaviour
         if (Physics.Raycast(ray, out RaycastHit hit, interactionRange))
         {
             Debug.Log($"[Interaction] Raycast hit: '{hit.collider.name}'");
+
+            // --- ANTIDOTE LOGIC ---
+            var pc = GetComponentInParent<PlayerController>();
+            if (pc != null && pc.netEquippedWeapon.Value == 7) // 7 = Antidote
+            {
+                var targetSurvival = hit.collider.GetComponentInParent<PlayerSurvival>();
+                if (targetSurvival != null && targetSurvival.gameObject != pc.gameObject)
+                {
+                    var myInv = GetComponentInParent<PlayerInventory>();
+                    if (myInv != null && myInv.antidotes > 0)
+                    {
+                        myInv.antidotes--;
+                        pc.netEquippedWeapon.Value = 0; // Unequip after use
+                        targetSurvival.ApplyAntidoteServerRpc();
+                        Debug.Log("[Interaction] Used antidote on " + targetSurvival.gameObject.name);
+                        return;
+                    }
+                }
+            }
+            // ----------------------
 
             IInteractable interactable = hit.collider.GetComponentInParent<IInteractable>();
             if (interactable != null)
@@ -174,11 +206,7 @@ public class InteractionSystem : MonoBehaviour
 
     private void TriggerInteract(IInteractable interactable)
     {
-        // Chỉ phát animation Lifting khi nhặt ScrapItem thật sự.
-        // Workbench / Chest / Extraction mở UI → KHÔNG cần animation nhặt,
-        // tránh Animator bị kẹt trong state "Lifting" sau khi đóng UI.
         bool isPickupAnim = interactable is ScrapItem;
-
         if (isPickupAnim && animator != null)
             animator.SetTrigger("Lifting");
 
@@ -189,11 +217,9 @@ public class InteractionSystem : MonoBehaviour
     {
         isPickingUp = true;
 
-        // Nếu không phải nhặt item (Workbench/Chest/Extraction) → gọi ngay,
-        // không đợi animation để tránh Animator bị kẹt.
         if (!isPickupAnim)
         {
-            yield return null; // 1 frame để đảm bảo UI trước đó đã ổn định
+            yield return null;
             try
             {
                 if (interactable != null && (interactable as MonoBehaviour) != null)
@@ -204,58 +230,95 @@ public class InteractionSystem : MonoBehaviour
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"[Interaction] Error during Interact: {e.Message}\n{e.StackTrace}");
+                Debug.LogError($"[Interaction] Error: {e.Message}");
             }
             isPickingUp = false;
             yield break;
         }
 
-        // ── Pickup thật: đợi animation Lifting ───────────────────────────────
-        // Đợi 2 frames để Animator kịp nhận lệnh SetTrigger và chuyển State
-        yield return null;
-        yield return null;
+        // ── 1. Kích hoạt hiệu ứng góc nhìn thứ nhất (FPS) ──
+        PlayerController pc = GetComponentInParent<PlayerController>();
+        if (pc != null) pc.TriggerPickupDip();
 
-        float animLength = pickupDelay; // Dùng pickupDelay làm mức an toàn dự phòng
-
-        if (animator != null)
+        // ── 2. Xử lý logic nhặt đồ ngay lập tức để Server ghi nhận ──
+        GameObject originalObj = (interactable as MonoBehaviour)?.gameObject;
+        
+        // Tạo clone giả để bay vào màn hình trước khi đồ thật biến mất
+        if (originalObj != null && playerCamera != null)
         {
-            // Lấy độ dài của animation hiện tại (hoặc animation đang chuẩn bị chuyển sang)
-            AnimatorStateInfo stateInfo = animator.IsInTransition(0) 
-                ? animator.GetNextAnimatorStateInfo(0) 
-                : animator.GetCurrentAnimatorStateInfo(0);
-                
-            if (stateInfo.length > 0)
-            {
-                animLength = stateInfo.length;
-            }
+            StartCoroutine(FlyItemToCamera(originalObj));
         }
 
-        // Tự động tính toán: Thời điểm tay chạm đất thường là 50% tiến trình của animation
-        float timeToTouchGround = animLength * 0.45f;
-        float timeToStandUp = animLength * 0.55f;
+        yield return null;
 
-        // Đợi đến lúc tay chạm vật
-        yield return new WaitForSeconds(timeToTouchGround);
-        
-        // Thực hiện nhặt (vật phẩm biến mất)
         try
         {
             if (interactable != null && (interactable as MonoBehaviour) != null)
             {
                 interactable.Interact(gameObject);
-                GetComponentInParent<PlayerController>()?.ForceUIRefresh();
+                pc?.ForceUIRefresh();
             }
         }
-        catch (System.Exception e)
+        catch (System.Exception)
         {
-            Debug.LogError($"[Interaction] Error during Interact: {e.Message}\n{e.StackTrace}");
         }
         
-        // Đợi nhân vật đứng thẳng lên hoàn toàn thì mới cho nhặt tiếp
-        yield return new WaitForSeconds(timeToStandUp); 
+        // Đợi 0.3s cho animation giả bay vào túi kết thúc rồi mới cho phép nhặt món khác
+        yield return new WaitForSeconds(0.3f);
         isPickingUp = false;
     }
 
+    private System.Collections.IEnumerator FlyItemToCamera(GameObject originalObj)
+    {
+        // Clone object
+        GameObject fakeObj = new GameObject("FakePickupItem");
+        fakeObj.transform.position = originalObj.transform.position;
+        fakeObj.transform.rotation = originalObj.transform.rotation;
+        fakeObj.transform.localScale = originalObj.transform.localScale;
+
+        // Copy Mesh
+        MeshFilter[] mfs = originalObj.GetComponentsInChildren<MeshFilter>();
+        MeshRenderer[] mrs = originalObj.GetComponentsInChildren<MeshRenderer>();
+
+        for (int i = 0; i < mfs.Length; i++)
+        {
+            GameObject child = new GameObject("Mesh");
+            child.transform.SetParent(fakeObj.transform);
+            child.transform.position = mfs[i].transform.position;
+            child.transform.rotation = mfs[i].transform.rotation;
+            child.transform.localScale = mfs[i].transform.localScale;
+
+            MeshFilter mf = child.AddComponent<MeshFilter>();
+            mf.sharedMesh = mfs[i].sharedMesh;
+            MeshRenderer mr = child.AddComponent<MeshRenderer>();
+            mr.sharedMaterials = mrs[i].sharedMaterials;
+        }
+
+        float duration = 0.25f;
+        float elapsed = 0f;
+        Vector3 startPos = fakeObj.transform.position;
+        Vector3 startScale = fakeObj.transform.localScale;
+
+        while (elapsed < duration)
+        {
+            if (playerCamera == null) break;
+            
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            // Ease out
+            float easeT = 1f - Mathf.Pow(1f - t, 3f);
+
+            // Mục tiêu bay đến: Trước mặt camera một chút và hơi xích xuống dưới
+            Vector3 targetPos = playerCamera.transform.position + playerCamera.transform.forward * 0.4f - playerCamera.transform.up * 0.25f;
+
+            fakeObj.transform.position = Vector3.Lerp(startPos, targetPos, easeT);
+            fakeObj.transform.localScale = Vector3.Lerp(startScale, Vector3.zero, easeT);
+
+            yield return null;
+        }
+
+        Destroy(fakeObj);
+    }
 
     // ── Scene view gizmo ──────────────────────────────────────────────────────
     private void OnDrawGizmosSelected()

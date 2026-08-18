@@ -99,7 +99,7 @@ public class TrainMovement : MonoBehaviour
         BoxCollider box = trigger.GetComponent<BoxCollider>();
         if (box == null) return;
 
-        Collider[] hits = Physics.OverlapBox(box.bounds.center, box.bounds.extents, box.transform.rotation);
+        Collider[] hits = Physics.OverlapBox(box.bounds.center, Vector3.Scale(box.size, box.transform.lossyScale) * 0.5f, box.transform.rotation);
         foreach (Collider other in hits)
         {
             if (other.isTrigger) continue;
@@ -110,7 +110,7 @@ public class TrainMovement : MonoBehaviour
             if (survival != null)
             {
                 Debug.LogWarning("<color=red>TRAIN COLLISION: Player was run over by the train!</color>");
-//                 survival.TakeDamage(1000f, "Hit by a train!"); // Instakill the player
+                survival.TakeDamage(1000f, "Hit by a train!"); // Instakill the player
             }
 
 

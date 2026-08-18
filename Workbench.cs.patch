@@ -1,4 +1,0 @@
-
-        CraftingUI ui = interactor.GetComponentInChildren<CraftingUI>(true);
-        if (ui == null) ui = Object.FindAnyObjectByType<CraftingUI>();
-

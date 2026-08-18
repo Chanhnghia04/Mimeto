@@ -1,6 +1,0 @@
-{
-  "csharpCode": "using UnityEngine; using UnityEditor; using UnityEditor.SceneManagement; using UnityEngine.SceneManagement; public class Script { public static string Execute() { Scene scene = EditorSceneManager.OpenScene(\"Assets/Scenes/Map.unity\", OpenSceneMode.Single); string sky = RenderSettings.skybox != null ? RenderSettings.skybox.name : \"none\"; GameObject stars = GameObject.Find(\"StarrySkyParticles\"); return \"Map Skybox: \" + sky + \"\\nStars found: \" + (stars != null); } }",
-  "className": "Script",
-  "methodName": "Execute",
-  "isMethodBody": false
-}

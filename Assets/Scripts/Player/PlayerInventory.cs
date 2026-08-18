@@ -8,12 +8,12 @@ public class PlayerInventory : NetworkBehaviour
     public static int GlobalMatchSeed = 0;
 
     // --- Events for Server-Authoritative Minigames & Shop ---
-    public static event System.Action<int, int, int> OnSlotSpinResult;
-    public static event System.Action<int, int, int, int> OnDiceRollResult;
+    public static event System.Action<ulong, int, int, int> OnSlotSpinResult;
+    public static event System.Action<ulong, int, int, int, int> OnDiceRollResult;
     public static event System.Action<int[], int[]> OnBlackjackStartResult;
     public static event System.Action<int> OnBlackjackHitResult;
     public static event System.Action<int[]> OnBlackjackStandResult;
-    public static event System.Action<string> OnShopBuyResult;
+    public static event System.Action<ulong, string> OnShopBuyResult;
 
     // --- Blackjack Server State (per player) ---
     private List<int> _bjDeck = new List<int>();
@@ -28,11 +28,14 @@ public class PlayerInventory : NetworkBehaviour
     public int plasticPipes = 0;
     public int scrapBatteries = 0;
     
+    public int maxSlots = 5;
+
     [Header("Currency")]
     public int credits = 0;
 
     public int basicGasMasks = 0;
     public int advancedGasMasks = 0;
+    public bool hasFlashlight = false;
     public bool hasUVFlashlight = false;
     public bool hasCrowbar = false;
     public bool hasShovel = false;
@@ -48,6 +51,7 @@ public class PlayerInventory : NetworkBehaviour
     [Header("Escape & Loot")]
     public bool hasEscapeKey = false;
     public int rareLootCount = 0;
+    public bool hasEscaped = false;
 
     void Start()
     {
@@ -68,9 +72,11 @@ public class PlayerInventory : NetworkBehaviour
                 chemicals = GlobalPlayerData.chemicals;
                 plasticPipes = GlobalPlayerData.plasticPipes;
                 scrapBatteries = GlobalPlayerData.scrapBatteries;
+                maxSlots = GlobalPlayerData.maxSlots;
                 credits = GlobalPlayerData.credits;
                 basicGasMasks = GlobalPlayerData.basicGasMasks;
                 advancedGasMasks = GlobalPlayerData.advancedGasMasks;
+                hasFlashlight = GlobalPlayerData.hasFlashlight;
                 hasUVFlashlight = GlobalPlayerData.hasUVFlashlight;
                 hasCrowbar = GlobalPlayerData.hasCrowbar;
                 hasShovel = GlobalPlayerData.hasShovel;
@@ -89,30 +95,36 @@ public class PlayerInventory : NetworkBehaviour
             }
         }
 
-        // --- ĐỒNG BỘ TIỀN TỆ CHUNG TỪ HOST CHO CLIENT MỚI VÀO ---
+        // --- ĐỒNG BỘ TIỀN TỆ VÀ SỰ KIỆN SHOP TỪ HOST CHO CLIENT MỚI VÀO ---
         if (IsServer && !IsOwner)
         {
-            // Lấy Inventory của Host
-            if (NetworkManager.Singleton.ConnectedClients.TryGetValue(NetworkManager.ServerClientId, out var hostClient))
+            if (Unity.Netcode.NetworkManager.Singleton.ConnectedClients.TryGetValue(Unity.Netcode.NetworkManager.ServerClientId, out var hostClient))
             {
                 if (hostClient.PlayerObject != null && hostClient.PlayerObject.TryGetComponent(out PlayerInventory hostInv))
                 {
-                    // Cập nhật NGAY LẬP TỨC trên Server cho Inventory của Client này
                     this.credits = hostInv.credits;
-
-                    // Gửi số tiền hiện tại của Host cho Client này
                     ClientRpcParams clientRpcParams = new ClientRpcParams
                     {
                         Send = new ClientRpcSendParams { TargetClientIds = new[] { OwnerClientId } }
                     };
                     SyncInitialCreditsClientRpc(hostInv.credits, clientRpcParams);
+                    SyncShopEventClientRpc((int)ShopData.CurrentEvent, clientRpcParams);
                 }
             }
         }
 
         if (IsServer && IsOwner)
         {
-            MatchSeed.Value = (int)(System.DateTime.Now.Ticks % 100000000);
+            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            if (sceneName == "WaitingRoom")
+            {
+                ShopData.RollMarketEvent();
+                SyncShopEventClientRpc((int)ShopData.CurrentEvent);
+            }
+            else
+            {
+                MatchSeed.Value = (int)(System.DateTime.Now.Ticks % 100000000);
+            }
         }
         if (MatchSeed.Value != 0)
         {
@@ -135,6 +147,13 @@ public class PlayerInventory : NetworkBehaviour
         Debug.Log($"[Tiền Tệ Chung] Đã đồng bộ số tiền từ Host: {credits}");
     }
 
+    [ClientRpc]
+    public void SyncShopEventClientRpc(int eventId, ClientRpcParams rpcParams = default)
+    {
+        ShopData.ApplyMarketEvent((MarketEvent)eventId);
+        Debug.Log($"[Shop] Đã đồng bộ sự kiện Shop từ Host: {ShopData.CurrentEvent}");
+    }
+
     void Update()
     {
         if (MatchSeed.Value != 0 && GlobalMatchSeed != MatchSeed.Value)
@@ -148,12 +167,68 @@ public class PlayerInventory : NetworkBehaviour
     {
         base.OnNetworkDespawn();
         GlobalMatchSeed = 0;
+        
+        if (IsOwner)
+        {
+            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            if (sceneName == "Map" || sceneName == "PollutedZone")
+            {
+                if (hasEscaped)
+                {
+                    SaveData(true);
+                    Debug.Log("[PlayerInventory] Đã thoát hiểm thành công -> Lưu dữ liệu.");
+                }
+                else
+                {
+                    Debug.Log("[PlayerInventory] Thoát giữa chừng khi chưa hoàn thành nhiệm vụ -> MẤT SẠCH ĐỒ (Phạt).");
+                    ClearInventoryOnDeath(); // Hàm này giờ đã gọi SaveData(true) nên đồ sẽ bị xóa sạch khỏi ổ cứng
+                }
+            }
+            else
+            {
+                // Đang ở Waiting hoặc sảnh thì cứ lưu bình thường
+                SaveData(true);
+            }
+        }
     }
 
-    /// <summary>
-    /// Tạo seed mới cho mỗi lần vào Map.
-    /// Gọi bởi Host trước khi LoadScene("Map").
-    /// </summary>
+    private void SaveData(bool force = false)
+    {
+        if (!force)
+        {
+            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            if ((sceneName == "Map" || sceneName == "PollutedZone") && !hasEscaped)
+            {
+                return; // KHÔNG tự động lưu khi đang nhặt đồ trong map (trừ khi đã escape)
+            }
+        }
+
+        GlobalPlayerData.circuits = circuits;
+        GlobalPlayerData.metalPipes = metalPipes;
+        GlobalPlayerData.ironPlates = ironPlates;
+        GlobalPlayerData.chemicals = chemicals;
+        GlobalPlayerData.plasticPipes = plasticPipes;
+        GlobalPlayerData.scrapBatteries = scrapBatteries;
+        GlobalPlayerData.maxSlots = maxSlots;
+        GlobalPlayerData.credits = credits;
+        GlobalPlayerData.basicGasMasks = basicGasMasks;
+        GlobalPlayerData.advancedGasMasks = advancedGasMasks;
+        GlobalPlayerData.hasFlashlight = hasFlashlight;
+        GlobalPlayerData.hasUVFlashlight = hasUVFlashlight;
+        GlobalPlayerData.hasCrowbar = hasCrowbar;
+        GlobalPlayerData.hasShovel = hasShovel;
+        GlobalPlayerData.hasMachete = hasMachete;
+        GlobalPlayerData.hasAxe = hasAxe;
+        GlobalPlayerData.hasBat = hasBat;
+        GlobalPlayerData.rareLootCount = rareLootCount;
+        GlobalPlayerData.healthPacks = healthPacks;
+        GlobalPlayerData.oxygenTanks = oxygenTanks;
+        GlobalPlayerData.antidotes = antidotes;
+        GlobalPlayerData.hasSavedData = true;
+
+        GlobalPlayerData.Save();
+    }
+
     public void RegenerateSeed()
     {
         if (!IsServer) return;
@@ -166,33 +241,63 @@ public class PlayerInventory : NetworkBehaviour
     {
         base.OnDestroy(); // NetworkBehaviour requires base.OnDestroy()
         GlobalMatchSeed = 0;
-        
-        if (IsOwner)
-        {
-            GlobalPlayerData.circuits = circuits;
-            GlobalPlayerData.metalPipes = metalPipes;
-            GlobalPlayerData.ironPlates = ironPlates;
-            GlobalPlayerData.chemicals = chemicals;
-            GlobalPlayerData.plasticPipes = plasticPipes;
-            GlobalPlayerData.scrapBatteries = scrapBatteries;
-            GlobalPlayerData.credits = credits;
-            GlobalPlayerData.basicGasMasks = basicGasMasks;
-            GlobalPlayerData.advancedGasMasks = advancedGasMasks;
-            GlobalPlayerData.hasUVFlashlight = hasUVFlashlight;
-            GlobalPlayerData.hasCrowbar = hasCrowbar;
-            GlobalPlayerData.hasShovel = hasShovel;
-            GlobalPlayerData.hasMachete = hasMachete;
-            GlobalPlayerData.hasAxe = hasAxe;
-            GlobalPlayerData.hasBat = hasBat;
-            GlobalPlayerData.rareLootCount = rareLootCount;
-            GlobalPlayerData.healthPacks = healthPacks;
-            GlobalPlayerData.oxygenTanks = oxygenTanks;
-            GlobalPlayerData.antidotes = antidotes;
-            GlobalPlayerData.hasSavedData = true;
+    }
 
-            // Lưu xuống ổ cứng
-            GlobalPlayerData.Save();
+    public int CalculateUsedSlots()
+    {
+        int toolsCount = (hasMachete ? 1 : 0) + (hasAxe ? 1 : 0) + (hasBat ? 1 : 0) + 
+                         (hasCrowbar ? 1 : 0) + (hasShovel ? 1 : 0) + (hasFlashlight ? 1 : 0) + antidotes;
+        
+        return Mathf.CeilToInt(circuits / 5f) + 
+               Mathf.CeilToInt(metalPipes / 5f) + 
+               Mathf.CeilToInt(ironPlates / 5f) + 
+               Mathf.CeilToInt(chemicals / 5f) + 
+               Mathf.CeilToInt(plasticPipes / 5f) + 
+               Mathf.CeilToInt(scrapBatteries / 5f) + toolsCount;
+    }
+
+    public bool CanAddScrap(string type, int amount)
+    {
+        int tempC = circuits, tempM = metalPipes, tempI = ironPlates;
+        int tempCh = chemicals, tempP = plasticPipes, tempB = scrapBatteries;
+        int tMachete = hasMachete ? 1 : 0;
+        int tAxe = hasAxe ? 1 : 0;
+        int tBat = hasBat ? 1 : 0;
+        int tCrowbar = hasCrowbar ? 1 : 0;
+        int tShovel = hasShovel ? 1 : 0;
+        int tFlashlight = hasFlashlight ? 1 : 0;
+        int tempAntidotes = antidotes;
+        
+        switch (type.ToLower())
+        {
+            case "circuit": tempC += amount; break;
+            case "metal_pipe":
+            case "metal pipe": tempM += amount; break;
+            case "iron_plate":
+            case "iron plate": tempI += amount; break;
+            case "chemical": tempCh += amount; break;
+            case "plastic_pipe":
+            case "plastic pipe":
+            case "pipe":
+            case "plastic":
+            case "rubber": tempP += amount; break;
+            case "battery": tempB += amount; break;
+            case "machete": if (tMachete > 0) return false; tMachete = 1; break;
+            case "axe": if (tAxe > 0) return false; tAxe = 1; break;
+            case "bat": if (tBat > 0) return false; tBat = 1; break;
+            case "crowbar": if (tCrowbar > 0) return false; tCrowbar = 1; break;
+            case "shovel": if (tShovel > 0) return false; tShovel = 1; break;
+            case "flashlight": if (tFlashlight > 0) return false; tFlashlight = 1; break;
+            case "antidote": tempAntidotes += amount; break;
+            default: break; 
         }
+
+        int used = Mathf.CeilToInt(tempC / 5f) + Mathf.CeilToInt(tempM / 5f) +
+                   Mathf.CeilToInt(tempI / 5f) + Mathf.CeilToInt(tempCh / 5f) +
+                   Mathf.CeilToInt(tempP / 5f) + Mathf.CeilToInt(tempB / 5f) + 
+                   tMachete + tAxe + tBat + tCrowbar + tShovel + tFlashlight + tempAntidotes;
+
+        return used <= maxSlots;
     }
 
     public void AddScrap(string type, int amount)
@@ -235,7 +340,18 @@ public class PlayerInventory : NetworkBehaviour
                 rareLootCount += amount;
                 Debug.Log($"<color=cyan>Obtained Rare Loot! Total: {rareLootCount}</color>");
                 break;
+            case "machete": hasMachete = true; break;
+            case "axe": hasAxe = true; break;
+            case "bat": hasBat = true; break;
+            case "crowbar": hasCrowbar = true; break;
+            case "shovel": hasShovel = true; break;
+            case "flashlight": hasFlashlight = true; break;
+            case "antidote": antidotes += amount; break;
         }
+
+        SaveData();
+        
+
         if (ItemNotificationManager.Instance != null)
         {
             ItemNotificationManager.Instance.ShowNotification(type, amount);
@@ -247,6 +363,11 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RequestPickupItemServerRpc(Vector3 pos, string itemType, int amount, ServerRpcParams rpcParams = default)
     {
+        var clientId = rpcParams.Receive.SenderClientId;
+        // Check capacity using Server's knowledge of the player's inventory
+        var clientInv = NetworkManager.Singleton.SpawnManager.GetPlayerNetworkObject(clientId)?.GetComponent<PlayerInventory>();
+        if (clientInv != null && !clientInv.CanAddScrap(itemType, amount)) return;
+
         Collider[] colls = Physics.OverlapSphere(pos, 2.0f);
         foreach (var col in colls)
         {
@@ -256,7 +377,9 @@ public class PlayerInventory : NetworkBehaviour
                 // Tắt ngay lập tức để chặn các RPC nhặt đồ khác trong cùng một frame
                 scrap.gameObject.SetActive(false);
 
-                var clientId = rpcParams.Receive.SenderClientId;
+                // Keep server copy in sync
+                if (clientInv != null) clientInv.AddScrap(itemType, amount);
+
                 AddScrapClientRpc(itemType, amount, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } });
                 SyncDestroyItemClientRpc(pos, itemType);
                 Destroy(scrap.rootObject != null ? scrap.rootObject : scrap.gameObject);
@@ -309,6 +432,13 @@ public class PlayerInventory : NetworkBehaviour
                 {
                     int amount = entry.amount;
                     var clientId = rpcParams.Receive.SenderClientId;
+                    
+                    var clientInv = NetworkManager.Singleton.SpawnManager.GetPlayerNetworkObject(clientId)?.GetComponent<PlayerInventory>();
+                    if (clientInv != null && !clientInv.CanAddScrap(itemType, amount)) return;
+
+                    // Keep server copy in sync
+                    if (clientInv != null) clientInv.AddScrap(itemType, amount);
+
                     AddScrapClientRpc(itemType, amount, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } });
                     
                     chest.RemoveItem(entry);
@@ -465,13 +595,23 @@ public class PlayerInventory : NetworkBehaviour
     {
         if (IsSpawned && !IsOwner && !IsServer) return;
         
-        int totalValue = 0;
-        totalValue += circuits * ShopData.CircuitSellPrice;
-        totalValue += metalPipes * ShopData.MetalPipeSellPrice;
-        totalValue += ironPlates * ShopData.IronPlateSellPrice;
-        totalValue += chemicals * ShopData.ChemicalSellPrice;
-        totalValue += plasticPipes * ShopData.PlasticPipeSellPrice;
-        totalValue += scrapBatteries * ShopData.BatterySellPrice;
+        if (IsSpawned)
+        {
+            RequestSellScrapServerRpc(circuits, metalPipes, ironPlates, chemicals, plasticPipes, scrapBatteries);
+        }
+        else
+        {
+            int totalValue = 0;
+            totalValue += circuits * ShopData.CircuitSellPrice;
+            totalValue += metalPipes * ShopData.MetalPipeSellPrice;
+            totalValue += ironPlates * ShopData.IronPlateSellPrice;
+            totalValue += chemicals * ShopData.ChemicalSellPrice;
+            totalValue += plasticPipes * ShopData.PlasticPipeSellPrice;
+            totalValue += scrapBatteries * ShopData.BatterySellPrice;
+            credits += totalValue;
+            GlobalPlayerData.credits = credits;
+            Debug.Log($"[Store] Sold all scrap for {totalValue} Energy Cells!");
+        }
         
         circuits = 0;
         metalPipes = 0;
@@ -479,19 +619,39 @@ public class PlayerInventory : NetworkBehaviour
         chemicals = 0;
         plasticPipes = 0;
         scrapBatteries = 0;
-        
-        if (IsSpawned)
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestSellScrapServerRpc(int c, int mp, int ip, int ch, int pl, int bat, ServerRpcParams rpcParams = default)
+    {
+        int totalValue = 0;
+        totalValue += c * ShopData.CircuitSellPrice;
+        totalValue += mp * ShopData.MetalPipeSellPrice;
+        totalValue += ip * ShopData.IronPlateSellPrice;
+        totalValue += ch * ShopData.ChemicalSellPrice;
+        totalValue += pl * ShopData.PlasticPipeSellPrice;
+        totalValue += bat * ShopData.BatterySellPrice;
+
+        var clientId = rpcParams.Receive.SenderClientId;
+        var clientInv = NetworkManager.Singleton.SpawnManager.GetPlayerNetworkObject(clientId)?.GetComponent<PlayerInventory>();
+        if (clientInv != null)
         {
-            AddCreditsServerRpc(totalValue);
+            clientInv.circuits = 0;
+            clientInv.metalPipes = 0;
+            clientInv.ironPlates = 0;
+            clientInv.chemicals = 0;
+            clientInv.plasticPipes = 0;
+            clientInv.scrapBatteries = 0;
         }
-        else
-        {
-            credits += totalValue;
-            GlobalPlayerData.credits = credits;
-        }
-        
+
+        AddCreditsServerInternal(totalValue);
+        SellScrapResultClientRpc(totalValue, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
+    }
+
+    [ClientRpc]
+    public void SellScrapResultClientRpc(int totalValue, ClientRpcParams rpcParams = default)
+    {
         Debug.Log($"[Store] Sold all scrap for {totalValue} Energy Cells!");
-        
         if (ItemNotificationManager.Instance != null)
         {
             ItemNotificationManager.Instance.ShowNotification("Energy Cells", totalValue);
@@ -517,7 +677,7 @@ public class PlayerInventory : NetworkBehaviour
         if (!IsServer) return;
 
         // Cập nhật NGAY LẬP TỨC trên Server cho tất cả PlayerInventory
-        PlayerInventory[] allInvs = FindObjectsByType<PlayerInventory>(FindObjectsSortMode.None);
+        PlayerInventory[] allInvs = FindObjectsByType<PlayerInventory>(FindObjectsInactive.Exclude);
         foreach(var inv in allInvs)
         {
             inv.credits += amount;
@@ -534,7 +694,7 @@ public class PlayerInventory : NetworkBehaviour
         if (IsServer) return; // Host đã cập nhật ở AddCreditsServerInternal rồi, không cộng đúp
         
         // Find local player and update
-        PlayerInventory[] allInvs = FindObjectsByType<PlayerInventory>(FindObjectsSortMode.None);
+        PlayerInventory[] allInvs = FindObjectsByType<PlayerInventory>(FindObjectsInactive.Exclude);
         foreach(var inv in allInvs)
         {
             if (inv.IsOwner)
@@ -612,6 +772,7 @@ public class PlayerInventory : NetworkBehaviour
         
         basicGasMasks = 0;
         advancedGasMasks = 0;
+        hasFlashlight = false;
         hasUVFlashlight = false;
         hasCrowbar = false;
         hasShovel = false;
@@ -624,6 +785,7 @@ public class PlayerInventory : NetworkBehaviour
         antidotes = 0;
         
         Debug.Log("<color=red>[Inventory]</color> All items lost due to death.");
+        SaveData(true); // Phải lưu lại vào ổ cứng ngay lập tức để ghi đè việc mất đồ
     }
 
     private Texture2D _currencyBgTex;
@@ -681,22 +843,33 @@ public class PlayerInventory : NetworkBehaviour
 
     // --- SHOP ---
     [ServerRpc(RequireOwnership = false)]
-    public void RequestBuyItemServerRpc(string itemId, int price, ServerRpcParams rpcParams = default)
+    public void RequestBuyItemServerRpc(ulong stationNetworkObjectId, string itemId, ServerRpcParams rpcParams = default)
     {
+        // Server tự tra cứu giá, không tin tưởng Client
+        int price = 0;
+        var itemIndex = ShopData.BuyableItems.FindIndex(x => x.id == itemId);
+        if (itemIndex != -1) price = ShopData.BuyableItems[itemIndex].currentPrice;
+        else return;
+
         if (credits < price) return;
         SpendCredits(price); // deducts on server, syncs to client
-        BuyItemResultClientRpc(itemId, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
+
+        // Keep server copy of maxSlots in sync
+        if (itemId == "bag_10_slots" && maxSlots < 10) maxSlots = 10;
+        else if (itemId == "bag_15_slots" && maxSlots < 15) maxSlots = 15;
+
+        BuyItemResultClientRpc(stationNetworkObjectId, itemId, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
     }
     
     [ClientRpc]
-    public void BuyItemResultClientRpc(string itemId, ClientRpcParams rpcParams = default)
+    public void BuyItemResultClientRpc(ulong stationNetworkObjectId, string itemId, ClientRpcParams rpcParams = default)
     {
-        OnShopBuyResult?.Invoke(itemId);
+        OnShopBuyResult?.Invoke(stationNetworkObjectId, itemId);
     }
 
     // --- SLOT MACHINE ---
     [ServerRpc(RequireOwnership = false)]
-    public void RequestSlotSpinServerRpc(int betAmount, ServerRpcParams rpcParams = default)
+    public void RequestSlotSpinServerRpc(ulong stationNetworkObjectId, int betAmount, ServerRpcParams rpcParams = default)
     {
         if (credits < betAmount || betAmount < 10) return;
         SpendCredits(betAmount);
@@ -716,18 +889,18 @@ public class PlayerInventory : NetworkBehaviour
         if (a == b && b == c) AddCredits(Mathf.RoundToInt(betAmount * PAY[a]));
         else if (a == b || b == c || a == c) AddCredits(betAmount);
         
-        SlotSpinResultClientRpc(result[0], result[1], result[2], new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
+        SlotSpinResultClientRpc(stationNetworkObjectId, result[0], result[1], result[2], new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
     }
 
     [ClientRpc]
-    public void SlotSpinResultClientRpc(int r0, int r1, int r2, ClientRpcParams rpcParams = default)
+    public void SlotSpinResultClientRpc(ulong stationNetworkObjectId, int r0, int r1, int r2, ClientRpcParams rpcParams = default)
     {
-        OnSlotSpinResult?.Invoke(r0, r1, r2);
+        OnSlotSpinResult?.Invoke(stationNetworkObjectId, r0, r1, r2);
     }
 
     // --- DICE DUEL ---
     [ServerRpc(RequireOwnership = false)]
-    public void RequestDiceRollServerRpc(int betAmount, ServerRpcParams rpcParams = default)
+    public void RequestDiceRollServerRpc(ulong stationNetworkObjectId, int betAmount, ServerRpcParams rpcParams = default)
     {
         if (credits < betAmount || betAmount < 10) return;
         SpendCredits(betAmount);
@@ -739,13 +912,13 @@ public class PlayerInventory : NetworkBehaviour
         if (pt > dt2) AddCredits((p1 == p2) ? Mathf.RoundToInt(betAmount * 2.5f) : betAmount * 2);
         else if (pt == dt2) AddCredits(betAmount);
         
-        DiceRollResultClientRpc(p1, p2, d1, d2, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
+        DiceRollResultClientRpc(stationNetworkObjectId, p1, p2, d1, d2, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
     }
 
     [ClientRpc]
-    public void DiceRollResultClientRpc(int p1, int p2, int d1, int d2, ClientRpcParams rpcParams = default)
+    public void DiceRollResultClientRpc(ulong stationNetworkObjectId, int p1, int p2, int d1, int d2, ClientRpcParams rpcParams = default)
     {
-        OnDiceRollResult?.Invoke(p1, p2, d1, d2);
+        OnDiceRollResult?.Invoke(stationNetworkObjectId, p1, p2, d1, d2);
     }
 
     // --- BLACKJACK ---

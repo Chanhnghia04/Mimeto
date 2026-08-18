@@ -69,11 +69,12 @@ public class LobbyManager : MonoBehaviour
         {
             InitializationOptions options = new InitializationOptions();
             
-            // Fix lỗi 2 cửa sổ game trên cùng 1 máy tính bị trùng ID
-            // Mỗi lần chạy (cả Editor lẫn Build) sẽ tạo một ID ảo khác nhau.
-            // Nếu bạn muốn lưu ID cố định sau này, hãy bỏ dòng này đi.
-            string randomProfile = "Player_" + System.Guid.NewGuid().ToString().Substring(0, 8);
-            options.SetProfile(randomProfile);
+#if UNITY_EDITOR
+            string profileId = "Editor_" + System.Guid.NewGuid().ToString().Substring(0, 8);
+#else
+            string profileId = "Player_" + Mathf.Abs(SystemInfo.deviceUniqueIdentifier.GetHashCode()).ToString();
+#endif
+            options.SetProfile(profileId);
 
             await UnityServices.InitializeAsync(options);
         }

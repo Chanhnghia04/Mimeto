@@ -142,7 +142,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 4211567917
+  GlobalObjectIdHash: 1506925401
   InScenePlacedSourceGlobalObjectIdHash: 0
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
@@ -165,7 +165,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ExilerAI
   currentState: 0
   maxHealth: 150
-  currentHealth: 0
+  currentHealth:
+    m_InternalValue: 150
   patrolSpeed: 2
   chaseSpeed: 7
   attackRange: 2

@@ -31,10 +31,19 @@ public class PlayerSurvival : NetworkBehaviour
             isGameOver = false;
             showGameOver = false;
             pendingSceneLoad = false;
+            
+            if (IsServer)
+            {
+                NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
+                NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
+            }
         }
 
         isGhost.OnValueChanged += (oldVal, newVal) => { ApplyGhostVisuals(newVal); };
         if (isGhost.Value) ApplyGhostVisuals(true);
+        
+        netEquippedMask.OnValueChanged += OnEquippedMaskChanged;
+        if (netEquippedMask.Value != 0) OnEquippedMaskChanged(0, netEquippedMask.Value);
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -45,6 +54,40 @@ public class PlayerSurvival : NetworkBehaviour
         {
             CheckTeamWipe();
         }
+    }
+    
+    public override void OnNetworkDespawn()
+    {
+        netEquippedMask.OnValueChanged -= OnEquippedMaskChanged;
+        
+        if (IsServer && Unity.Netcode.NetworkManager.Singleton != null)
+        {
+            Unity.Netcode.NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
+        }
+        base.OnNetworkDespawn();
+    }
+
+    public override void OnDestroy()
+    {
+        if (Unity.Netcode.NetworkManager.Singleton != null)
+        {
+            Unity.Netcode.NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
+        }
+        base.OnDestroy();
+    }
+    
+    private void OnClientDisconnect(ulong clientId)
+    {
+        if (IsServer)
+        {
+            StartCoroutine(CheckTeamWipeDelayed());
+        }
+    }
+
+    private System.Collections.IEnumerator CheckTeamWipeDelayed()
+    {
+        yield return null; // Chờ 1 frame để Netcode dọn dẹp xong GameObject của người vừa văng mạng
+        CheckTeamWipe();
     }
 
     private void ApplyGhostVisuals(bool ghost)
@@ -89,6 +132,7 @@ public class PlayerSurvival : NetworkBehaviour
 
     [Header("Mask Settings")]
     public GasMaskType activeMaskType = GasMaskType.None;
+    public NetworkVariable<int> netEquippedMask = new NetworkVariable<int>(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
     public float maskDurability = 0f;
     public float basicMaskProtection = 0.8f; // 80% reduction
     public float advancedMaskProtection = 0.95f; // 95% reduction
@@ -100,15 +144,16 @@ public class PlayerSurvival : NetworkBehaviour
     public Camera deathCamera;
 
     // Basic lasts ~60s, Advanced lasts ~300s
-    private float basicDurabilityLoss = 1.66f; // 100/60
-    private float advancedDurabilityLoss = 0.33f; // 100/300
+    private float basicDurabilityLoss = 0.555f; // 100/180
+    private float advancedDurabilityLoss = 0.111f; // 100/900
 
     public Transform headTransform;
     private GameObject equippedMaskInstance;
 
     // Fix: proper timer to avoid Debug.LogWarning spam based on FPS
     private float nextWarningTime = 0f;
-    private float accumulatedDamage = 0f;
+    private float accumulatedOxygenDamage = 0f;
+    private float accumulatedBleedDamage = 0f;
 
     [Header("Audio")]
     public AudioSource breathingSource;
@@ -205,8 +250,17 @@ public class PlayerSurvival : NetworkBehaviour
             {
                 maskDurability = 0;
                 Debug.Log($"<color=red>Gas Mask ({activeMaskType}) broke!</color>");
-                activeMaskType = GasMaskType.None;
-                UnequipVisualMask();
+                
+                if (IsOwner)
+                {
+                    PlayerInventory inv = GetComponent<PlayerInventory>();
+                    if (inv != null)
+                    {
+                        if (netEquippedMask.Value == 2 && inv.advancedGasMasks > 0) inv.advancedGasMasks--;
+                        else if (netEquippedMask.Value == 1 && inv.basicGasMasks > 0) inv.basicGasMasks--;
+                    }
+                    netEquippedMask.Value = 0; // Tự động gọi callback tháo mặt nạ
+                }
             }
         }
         else
@@ -217,14 +271,14 @@ public class PlayerSurvival : NetworkBehaviour
             {
                 currentOxygen = 0;
                 float tickDamage = 5f * Time.deltaTime;
-                accumulatedDamage += tickDamage;
-                currentHealth -= tickDamage; // Dự đoán ở Client
+                accumulatedOxygenDamage += tickDamage;
+                if (!IsServer) currentHealth -= tickDamage; // Dự đoán ở Client
                 
-                if (accumulatedDamage >= 1f || currentHealth <= 0)
+                if (accumulatedOxygenDamage >= 1f || currentHealth <= 0)
                 {
-                    if (IsServer) ApplyDamageLogic(accumulatedDamage, "Suffocated!");
-                    else TakeDamageServerRpc(accumulatedDamage, "Suffocated!");
-                    accumulatedDamage = 0f;
+                    if (IsServer) ApplyDamageLogic(accumulatedOxygenDamage, "Suffocated!");
+                    else TakeDamageServerRpc(accumulatedOxygenDamage, "Suffocated!");
+                    accumulatedOxygenDamage = 0f;
                 }
                 
                 if (Time.time >= nextWarningTime)
@@ -289,14 +343,14 @@ public class PlayerSurvival : NetworkBehaviour
         if (Time.time < bleedEndTime && currentHealth > 0 && !isDead)
         {
             float tickDamage = bleedDps * Time.deltaTime;
-            accumulatedDamage += tickDamage;
-            currentHealth -= tickDamage; // Dự đoán ở Client
+            accumulatedBleedDamage += tickDamage;
+            if (!IsServer) currentHealth -= tickDamage; // Dự đoán ở Client
             
-            if (accumulatedDamage >= 1f || currentHealth <= 0)
+            if (accumulatedBleedDamage >= 1f || currentHealth <= 0)
             {
-                if (IsServer) ApplyDamageLogic(accumulatedDamage, "Bled out from Mutant attack!");
-                else TakeDamageServerRpc(accumulatedDamage, "Bled out from Mutant attack!");
-                accumulatedDamage = 0f;
+                if (IsServer) ApplyDamageLogic(accumulatedBleedDamage, "Bled out from Mutant attack!");
+                else TakeDamageServerRpc(accumulatedBleedDamage, "Bled out from Mutant attack!");
+                accumulatedBleedDamage = 0f;
             }
         }
         // -------------------
@@ -329,15 +383,84 @@ public class PlayerSurvival : NetworkBehaviour
             }
         }
 
+        // Feed stats to Horror Audio Director for adaptive music
+        if (HorrorAudioDirector.Instance != null)
+        {
+            HorrorAudioDirector.Instance.SetPlayerStats(currentHealth, currentOxygen, currentStamina, IsBleeding);
+        }
+
         UpdateEKG(); // Update EKG every frame
     }
 
     public void EquipMask(GasMaskType type)
     {
         activeMaskType = type;
-        maskDurability = 100f;
+        if (maskDurability <= 0f) maskDurability = 100f; // Chỉ khôi phục 100% nếu cái trước đó đã hỏng (bắt đầu dùng cái mới)
         Debug.Log($"Equipped {type} Gas Mask. Protection: {(type == GasMaskType.Advanced ? advancedMaskProtection : basicMaskProtection)*100}%");
         EquipVisualMask();
+    }
+
+    public void ToggleGasMask(string specificMask = null)
+    {
+        if (!IsOwner) return;
+
+        if (netEquippedMask.Value != 0)
+        {
+            // Tháo ra (không cần cộng lại vào túi đồ nữa vì lúc đeo không trừ)
+            netEquippedMask.Value = 0;
+        }
+        else
+        {
+            // Đeo vào
+            PlayerInventory inv = GetComponent<PlayerInventory>();
+            if (inv != null)
+            {
+                bool wantAdv = (specificMask == "adv_gasmask");
+                bool wantBasic = (specificMask == "basic_gasmask");
+                
+                // Nếu không chỉ định cụ thể, ưu tiên loại đang có
+                if (string.IsNullOrEmpty(specificMask))
+                {
+                    if (inv.advancedGasMasks > 0) wantAdv = true;
+                    else if (inv.basicGasMasks > 0) wantBasic = true;
+                }
+
+                // Chỉ đeo khi túi đồ có sở hữu, không trừ đi (để nó luôn nằm trong túi/hotbar)
+                if (wantAdv && inv.advancedGasMasks > 0)
+                {
+                    netEquippedMask.Value = 2; // Advanced
+                }
+                else if (wantBasic && inv.basicGasMasks > 0)
+                {
+                    netEquippedMask.Value = 1; // Basic
+                }
+                else
+                {
+                    Debug.Log("Không có mặt nạ nào phù hợp trong túi đồ!");
+                }
+            }
+        }
+    }
+
+    private void OnEquippedMaskChanged(int previous, int current)
+    {
+        if (current == 0)
+        {
+            activeMaskType = GasMaskType.None;
+            UnequipVisualMask();
+        }
+        else if (current == 1)
+        {
+            activeMaskType = GasMaskType.Basic;
+            if (IsOwner && maskDurability <= 0f) maskDurability = 100f;
+            EquipVisualMask();
+        }
+        else if (current == 2)
+        {
+            activeMaskType = GasMaskType.Advanced;
+            if (IsOwner && maskDurability <= 0f) maskDurability = 100f;
+            EquipVisualMask();
+        }
     }
 
     private void EquipVisualMask()
@@ -356,11 +479,6 @@ public class PlayerSurvival : NetworkBehaviour
         {
             em.UnequipSlot(EquipmentSlot.Face);
         }
-
-        if (IsServer)
-        {
-            CheckTeamWipe();
-        }
     }
 
     private void CheckTeamWipe()
@@ -375,6 +493,9 @@ public class PlayerSurvival : NetworkBehaviour
         bool allDead = true;
         foreach (var p in players)
         {
+            // Bỏ qua object rác chưa kịp xóa
+            if (p == null || !p.IsSpawned || !p.gameObject.activeInHierarchy) continue;
+
             if (!p.isGhost.Value)
             {
                 allDead = false;
@@ -394,6 +515,16 @@ public class PlayerSurvival : NetworkBehaviour
     {
         showGameOver = true;
         isWinResult = win;
+        
+        if (win)
+        {
+            Time.timeScale = 0.1f; // Slow motion lúc win cho ngầu
+            if (IsOwner)
+            {
+                var inv = GetComponent<PlayerInventory>();
+                if (inv != null) inv.hasEscaped = true;
+            }
+        }
         
         if (!win && IsOwner)
         {
@@ -508,6 +639,14 @@ public class PlayerSurvival : NetworkBehaviour
     {
         if (currentHealth <= 0 || isDead) return;
         ApplyHealLogic(amount);
+    }
+    
+    [ServerRpc(RequireOwnership = false)]
+    public void ApplyAntidoteServerRpc(ServerRpcParams rpcParams = default)
+    {
+        // Placeholder for Parasite cure logic
+        // For now, it could heal or just remove status effects.
+        Debug.Log($"[Survival] Player {OwnerClientId} was cured by an Antidote!");
     }
 
     [ServerRpc(RequireOwnership = false)]

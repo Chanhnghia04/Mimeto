@@ -30,8 +30,8 @@ public class RandomEventManager : NetworkBehaviour
     public ulong infectedClientId = 9999;
 
     [Header("Event Timing (Seconds)")]
-    public float minTimeToEvent = 30f;    // Để 30s test theo yêu cầu
-    public float maxTimeToEvent = 40f;    // Max 40s
+    public float minTimeToEvent = 180f;    // Tối thiểu 3 phút
+    public float maxTimeToEvent = 300f;    // Tối đa 5 phút
     private float eventTimer;
     private bool eventTriggered = false;
 
@@ -762,7 +762,7 @@ public class RandomEventManager : NetworkBehaviour
         MutantAI[] mutants = FindObjectsByType<MutantAI>();
         foreach (var mutant in mutants)
         {
-//             mutant.ApplyBloodMoonBuff(monsterSpeedMultiplier, monsterDetectionMultiplier);
+            mutant.ApplyBloodMoonBuff(monsterSpeedMultiplier, monsterDetectionMultiplier);
         }
 
 UnityEngine.Component[] mimics = new UnityEngine.Component[0];
@@ -781,7 +781,7 @@ UnityEngine.Component[] mimics = new UnityEngine.Component[0];
         MutantAI[] mutants = FindObjectsByType<MutantAI>();
         foreach (var mutant in mutants)
         {
-//             mutant.RemoveBloodMoonBuff();
+            mutant.RemoveBloodMoonBuff();
         }
 
 UnityEngine.Component[] mimics = new UnityEngine.Component[0];
@@ -884,7 +884,7 @@ UnityEngine.Component[] mimics = new UnityEngine.Component[0];
             if (p.IsOwner && p.OwnerClientId == NetworkManager.Singleton.LocalClientId)
             {
                 var survival = p.GetComponent<PlayerSurvival>();
-//                 if (survival != null) survival.TakeDamage(5f);
+                if (survival != null) survival.TakeDamage(5f);
             }
         }
     }
@@ -927,7 +927,7 @@ UnityEngine.Component[] mimics = new UnityEngine.Component[0];
                 // Gọi hàm chết của người chơi
                 var survival = p.GetComponent<PlayerSurvival>();
                 if (survival != null && p.IsOwner) 
-//                     survival.TakeDamage(9999, "Parasite burst from your chest!"); // Lăn ra chết lập tức
+                    survival.TakeDamage(9999, "Parasite burst from your chest!"); // Lăn ra chết lập tức
                 
                 // Sinh ra con Boss khổng lồ từ xác chết
                 if (IsServer && parasiteBossPrefab != null)

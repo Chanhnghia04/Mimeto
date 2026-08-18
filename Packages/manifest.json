@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.bgtools.playerprefseditor": "https://github.com/Dysman/bgTools-playerPrefsEditor.git#upm",
     "com.ivanmurzak.unity.mcp": "0.80.0",
     "com.ivanmurzak.unity.mcp.animation": "1.2.22",
     "com.ivanmurzak.unity.mcp.cinemachine": "1.0.7",

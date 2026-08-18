@@ -18,7 +18,7 @@ public class AutoPlayButtonSound : MonoBehaviour
         }
 
         // Tự động tạo AudioSource 2D trên nút để đảm bảo luôn nghe thấy
-        audioSource = gameObject.AddComponent<AudioSource>();
+        if (!TryGetComponent<AudioSource>(out audioSource)) audioSource = gameObject.AddComponent<AudioSource>();
         audioSource.playOnAwake = false;
         audioSource.spatialBlend = 0f; // Ép thành âm thanh 2D (không bị nhỏ theo khoảng cách)
         audioSource.ignoreListenerPause = true; // Phát ngay cả khi game đang bị Pause

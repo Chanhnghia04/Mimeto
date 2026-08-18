@@ -1,4 +1,5 @@
 using UnityEngine;
+using Unity.Netcode;
 
 /// <summary>
 /// Buy Station – đặt trong WaitingRoom scene.
@@ -6,7 +7,7 @@ using UnityEngine;
 /// Tự khắc có UI riêng, không cần tạo thêm GameObject nào.
 /// </summary>
 [RequireComponent(typeof(BoxCollider))]
-public class ShopStation : MonoBehaviour, IInteractable
+public class ShopStation : NetworkBehaviour, IInteractable
 {
     [Header("Interaction Settings")]
     public string interactHint = "Press [E] to Buy Items";
@@ -80,7 +81,6 @@ public class ShopStation : MonoBehaviour, IInteractable
 
     void Awake()
     {
-        ShopData.RollMarketEvent();
     }
 
     void OnEnable() { PlayerInventory.OnShopBuyResult += HandleShopBuyResult; }
@@ -545,17 +545,19 @@ public class ShopStation : MonoBehaviour, IInteractable
     {
         if (_inventory.credits < item.currentPrice)
         {
-            ShowStatus("Không đủ Energy Cells!", true);
+            ShowStatus("Not enough Energy Cells!", true);
             PlaySound(errorSound);
             return;
         }
 
         ShowStatus("Processing purchase...", false);
-        _inventory.RequestBuyItemServerRpc(item.id, item.currentPrice);
+        _inventory.RequestBuyItemServerRpc(NetworkObjectId, item.id);
     }
 
-    void HandleShopBuyResult(string itemId)
+    void HandleShopBuyResult(ulong stationId, string itemId)
     {
+        if (stationId != NetworkObjectId) return;
+
         int index = ShopData.BuyableItems.FindIndex(x => x.id == itemId);
         if (index == -1) return;
 
@@ -564,52 +566,77 @@ public class ShopStation : MonoBehaviour, IInteractable
         {
             case "antidote":
                 _inventory.antidotes++;
-                ShowStatus("Antidote đã thêm vào túi đồ!", false);
+                ShowStatus("Antidote added to inventory!", false);
                 break;
 
             case "health_pack":
                 _inventory.healthPacks++;
-                ShowStatus("Health Pack đã thêm vào túi đồ!", false);
+                ShowStatus("Health Pack added to inventory!", false);
                 break;
 
             case "full_health_kit":
                 // Giả sử kit to cho 2 cục máu nhỏ, hoặc 1 biến riêng. Ở đây cho 2 health pack.
                 _inventory.healthPacks += 2;
-                ShowStatus("2x Health Pack đã thêm vào túi đồ!", false);
+                ShowStatus("2x Health Pack added to inventory!", false);
                 break;
 
             case "basic_gas_mask":
                 _inventory.basicGasMasks++;
-                ShowStatus("Basic Gas Mask đã thêm vào túi đồ!", false);
+                ShowStatus("Basic Gas Mask added to inventory!", false);
                 break;
 
             case "advanced_gas_mask":
                 _inventory.advancedGasMasks++;
-                ShowStatus("Advanced Gas Mask đã thêm vào túi đồ!", false);
+                ShowStatus("Advanced Gas Mask added to inventory!", false);
+                break;
+                
+            case "flashlight":
+                _inventory.hasFlashlight = true;
+                ShowStatus("Flashlight added to inventory!", false);
+                break;
+                
+            case "axe":
+                _inventory.hasAxe = true;
+                ShowStatus("Axe added to inventory!", false);
+                break;
+                
+            case "machete":
+                _inventory.hasMachete = true;
+                ShowStatus("Machete added to inventory!", false);
+                break;
+                
+            case "bag_10_slots":
+                if (_inventory.maxSlots < 10) _inventory.maxSlots = 10;
+                ShowStatus("Inventory expanded to 10 slots!", false);
+                break;
+                
+            case "bag_15_slots":
+                if (_inventory.maxSlots < 15) _inventory.maxSlots = 15;
+                ShowStatus("Inventory expanded to 15 slots!", false);
                 break;
 
             case "battery_pack":
                 _inventory.scrapBatteries += 3;
-                ShowStatus("Battery Pack đã thêm! (+3 Batteries)", false);
+                ShowStatus("Battery Pack added! (+3 Batteries)", false);
                 break;
 
             case "chemical_canister":
                 _inventory.chemicals += 2;
-                ShowStatus("Chemical Canister đã thêm! (+2 Chemicals)", false);
+                ShowStatus("Chemical Canister added! (+2 Chemicals)", false);
                 break;
 
             case "circuit_board":
                 _inventory.circuits += 2;
-                ShowStatus("Circuit Board đã thêm! (+2 Circuits)", false);
+                ShowStatus("Circuit Board added! (+2 Circuits)", false);
                 break;
 
             case "oxygen_tank":
                 _inventory.oxygenTanks++;
-                ShowStatus("Oxygen Tank đã thêm vào túi đồ!", false);
+                ShowStatus("Oxygen Tank added to inventory!", false);
                 break;
 
             default:
-                ShowStatus($"Item không hợp lệ: {item.id}", true);
+                ShowStatus($"Invalid item: {item.id}", true);
                 return;
         }
 

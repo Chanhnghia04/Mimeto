@@ -293,7 +293,7 @@ public class ScrapSellStation : MonoBehaviour, IInteractable
             if (DrawButton(px + (panelW - 220f) * 0.5f, rowY, 220f, 40f, $"◆  SELL ALL  ({totalVal} EC)", COL_GREEN, true))
             {
                 _inventory.SellAllScrap();
-                ShowStatus($"Đã bán tất cả phế liệu, nhận {totalVal} EC!", false);
+                ShowStatus($"Sold all scrap, received {totalVal} EC!", false);
                 PlaySound(sellSound);
             }
         }
@@ -354,9 +354,24 @@ public class ScrapSellStation : MonoBehaviour, IInteractable
         {
             if (DrawButton(btnX, btnY, btnW, btnH, "SELL 1", COL_GREEN, true))
             {
-                qty--; // Giảm số lượng
-                _inventory.AddCredits(price); // Cộng tiền
-                ShowStatus($"Đã bán 1 {name}, nhận {price} EC!", false);
+                int c = name == "Circuit" ? 1 : 0;
+                int mp = name == "Metal Pipe" ? 1 : 0;
+                int ip = name == "Iron Plate" ? 1 : 0;
+                int ch = name == "Chemical" ? 1 : 0;
+                int pl = name == "Plastic Pipe" ? 1 : 0;
+                int bat = name == "Battery" ? 1 : 0;
+
+                qty--; // Giảm số lượng cục bộ như pattern của SellAll
+                if (_inventory.IsSpawned)
+                {
+                    _inventory.RequestSellScrapServerRpc(c, mp, ip, ch, pl, bat);
+                }
+                else
+                {
+                    _inventory.AddCredits(price);
+                }
+
+                ShowStatus($"Sold 1 {name}, received {price} EC!", false);
                 PlaySound(sellSound);
             }
         }

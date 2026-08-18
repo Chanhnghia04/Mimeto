@@ -11,10 +11,13 @@ public static class GlobalPlayerData
     public static int plasticPipes = 0;
     public static int scrapBatteries = 0;
     
+    public static int maxSlots = 5;
+
     public static int credits = 0;
 
     public static int basicGasMasks = 0;
     public static int advancedGasMasks = 0;
+    public static bool hasFlashlight = false;
     public static bool hasUVFlashlight = false;
     public static bool hasCrowbar = false;
     public static bool hasShovel = false;
@@ -45,9 +48,11 @@ public static class GlobalPlayerData
             chemicals = chemicals,
             plasticPipes = plasticPipes,
             scrapBatteries = scrapBatteries,
+            maxSlots = maxSlots,
             credits = credits,
             basicGasMasks = basicGasMasks,
             advancedGasMasks = advancedGasMasks,
+            hasFlashlight = hasFlashlight,
             hasUVFlashlight = hasUVFlashlight,
             hasCrowbar = hasCrowbar,
             hasShovel = hasShovel,
@@ -82,9 +87,14 @@ public static class GlobalPlayerData
             chemicals = data.chemicals;
             plasticPipes = data.plasticPipes;
             scrapBatteries = data.scrapBatteries;
+            
+            // Backward compatibility for maxSlots
+            maxSlots = data.maxSlots == 0 ? 5 : data.maxSlots;
+
             credits = data.credits;
             basicGasMasks = data.basicGasMasks;
             advancedGasMasks = data.advancedGasMasks;
+            hasFlashlight = data.hasFlashlight;
             hasUVFlashlight = data.hasUVFlashlight;
             hasCrowbar = data.hasCrowbar;
             hasShovel = data.hasShovel;
@@ -118,9 +128,11 @@ public static class GlobalPlayerData
         chemicals = 0;
         plasticPipes = 0;
         scrapBatteries = 0;
+        maxSlots = 5;
         credits = 0;
         basicGasMasks = 0;
         advancedGasMasks = 0;
+        hasFlashlight = false;
         hasUVFlashlight = false;
         hasCrowbar = false;
         hasShovel = false;
@@ -145,9 +157,11 @@ public class PlayerDataSave
     public int chemicals;
     public int plasticPipes;
     public int scrapBatteries;
+    public int maxSlots;
     public int credits;
     public int basicGasMasks;
     public int advancedGasMasks;
+    public bool hasFlashlight;
     public bool hasUVFlashlight;
     public bool hasCrowbar;
     public bool hasShovel;

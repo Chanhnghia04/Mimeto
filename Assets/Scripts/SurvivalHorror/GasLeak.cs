@@ -8,23 +8,32 @@ public class GasLeak : MonoBehaviour
 
     private float originalSpeed = 0f;
     private bool playerInGas = false;
+    private bool isSlowed = false;
     private PlayerStatusEffect playerStatus;
 
     private void OnTriggerEnter(Collider other)
     {
+        if (!other.CompareTag("Player")) return;
+
         playerStatus = other.GetComponent<PlayerStatusEffect>();
         if (playerStatus == null) playerStatus = other.GetComponentInParent<PlayerStatusEffect>();
 
         if (playerStatus != null && !playerStatus.hasGasMask)
         {
             playerInGas = true;
-            originalSpeed = playerStatus.walkSpeed;
-            playerStatus.walkSpeed = originalSpeed * speedPenaltyRatio;
+            if (!isSlowed)
+            {
+                originalSpeed = playerStatus.walkSpeed;
+                playerStatus.walkSpeed = originalSpeed * speedPenaltyRatio;
+                isSlowed = true;
+            }
         }
     }
 
     private void OnTriggerStay(Collider other)
     {
+        if (!other.CompareTag("Player")) return;
+
         if (playerInGas && playerStatus != null && !playerStatus.hasGasMask)
         {
             playerStatus.currentOxygen -= oxygenDepletionRate * Time.deltaTime;
@@ -38,6 +47,8 @@ public class GasLeak : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
+        if (!other.CompareTag("Player")) return;
+
         PlayerStatusEffect exitedPlayer = other.GetComponent<PlayerStatusEffect>();
         if (exitedPlayer == null) exitedPlayer = other.GetComponentInParent<PlayerStatusEffect>();
 
@@ -52,7 +63,11 @@ public class GasLeak : MonoBehaviour
     {
         if (playerStatus != null)
         {
-            playerStatus.walkSpeed = originalSpeed;
+            if (isSlowed)
+            {
+                playerStatus.walkSpeed = originalSpeed;
+                isSlowed = false;
+            }
             playerInGas = false;
         }
     }

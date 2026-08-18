@@ -12,6 +12,7 @@ public class HidingSpot : MonoBehaviour, IInteractable
     private GameObject _occupant;
 
     public bool IsOccupied => _isOccupied;
+    public GameObject Occupant => _occupant;
 
     public void Interact(GameObject player)
     {

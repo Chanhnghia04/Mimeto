@@ -1,7 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
+using Unity.Netcode;
 
-public class DiceBetStation : MonoBehaviour, IInteractable
+public class DiceBetStation : NetworkBehaviour, IInteractable
 {
     public bool isOpen = false;
     private PlayerInventory _inventory;
@@ -82,10 +83,14 @@ public class DiceBetStation : MonoBehaviour, IInteractable
     Texture2D Mk(Color c) { var t=new Texture2D(1,1); t.SetPixel(0,0,c); t.Apply(); return t; }
 
     void OnEnable() { PlayerInventory.OnDiceRollResult += HandleDiceResult; }
-    void OnDisable() { PlayerInventory.OnDiceRollResult -= HandleDiceResult; }
+    void OnDisable() {
+        PlayerInventory.OnDiceRollResult -= HandleDiceResult;
+        if (isOpen) { isOpen = false; PlayerController.OpenMinigameCount--; }
+    }
 
-    void HandleDiceResult(int p1, int p2, int d1, int d2)
+    void HandleDiceResult(ulong stationId, int p1, int p2, int d1, int d2)
     {
+        if (stationId != NetworkObjectId) return;
         if (_state != State.WaitingForServer) return;
         _pDice[0] = p1; _pDice[1] = p2;
         _dDice[0] = d1; _dDice[1] = d2;
@@ -152,7 +157,7 @@ public class DiceBetStation : MonoBehaviour, IInteractable
         if (_inventory.credits < _bet || _bet < 10) { _msg="!! NOT ENOUGH COINS, HOMIE !!"; return; }
         _state = State.WaitingForServer;
         _msg="WAITING FOR SERVER...";
-        _inventory.RequestDiceRollServerRpc(_bet);
+        _inventory.RequestDiceRollServerRpc(NetworkObjectId, _bet);
     }
 
     void DoRoll(float dt)

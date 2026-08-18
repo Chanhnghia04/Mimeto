@@ -82,13 +82,21 @@ public class PlayerAudioController : MonoBehaviour
             switch (tag.ToLower())
             {
                 case "wood":
-                    return woodSteps[Random.Range(0, woodSteps.Length)];
+                    if (woodSteps != null && woodSteps.Length > 0)
+                        return woodSteps[Random.Range(0, woodSteps.Length)];
+                    break;
                 case "metal":
-                    return metalSteps[Random.Range(0, metalSteps.Length)];
+                    if (metalSteps != null && metalSteps.Length > 0)
+                        return metalSteps[Random.Range(0, metalSteps.Length)];
+                    break;
                 default:
-                    return dirtSteps[Random.Range(0, dirtSteps.Length)];
+                    if (dirtSteps != null && dirtSteps.Length > 0)
+                        return dirtSteps[Random.Range(0, dirtSteps.Length)];
+                    break;
             }
         }
-        return dirtSteps.Length > 0 ? dirtSteps[Random.Range(0, dirtSteps.Length)] : null;
+        if (dirtSteps != null && dirtSteps.Length > 0)
+            return dirtSteps[Random.Range(0, dirtSteps.Length)];
+        return null;
     }
 }

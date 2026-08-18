@@ -22,6 +22,11 @@ public class FlickerLight : MonoBehaviour
         if (targetLight != null) _baseIntensity = targetLight.intensity;
     }
 
+    void OnEnable()
+    {
+        _isBlackout = false;
+    }
+
     void Update()
     {
         if (targetLight == null) return;
