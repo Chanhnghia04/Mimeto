@@ -161,14 +161,10 @@ public class WaitingRoomManager : NetworkBehaviour
         }
 
         // 2. Tạo seed mới → mỗi lần vào Map, items/chests/enemies đều khác
-        foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
+        if (NetworkManager.Singleton.ConnectedClients.TryGetValue(NetworkManager.ServerClientId, out var hostClient))
         {
-            var inv = client.PlayerObject?.GetComponent<PlayerInventory>();
-            if (inv != null && inv.IsServer)
-            {
-                inv.RegenerateSeed();
-                break; // Chỉ cần 1 lần — seed là NetworkVariable, tự sync
-            }
+            var inv = hostClient.PlayerObject?.GetComponent<PlayerInventory>();
+            if (inv != null) inv.RegenerateSeed();
         }
 
         // 3. Load Map scene (tất cả client sẽ tự động load theo)

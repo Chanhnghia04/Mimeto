@@ -44,15 +44,16 @@ public static class ShopData
 
     public static List<ShopItemData> BuyableItems = new List<ShopItemData>
     {
-        new ShopItemData("health_pack",       "Health Pack",        "Restores 50 HP instantly.",                    50,  ShopItemCategory.Consumable),
-        new ShopItemData("full_health_kit",   "Full Health Kit",    "Fully restores health to maximum.",           120,  ShopItemCategory.Consumable),
-        new ShopItemData("antidote",          "Parasite Antidote",  "Cures parasite infection immediately.",       150,  ShopItemCategory.Consumable),
-        new ShopItemData("basic_gas_mask",    "Basic Gas Mask",     "80% toxin protection. Lasts ~60 seconds.",     80,  ShopItemCategory.Equipment),
-        new ShopItemData("advanced_gas_mask", "Advanced Gas Mask",  "95% toxin protection. Lasts ~300 seconds.",   200,  ShopItemCategory.Equipment),
-        new ShopItemData("battery_pack",      "Battery Pack",       "Contains 3 scrap batteries.",                  60,  ShopItemCategory.Utility),
-        new ShopItemData("chemical_canister", "Chemical Canister",  "Contains 2 chemical compounds.",               40,  ShopItemCategory.Utility),
-        new ShopItemData("circuit_board",     "Circuit Board",      "Contains 2 circuit modules.",                  35,  ShopItemCategory.Utility),
-        new ShopItemData("oxygen_tank",       "Oxygen Tank",        "Restores oxygen to maximum when used.",       100,  ShopItemCategory.Consumable),
+        new ShopItemData("health_pack",       "Health Pack",        "Restores 50 HP instantly.",                   100,  ShopItemCategory.Consumable),
+        new ShopItemData("full_health_kit",   "Full Health Kit",    "Fully restores health to maximum.",           250,  ShopItemCategory.Consumable),
+        new ShopItemData("antidote",          "Parasite Antidote",  "Cures parasite infection immediately.",       300,  ShopItemCategory.Consumable),
+        new ShopItemData("basic_gas_mask",    "Basic Gas Mask",     "80% toxin protection. Lasts ~180 seconds.",   150,  ShopItemCategory.Equipment),
+        new ShopItemData("advanced_gas_mask", "Advanced Gas Mask",  "95% toxin protection. Lasts ~900 seconds.",   400,  ShopItemCategory.Equipment),
+        new ShopItemData("flashlight",        "Flashlight",         "Provides visibility in dark areas.",          120,  ShopItemCategory.Equipment),
+        new ShopItemData("axe",               "Axe",                "A reliable melee weapon for close combat.",   150,  ShopItemCategory.Equipment),
+        new ShopItemData("machete",           "Machete",            "A sharp blade, excellent for slashing.",      150,  ShopItemCategory.Equipment),
+        new ShopItemData("bag_10_slots",      "Backpack (10 Slots)",      "Expands inventory limit to 10 slots.",           500,  ShopItemCategory.Utility),
+        new ShopItemData("bag_15_slots",      "Backpack (15 Slots)",      "Expands inventory limit to 15 slots.",           900,  ShopItemCategory.Utility),
     };
 
     // Scrap base prices
@@ -76,8 +77,12 @@ public static class ShopData
     /// </summary>
     public static void RollMarketEvent()
     {
-        // Random từ 0 đến 4
-        CurrentEvent = (MarketEvent)Random.Range(0, 5);
+        ApplyMarketEvent((MarketEvent)Random.Range(0, 5));
+    }
+
+    public static void ApplyMarketEvent(MarketEvent newEvent)
+    {
+        CurrentEvent = newEvent;
 
         // Reset về giá gốc
         for (int i = 0; i < BuyableItems.Count; i++)

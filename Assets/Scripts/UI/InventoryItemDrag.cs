@@ -22,7 +22,7 @@ public class InventoryItemDrag : MonoBehaviour, IBeginDragHandler, IDragHandler,
         // Find InventoryUI on the player if not set
         if (inventoryUI == null)
         {
-            GameObject player = GameObject.Find("Player");
+            GameObject player = Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject.gameObject;
             if (player != null) inventoryUI = player.GetComponent<InventoryUI>();
         }
         

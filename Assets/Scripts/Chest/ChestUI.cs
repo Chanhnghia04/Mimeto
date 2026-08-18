@@ -52,7 +52,10 @@ public class ChestUI : MonoBehaviour
 
     void Start()
     {
-        if (chestPanel != null) chestPanel.SetActive(false);
+        if (chestPanel != null) 
+        {
+            chestPanel.SetActive(false);
+        }
         if (closeButton != null) closeButton.onClick.AddListener(Close);
 
         // Tìm action Interact (phím E) từ InputSystem để đóng rương
@@ -87,7 +90,10 @@ public class ChestUI : MonoBehaviour
 
         RebuildSlots();
 
-        if (chestPanel != null) chestPanel.SetActive(true);
+        if (chestPanel != null) 
+        {
+            chestPanel.SetActive(true);
+        }
 
         // Hiện con trỏ
         Cursor.lockState = CursorLockMode.None;
@@ -144,6 +150,12 @@ public class ChestUI : MonoBehaviour
     void OnSlotDoubleClicked(Chest.ChestItemEntry entry)
     {
         if (_playerInventory == null || _currentChest == null) return;
+
+        if (!_playerInventory.CanAddScrap(entry.itemType, entry.amount))
+        {
+            Debug.Log($"[ChestUI] Cannot take '{entry.itemType}': Inventory full.");
+            return;
+        }
 
         _playerInventory.RequestLootChestItemServerRpc(_currentChest.transform.position, entry.itemType);
         Debug.Log($"[ChestUI] Gửi yêu cầu lấy từ rương: {entry.itemType}");

@@ -28,6 +28,9 @@ public class PlayerController : NetworkBehaviour
 
     // Biến đồng bộ góc nhìn ngước lên/xuống (pitch) qua mạng
     public NetworkVariable<float> netXRotation = new NetworkVariable<float>(0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+    
+    // Đồng bộ vũ khí đang cầm trên tay
+    public NetworkVariable<int> netEquippedWeapon = new NetworkVariable<int>(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
     [Header("Combat")]
     public float punchRange = 2f;
@@ -39,6 +42,7 @@ public class PlayerController : NetworkBehaviour
 
     [Header("UV Flashlight")]
     public Light uvLight;
+    public NetworkVariable<bool> netFlashlightEnabled = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
     
     [Header("Realistic Effects")]
     public float bobSpeed = 10f;
@@ -57,6 +61,10 @@ public class PlayerController : NetworkBehaviour
     private float targetFOV = 60f;
     private float landDipOffset = 0f;
     private bool wasGrounded = true;
+
+    // --- Pickup Animation ---
+    private float pickupDipRotation = 0f;
+    private float pickupDipOffset = 0f;
 
     [Header("Hiding")]
     public bool isHiding = false;
@@ -95,6 +103,12 @@ public class PlayerController : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        netEquippedWeapon.OnValueChanged += OnEquippedWeaponChanged;
+        OnEquippedWeaponChanged(0, netEquippedWeapon.Value);
+        
+        netFlashlightEnabled.OnValueChanged += OnFlashlightChanged;
+        OnFlashlightChanged(false, netFlashlightEnabled.Value);
+
         // Tắt CharacterController trên các client không phải chủ sở hữu 
         // để ClientNetworkTransform có thể đồng bộ vị trí tự do mà không bị khóa
         if (!IsOwner)
@@ -210,13 +224,99 @@ public class PlayerController : NetworkBehaviour
                     scaler.matchWidthOrHeight = 0f; // Match Width giống hệt StartGame
                 }
             }
-        }
 
-        UpdateVisualHeldItem();
+            // --- Thêm HotbarSystem ---
+            if (GetComponent<HotbarSystem>() == null)
+            {
+                gameObject.AddComponent<HotbarSystem>();
+            }
+        }
+    }
+
+    public void EquipWeaponFromHotbar(string itemId)
+    {
+        if (!IsOwner) return;
+        int newWeapon = 0;
+        if (itemId == "flashlight") newWeapon = 1;
+        else if (itemId == "axe") newWeapon = 2;
+        else if (itemId == "machete") newWeapon = 3;
+        else if (itemId == "bat") newWeapon = 4;
+        else if (itemId == "crowbar") newWeapon = 5;
+        else if (itemId == "shovel") newWeapon = 6;
+        else if (itemId == "antidote") newWeapon = 7;
+        else if (itemId == "basic_gasmask" || itemId == "adv_gasmask")
+        {
+            PlayerSurvival survival = GetComponent<PlayerSurvival>();
+            if (survival != null) survival.ToggleGasMask(itemId);
+            return;
+        }
+        
+        if (netEquippedWeapon.Value == newWeapon) newWeapon = 0; // Bấm lần 2 để cất
+        netEquippedWeapon.Value = newWeapon;
     }
 
     private float lastPunchTime = 0f;
     private int punchStep = 0;
+
+    public override void OnNetworkDespawn()
+    {
+        base.OnNetworkDespawn();
+        netEquippedWeapon.OnValueChanged -= OnEquippedWeaponChanged;
+        netFlashlightEnabled.OnValueChanged -= OnFlashlightChanged;
+    }
+
+    private void OnFlashlightChanged(bool previous, bool current)
+    {
+        if (uvLight != null)
+        {
+            uvLight.enabled = current;
+        }
+    }
+
+    private void OnEquippedWeaponChanged(int previous, int current)
+    {
+        EquipmentManager em = GetComponent<EquipmentManager>();
+        if (em != null)
+        {
+            if (current == 0) em.UnequipSlot(EquipmentSlot.RightHand);
+            else if (current == 1) em.EquipItem("flashlight", EquipmentSlot.RightHand);
+            else if (current == 2) em.EquipItem("axe", EquipmentSlot.RightHand);
+            else if (current == 3) em.EquipItem("machete", EquipmentSlot.RightHand);
+            else if (current == 4) em.EquipItem("bat", EquipmentSlot.RightHand);
+            else if (current == 5) em.EquipItem("crowbar", EquipmentSlot.RightHand);
+            else if (current == 6) em.EquipItem("shovel", EquipmentSlot.RightHand);
+            else if (current == 7) em.EquipItem("antidote", EquipmentSlot.RightHand);
+        }
+
+        bool isMelee = (current >= 2 && current <= 6);
+        
+        if (animator == null) 
+        {
+            if (networkAnimator != null) animator = networkAnimator.Animator;
+            else animator = GetComponentInChildren<Animator>();
+        }
+
+        if (animator != null)
+        {
+            // SetBool chạy trên mọi client vì NetworkVariable thay đổi trên mọi client
+            animator.SetBool("hasWeapon", isMelee);
+            
+            // SetTrigger CHỈ gọi từ Owner, NetworkAnimator sẽ tự động đồng bộ sang các client khác
+            if (IsOwner)
+            {
+                if (current > 0 && previous == 0)
+                {
+                    if (networkAnimator != null) networkAnimator.SetTrigger("EquipWeapon");
+                    else animator.SetTrigger("EquipWeapon");
+                }
+                else if (current == 0 && previous > 0)
+                {
+                    if (networkAnimator != null) networkAnimator.SetTrigger("UnequipWeapon");
+                    else animator.SetTrigger("UnequipWeapon");
+                }
+            }
+        }
+    }
 
     void Update()
     {
@@ -297,22 +397,41 @@ public class PlayerController : NetworkBehaviour
         bool uiOpen = IsUIOpen();
         bool canMove = !uiOpen && !PlayerSurvival.IsGameOverUIOpen();
         
-        UpdateVisualHeldItem();
+        // -----------------------------
         
         // Gọi Camera Effects ở cuối Update để tránh độ trễ 1 frame
 
         if (canMove && Input.GetKeyDown(KeyCode.F))
         {
             PlayerInventory inv = GetComponent<PlayerInventory>();
-            if (inv != null && inv.hasUVFlashlight)
+            if (inv != null && (inv.hasUVFlashlight || inv.hasFlashlight))
             {
-                if (uvLight != null)
+                bool inHotbar = false;
+                if (HotbarSystem.Instance != null)
                 {
-                    uvLight.enabled = !uvLight.enabled;
-                    UpdateVisualHeldItem();
+                    for (int i = 0; i < 3; i++)
+                    {
+                        string item = HotbarSystem.Instance.hotbarItems[i];
+                        if (item == "flashlight" || item == "uvflashlight")
+                        {
+                            inHotbar = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (inHotbar)
+                {
+                    if (IsOwner) netFlashlightEnabled.Value = !netFlashlightEnabled.Value;
+                }
+                else
+                {
+                    // Có đèn pin trong người nhưng chưa để vào hotbar
+                    Debug.Log("Bạn phải đặt Đèn Pin vào Hotbar (ô 1,2,3) để sử dụng!");
                 }
             }
         }
+
 
         // Chỉ lock cursor khi không có UI nào đang mở
         if (!IsUIOpen() && !PlayerSurvival.IsGameOverUIOpen())
@@ -348,27 +467,42 @@ public class PlayerController : NetworkBehaviour
                 
                 if (Time.time - lastPunchTime >= actualCooldown)
                 {
-                    // Nếu thời gian chờ quá lâu, reset lại từ đòn 1
-                    if (Time.time - lastPunchTime > comboResetTime)
-                    {
-                        punchStep = 0; 
-                    }
+                    // === Kiểm tra có vũ khí cận chiến đang cầm ===
+                    int eq = netEquippedWeapon.Value;
+                    bool armed = (eq >= 2 && eq <= 6); // 2:Axe, 3:Machete, 4:Bat, 5:Crowbar, 6:Shovel
 
-                    punchStep++;
-                    if (punchStep > 2) punchStep = 1; // Lặp lại đòn 1 -> 2 -> 1 -> 2
-
-                    if (animator != null)
+                    if (armed)
                     {
-                        // Dùng ClientNetworkAnimator để đồng bộ Trigger qua mạng
-                        if (networkAnimator != null)
+                        // Có vũ khí → dùng animation chém ngang (Standing Melee Attack)
+                        if (animator != null)
                         {
-                            if (punchStep == 1) networkAnimator.SetTrigger("Punch1");
-                            else if (punchStep == 2) networkAnimator.SetTrigger("Punch2");
+                            if (networkAnimator != null) networkAnimator.SetTrigger("WeaponAttack");
+                            else animator.SetTrigger("WeaponAttack");
                         }
-                        else
+                    }
+                    else
+                    {
+                        // Tay không → combo Punch1/Punch2
+                        if (Time.time - lastPunchTime > comboResetTime)
                         {
-                            if (punchStep == 1) animator.SetTrigger("Punch1");
-                            else if (punchStep == 2) animator.SetTrigger("Punch2");
+                            punchStep = 0; 
+                        }
+
+                        punchStep++;
+                        if (punchStep > 2) punchStep = 1;
+
+                        if (animator != null)
+                        {
+                            if (networkAnimator != null)
+                            {
+                                if (punchStep == 1) networkAnimator.SetTrigger("Punch1");
+                                else if (punchStep == 2) networkAnimator.SetTrigger("Punch2");
+                            }
+                            else
+                            {
+                                if (punchStep == 1) animator.SetTrigger("Punch1");
+                                else if (punchStep == 2) animator.SetTrigger("Punch2");
+                            }
                         }
                     }
 
@@ -403,6 +537,7 @@ public class PlayerController : NetworkBehaviour
             animator.SetFloat("InputX", Mathf.Lerp(animator.GetFloat("InputX"), targetInputX, Time.deltaTime * 8f));
             animator.SetFloat("InputY", Mathf.Lerp(animator.GetFloat("InputY"), targetInputY, Time.deltaTime * 8f));
             animator.SetBool("isSneaking", isCrouching);
+            animator.SetBool("isGrounded", controller.isGrounded);
         }
 
         Vector3 finalMove = move * currentSpeed;
@@ -424,45 +559,39 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
-    // Hàm này hiện tại là public để bạn có thể gọi từ Animation Event
     public void ExecutePunch()
     {
         if (isGhostMode) return;
         
         float actualRange = punchRange;
         float actualDamage = punchDamage;
-        PlayerInventory inv = GetComponent<PlayerInventory>();
         
-        if (inv != null)
+        int equipped = netEquippedWeapon.Value;
+        if (equipped == 2) // Axe
         {
-            if (inv.hasAxe)
-            {
-                actualRange = punchRange * 1.2f;
-                actualDamage = punchDamage * 4.0f; // Axe: 80 dmg
-            }
-            else if (inv.hasMachete)
-            {
-                actualRange = punchRange * 1.3f;
-                actualDamage = punchDamage * 3.5f; // Machete: 70 dmg
-            }
-            else if (inv.hasCrowbar)
-            {
-                actualRange = punchRange * 1.5f;
-                actualDamage = punchDamage * 2.5f; // Crowbar: 50 dmg
-            }
-            else if (inv.hasShovel)
-            {
-                actualRange = punchRange * 1.4f;
-                actualDamage = punchDamage * 2.0f; // Shovel: 40 dmg
-            }
-            else if (inv.hasBat)
-            {
-                actualRange = punchRange * 1.1f;
-                actualDamage = punchDamage * 3.0f; // Bat: 60 dmg
-            }
+            actualRange = punchRange * 1.2f;
+            actualDamage = punchDamage * 4.0f; // 80 dmg
         }
-
-        UpdateVisualHeldItem();
+        else if (equipped == 3) // Machete
+        {
+            actualRange = punchRange * 1.3f;
+            actualDamage = punchDamage * 3.5f; // 70 dmg
+        }
+        else if (equipped == 5) // Crowbar
+        {
+            actualRange = punchRange * 1.5f;
+            actualDamage = punchDamage * 2.5f; // 50 dmg
+        }
+        else if (equipped == 6) // Shovel
+        {
+            actualRange = punchRange * 1.4f;
+            actualDamage = punchDamage * 2.0f; // 40 dmg
+        }
+        else if (equipped == 4) // Bat
+        {
+            actualRange = punchRange * 1.1f;
+            actualDamage = punchDamage * 3.0f; // 60 dmg
+        }
         LayerMask mask = hitLayers.value == 0 ? Physics.DefaultRaycastLayers : hitLayers;
         
         // Sửa lỗi 1: Dùng SphereCast (bắn ra hình cầu to) thay vì Raycast (tia nhỏ) để cực kỳ dễ trúng mục tiêu!
@@ -499,6 +628,7 @@ public class PlayerController : NetworkBehaviour
                 else
                 {
                     exiler.TakeDamage(actualDamage);
+                    exiler.ForceTarget(this); // Fallback offline
                 }
                 break;
             }
@@ -530,6 +660,11 @@ public class PlayerController : NetworkBehaviour
                 if (exiler != null)
                 {
                     exiler.TakeDamage(damage);
+                    if (NetworkManager.Singleton.ConnectedClients.TryGetValue(rpcParams.Receive.SenderClientId, out var client))
+                    {
+                        PlayerController attacker = client.PlayerObject.GetComponent<PlayerController>();
+                        if (attacker != null) exiler.ForceTarget(attacker);
+                    }
                 }
             }
         }
@@ -537,16 +672,7 @@ public class PlayerController : NetworkBehaviour
 
     public void UpdateVisualHeldItem()
     {
-        PlayerInventory inv = GetComponent<PlayerInventory>();
-        EquipmentManager em = GetComponent<EquipmentManager>();
-        if (inv == null || em == null) return;
-        if (inv.hasUVFlashlight && uvLight != null && uvLight.enabled) em.EquipItem("flashlight", EquipmentSlot.RightHand);
-        else if (inv.hasAxe) em.EquipItem("axe", EquipmentSlot.RightHand);
-        else if (inv.hasMachete) em.EquipItem("machete", EquipmentSlot.RightHand);
-        else if (inv.hasBat) em.EquipItem("bat", EquipmentSlot.RightHand);
-        else if (inv.hasCrowbar) em.EquipItem("crowbar", EquipmentSlot.RightHand);
-        else if (inv.hasShovel) em.EquipItem("shovel", EquipmentSlot.RightHand);
-        else em.UnequipSlot(EquipmentSlot.RightHand);
+        // Auto-equip logic removed. Weapons are now equipped manually via 1, 2, 3 hotkeys.
     }
 
     public void SetHiding(bool hiding, Vector3 targetPos, Quaternion targetRot)
@@ -577,17 +703,23 @@ public class PlayerController : NetworkBehaviour
         // Exit hiding with Jump or Crouch
         if ((jumpAction != null && jumpAction.WasPressedThisFrame()) || (crouchAction != null && crouchAction.WasPressedThisFrame()))
         {
-            // Find the hiding spot we are in (optional improvement: keep reference)
             HidingSpot[] spots = Object.FindObjectsByType<HidingSpot>();
             foreach (var spot in spots)
             {
-                if (spot.IsOccupied)
+                // Fix: Chỉ tương tác thoát ra nếu chính xác TÔI là người đang chiếm dụng tủ này
+                if (spot.IsOccupied && spot.Occupant == gameObject)
                 {
                     spot.Interact(gameObject);
                     break;
                 }
             }
         }
+    }
+
+    public void TriggerPickupDip()
+    {
+        pickupDipRotation = 15f; // Gật xuống 15 độ
+        pickupDipOffset = 0.25f; // Lún xuống 0.25 units
     }
 
     private void HandleRealisticCameraEffects()
@@ -602,14 +734,18 @@ public class PlayerController : NetworkBehaviour
         float bottomY = originalCenter.y - originalHeight / 2f;
         float baseCameraY = bottomY + (originalCameraLocalPos.y - bottomY) * (controller.height / originalHeight);
 
-        // 1. Bobbing
+        // 2. Pickup Dip Recovery
+        pickupDipRotation = Mathf.Lerp(pickupDipRotation, 0f, Time.deltaTime * 8f);
+        pickupDipOffset = Mathf.Lerp(pickupDipOffset, 0f, Time.deltaTime * 8f);
+
+        // 3. Bobbing
         if (isMoving && controller.isGrounded)
         {
             timer += Time.deltaTime * (isSprinting ? bobSpeed * 1.5f : bobSpeed);
             float bob = Mathf.Sin(timer) * bobAmount;
             playerCamera.localPosition = new Vector3(
                 originalCameraLocalPos.x,
-                baseCameraY + bob - landDipOffset,
+                baseCameraY + bob - landDipOffset - pickupDipOffset,
                 originalCameraLocalPos.z
             );
         }
@@ -619,15 +755,15 @@ public class PlayerController : NetworkBehaviour
             timer += Time.deltaTime * 1.5f;
             playerCamera.localPosition = new Vector3(
                 originalCameraLocalPos.x,
-                baseCameraY + Mathf.Sin(timer) * (bobAmount * 0.2f) - landDipOffset,
+                baseCameraY + Mathf.Sin(timer) * (bobAmount * 0.2f) - landDipOffset - pickupDipOffset,
                 originalCameraLocalPos.z
             );
         }
 
-        // 2. Camera Tilt (Strafe)
+        // 4. Camera Tilt (Strafe) + Pickup Dip Rotation
         float targetTilt = -moveInput.x * tiltAmount;
         currentTilt = Mathf.Lerp(currentTilt, targetTilt, Time.deltaTime * tiltSpeed);
-        playerCamera.localRotation = Quaternion.Euler(xRotation, 0f, currentTilt);
+        playerCamera.localRotation = Quaternion.Euler(xRotation + pickupDipRotation, 0f, currentTilt);
 
         // 3. Sprint FOV
         Camera cam = playerCamera.GetComponent<Camera>();
@@ -657,6 +793,8 @@ public class PlayerController : NetworkBehaviour
 
         SettingsUI settingsUI = Object.FindAnyObjectByType<SettingsUI>();
         if (settingsUI != null && settingsUI.settingsPanel != null && settingsUI.settingsPanel.activeSelf) return true;
+
+        if (PauseMenuUI.Instance != null && PauseMenuUI.Instance.IsOpen) return true;
 
         if (OpenMinigameCount > 0) return true;
         

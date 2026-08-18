@@ -70,12 +70,20 @@ public class Chest : MonoBehaviour, IInteractable
     System.Collections.IEnumerator Start()
     {
         // Đợi cho đến khi nhận được MatchSeed từ mạng (nếu là host thì sẽ nhận ngay lập tức, client cũng nhận qua NetworkVariable)
-        while (PlayerInventory.GlobalMatchSeed == 0) yield return null;
+        float timeout = 10f;
+        float elapsed = 0f;
+        while (PlayerInventory.GlobalMatchSeed == 0 && elapsed < timeout)
+        {
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
         
+        int seed = PlayerInventory.GlobalMatchSeed != 0 ? PlayerInventory.GlobalMatchSeed : UnityEngine.Random.Range(1, int.MaxValue);
+
         // Tạo RNG với seed dựa trên GlobalMatchSeed và VỊ TRÍ của rương.
         // Vì ChestSpawner đã sinh rương ở cùng tọa độ trên cả Host & Client, seed này sẽ hoàn toàn giống nhau!
         int posHash = (int)(transform.position.x * 100f) + (int)(transform.position.z * 10f);
-        _rng = new System.Random(PlayerInventory.GlobalMatchSeed + posHash + 5001);
+        _rng = new System.Random(seed + posHash + 5001);
 
         GenerateLoot();
     }
@@ -199,7 +207,7 @@ public class Chest : MonoBehaviour, IInteractable
     /// </summary>
     public void RemoveItem(ChestItemEntry entry)
     {
-        items.Remove(entry);
+        items.RemoveAll(x => x.itemType == entry.itemType);
         if (items.Count == 0)
             MarkEmpty();
     }

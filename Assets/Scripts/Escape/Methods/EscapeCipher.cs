@@ -128,6 +128,7 @@ public class EscapeCipher : MonoBehaviour, IInteractable
         if (navData.vertices.Length == 0) return playerPos + Vector3.forward * 20f;
 
         int triCount = navData.indices.Length / 3;
+        if (triCount == 0) return playerPos + Vector3.forward * 20f;
 
         // PRE-COMPUTE tất cả random values => chuỗi random không bị lệch bởi Physics
         int maxAttempts = 200;
@@ -373,7 +374,11 @@ public class EscapeCipher : MonoBehaviour, IInteractable
             _wrongTimer = 1f;
 
             // Phạt: trừ máu
-            PlayerSurvival ps = Object.FindAnyObjectByType<PlayerSurvival>();
+            PlayerSurvival ps = null;
+            if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.LocalClient != null && Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject != null)
+            {
+                ps = Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<PlayerSurvival>();
+            }
             if (ps != null) ps.TakeDamage(wrongCodeDamage, "Mật mã sai!");
         }
     }

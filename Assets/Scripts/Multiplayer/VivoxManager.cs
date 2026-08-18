@@ -285,7 +285,11 @@ public class VivoxManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            // Bỏ qua lỗi ngầm để không làm hỏng script
+            // Bỏ qua lỗi ngầm để không làm hỏng script, nhưng vẫn log cảnh báo nhỏ
+            if (isJoined && isLoggedIn) 
+            {
+                Debug.LogWarning($"[VivoxManager] Set3DPosition failed: {e.Message}");
+            }
         }
     }
     private void OnGUI()

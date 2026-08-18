@@ -15,11 +15,14 @@ public class SettingsUI : MonoBehaviour
     public Button tabRoomButton;
     public Button tabAudioButton;
     public Button tabGraphicsButton;
+    public Button tabControlsButton;
 
     [Header("Tab Panels")]
     public GameObject roomPanel;
     public GameObject audioPanel;
     public GameObject graphicsPanel;
+    public GameObject controlsPanel;
+
 
     [Header("--- ROOM INFO ---")]
     public TextMeshProUGUI roomNameText;
@@ -40,52 +43,50 @@ public class SettingsUI : MonoBehaviour
 
     private Resolution[] resolutions;
 
+    public static SettingsUI Instance;
+
     private void Awake()
     {
+        if (Instance != null) { Destroy(gameObject); return; }
+        Instance = this;
         // Giữ Settings tồn tại xuyên suốt các màn chơi
         DontDestroyOnLoad(gameObject);
         if (settingsPanel != null && settingsPanel.transform.root != transform)
         {
             DontDestroyOnLoad(settingsPanel.transform.root.gameObject);
         }
-    }
 
-    private void Start()
-    {
-        // 1. Setup Tab Navigation
-        tabRoomButton.onClick.AddListener(() => ShowTab(roomPanel));
-        tabAudioButton.onClick.AddListener(() => ShowTab(audioPanel));
-        tabGraphicsButton.onClick.AddListener(() => ShowTab(graphicsPanel));
-
-        closeButton.onClick.AddListener(CloseSettings);
-        leaveRoomButton.onClick.AddListener(LeaveRoom);
-
-        // 2. Setup Graphics Settings
-        InitializeGraphicsSettings();
-
-        // 3. Setup Audio Settings
-        InitializeAudioSettings();
-
-        // Ẩn UI lúc ban đầu khi game mới chạy
         if (settingsPanel != null)
         {
             settingsPanel.SetActive(false);
         }
     }
 
-    private void Update()
+    private void Start()
     {
-        // Mở/tắt Setting bằng phím ESC
-        if (Input.GetKeyDown(KeyCode.Escape))
+        // 1. Setup Tab Navigation
+        if (tabRoomButton != null) tabRoomButton.onClick.AddListener(() => ShowTab(roomPanel));
+        if (tabAudioButton != null) tabAudioButton.onClick.AddListener(() => ShowTab(audioPanel));
+        if (tabGraphicsButton != null) tabGraphicsButton.onClick.AddListener(() => ShowTab(graphicsPanel));
+
+        // Only add controls tab if references are assigned (auto-created by PauseMenuUI)
+        if (tabControlsButton != null && controlsPanel != null)
         {
-            Debug.Log("[SettingsUI] ESC key pressed!");
-            if (settingsPanel != null)
-            {
-                if (settingsPanel.activeSelf) CloseSettings();
-                else OpenSettings();
-            }
+            tabControlsButton.onClick.AddListener(() => ShowTab(controlsPanel));
         }
 
+        if (closeButton != null) closeButton.onClick.AddListener(CloseSettings);
+        if (leaveRoomButton != null) leaveRoomButton.onClick.AddListener(LeaveRoom);
+
+        // 2. Setup Graphics Settings
+        InitializeGraphicsSettings();
+
+        // 3. Setup Audio Settings
+        InitializeAudioSettings();
+    }
+
+    private void Update()
+    {
         // Cập nhật thông tin phòng liên tục nếu tab Room đang mở
         if (settingsPanel.activeSelf && roomPanel.activeSelf)
         {
@@ -106,11 +107,14 @@ public class SettingsUI : MonoBehaviour
         settingsPanel.SetActive(false);
     }
 
+    public bool IsOpen => settingsPanel != null && settingsPanel.activeSelf;
+
     private void ShowTab(GameObject targetTab)
     {
         roomPanel.SetActive(false);
         audioPanel.SetActive(false);
         graphicsPanel.SetActive(false);
+        if (controlsPanel != null) controlsPanel.SetActive(false);
 
         targetTab.SetActive(true);
     }
@@ -148,13 +152,21 @@ public class SettingsUI : MonoBehaviour
     private void InitializeAudioSettings()
     {
         // Lấy giá trị cũ từ PlayerPrefs
-        masterVolumeSlider.value = PlayerPrefs.GetFloat("MasterVol", 1f);
-        sfxVolumeSlider.value = PlayerPrefs.GetFloat("SFXVol", 1f);
-        musicVolumeSlider.value = PlayerPrefs.GetFloat("MusicVol", 1f);
-
-        masterVolumeSlider.onValueChanged.AddListener(SetMasterVolume);
-        sfxVolumeSlider.onValueChanged.AddListener(SetSFXVolume);
-        musicVolumeSlider.onValueChanged.AddListener(SetMusicVolume);
+        if (masterVolumeSlider != null)
+        {
+            masterVolumeSlider.value = PlayerPrefs.GetFloat("MasterVol", 1f);
+            masterVolumeSlider.onValueChanged.AddListener(SetMasterVolume);
+        }
+        if (sfxVolumeSlider != null)
+        {
+            sfxVolumeSlider.value = PlayerPrefs.GetFloat("SFXVol", 1f);
+            sfxVolumeSlider.onValueChanged.AddListener(SetSFXVolume);
+        }
+        if (musicVolumeSlider != null)
+        {
+            musicVolumeSlider.value = PlayerPrefs.GetFloat("MusicVol", 1f);
+            musicVolumeSlider.onValueChanged.AddListener(SetMusicVolume);
+        }
     }
 
     public void SetMasterVolume(float sliderValue)
@@ -184,39 +196,48 @@ public class SettingsUI : MonoBehaviour
     private void InitializeGraphicsSettings()
     {
         // Cài đặt Dropdown độ phân giải
-        resolutions = Screen.resolutions;
-        resolutionDropdown.ClearOptions();
-
-        List<string> options = new List<string>();
-        int currentResIndex = 0;
-
-        for (int i = 0; i < resolutions.Length; i++)
+        if (resolutionDropdown != null)
         {
-            string option = resolutions[i].width + " x " + resolutions[i].height + " @ " + resolutions[i].refreshRateRatio.value + "hz";
-            options.Add(option);
+            resolutions = Screen.resolutions;
+            resolutionDropdown.ClearOptions();
 
-            if (resolutions[i].width == Screen.currentResolution.width &&
-                resolutions[i].height == Screen.currentResolution.height)
+            List<string> options = new List<string>();
+            int currentResIndex = 0;
+
+            for (int i = 0; i < resolutions.Length; i++)
             {
-                currentResIndex = i;
+                string option = resolutions[i].width + " x " + resolutions[i].height + " @ " + resolutions[i].refreshRateRatio.value + "hz";
+                options.Add(option);
+
+                if (resolutions[i].width == Screen.currentResolution.width &&
+                    resolutions[i].height == Screen.currentResolution.height)
+                {
+                    currentResIndex = i;
+                }
             }
+
+            resolutionDropdown.AddOptions(options);
+            resolutionDropdown.value = PlayerPrefs.GetInt("ResIndex", currentResIndex);
+            resolutionDropdown.RefreshShownValue();
+            resolutionDropdown.onValueChanged.AddListener(SetResolution);
         }
 
-        resolutionDropdown.AddOptions(options);
-        resolutionDropdown.value = PlayerPrefs.GetInt("ResIndex", currentResIndex);
-        resolutionDropdown.RefreshShownValue();
-        resolutionDropdown.onValueChanged.AddListener(SetResolution);
-
         // Cài đặt Dropdown Quality
-        qualityDropdown.ClearOptions();
-        qualityDropdown.AddOptions(new List<string>(QualitySettings.names));
-        qualityDropdown.value = QualitySettings.GetQualityLevel();
-        qualityDropdown.RefreshShownValue();
-        qualityDropdown.onValueChanged.AddListener(SetQuality);
+        if (qualityDropdown != null)
+        {
+            qualityDropdown.ClearOptions();
+            qualityDropdown.AddOptions(new List<string>(QualitySettings.names));
+            qualityDropdown.value = QualitySettings.GetQualityLevel();
+            qualityDropdown.RefreshShownValue();
+            qualityDropdown.onValueChanged.AddListener(SetQuality);
+        }
 
         // Cài đặt Fullscreen
-        fullscreenToggle.isOn = Screen.fullScreen;
-        fullscreenToggle.onValueChanged.AddListener(SetFullscreen);
+        if (fullscreenToggle != null)
+        {
+            fullscreenToggle.isOn = Screen.fullScreen;
+            fullscreenToggle.onValueChanged.AddListener(SetFullscreen);
+        }
     }
 
     public void SetResolution(int resIndex)

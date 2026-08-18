@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using Unity.Netcode;
 using System.Collections;
+using Mimeto.Audio;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class ExilerAI : NetworkBehaviour
@@ -23,11 +24,11 @@ public class ExilerAI : NetworkBehaviour
     public float attackCooldown = 2.0f;
     public float attackDelay = 0.5f;
 
-    [Header("Senses (Sự thông minh)")]
-    public float sightRadius = 20f;
-    public float hearRadius = 30f;
-    [Range(0, 360)]
-    public float viewAngle = 120f;
+    [Header("Senses — Blind / Sound-Only (Mù — chỉ nghe)")]
+    [Tooltip("Bán kính nghe tiếng bước chân đi/chạy bình thường (mét)")]
+    public float hearRadius = 50f;
+    [Tooltip("Player ngồi (crouch) di chuyển có bị phát hiện không?")]
+    public bool crouchDetectable = false;
     public LayerMask obstacleMask;
 
     [Header("References")]
@@ -48,17 +49,19 @@ public class ExilerAI : NetworkBehaviour
     private readonly int hashDead = Animator.StringToHash("Die");
     private readonly int hashAlert = Animator.StringToHash("Alert");
     private float pathUpdateTimer = 0f;
+    private MonsterAudioEmitter _audioEmitter;
 
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
+        _audioEmitter = GetComponent<MonsterAudioEmitter>();
         
         if (IsServer) currentHealth.Value = maxHealth;
         currentState = ExilerState.Patrol;
         agent.speed = patrolSpeed;
 
-        if (obstacleMask == 0) obstacleMask = LayerMask.GetMask("Default", "Environment", "Wall");
+        if (obstacleMask == 0) obstacleMask = LayerMask.GetMask("Default", "Environment", "Wall", "Player");
     }
 
     public override void OnNetworkSpawn()
@@ -68,6 +71,10 @@ public class ExilerAI : NetworkBehaviour
         if (!IsServer && agent != null)
         {
             agent.enabled = false;
+        }
+        else if (IsServer && agent != null)
+        {
+            agent.updateRotation = false; // Tắt tự động xoay giật cục
         }
     }
 
@@ -90,7 +97,24 @@ public class ExilerAI : NetworkBehaviour
             return;
         }
 
+        // --- SMOOTH ROTATION (Phong cách game kinh dị) ---
+        if (agent.enabled && !agent.isStopped && agent.desiredVelocity.sqrMagnitude > 0.1f && currentState != ExilerState.Attack && currentState != ExilerState.Alert)
+        {
+            Vector3 direction = agent.desiredVelocity.normalized;
+            direction.y = 0;
+            if (direction != Vector3.zero)
+            {
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), Time.deltaTime * 6f);
+            }
+        }
+
         UpdateState();
+
+        // Update audio emitter chase state
+        if (_audioEmitter != null)
+        {
+            _audioEmitter.isChasing = (currentState == ExilerState.Chase || currentState == ExilerState.Attack);
+        }
     }
 
     private void UpdateState()
@@ -177,62 +201,45 @@ public class ExilerAI : NetworkBehaviour
 
     private void SensePlayer()
     {
-        // Lấy tất cả vật thể xung quanh thay vì chỉ layer Player (tránh lỗi Player không nằm đúng Layer)
-        Collider[] hits = Physics.OverlapSphere(transform.position, Mathf.Max(sightRadius, hearRadius));
+        // === EXILER BỊ MÙ — CHỈ PHÁT HIỆN BẰNG ÂM THANH ===
+        Collider[] hits = Physics.OverlapSphere(transform.position, hearRadius);
         
         foreach (var hit in hits)
         {
-            if (!hit.CompareTag("Player")) continue; // Lọc bằng Tag chắc chắn hơn
+            if (!hit.CompareTag("Player")) continue;
 
             var survival = hit.GetComponent<PlayerSurvival>();
             if (survival == null || survival.currentHealth <= 0) continue;
 
-            Transform p = hit.transform;
-            Vector3 dirToPlayer = (p.position - transform.position).normalized;
-            float distanceToPlayer = Vector3.Distance(transform.position, p.position);
-
-            bool canSee = false;
-            bool canHear = false;
-
-            // 1. Tầm nhìn
-            if (distanceToPlayer <= sightRadius)
-            {
-                if (Vector3.Angle(transform.forward, dirToPlayer) < viewAngle / 2)
-                {
-                    Vector3 rayOrigin = eyes != null ? eyes.position : transform.position + Vector3.up * 1.5f;
-                    Vector3 rayTarget = p.position + Vector3.up * 1f;
-                    
-                    // Bắn tia Linecast. Nếu chạm cái gì đó
-                    if (Physics.Linecast(rayOrigin, rayTarget, out RaycastHit rayHit, obstacleMask))
-                    {
-                        // Nếu cái chạm phải chính là Player (Player nằm trong obstacle mask) thì tính là nhìn thấy
-                        if (rayHit.transform == p || rayHit.transform.IsChildOf(p))
-                        {
-                            canSee = true;
-                        }
-                    }
-                    else
-                    {
-                        // Không chạm gì cả (không có tường chắn)
-                        canSee = true;
-                    }
-                }
-            }
-
-            // 2. Thính giác siêu nhạy
-            bool isPlayerSprinting = false;
             PlayerController pc = hit.GetComponent<PlayerController>();
-            if (pc != null && pc.isSprinting) isPlayerSprinting = true;
+            if (pc == null) continue;
 
-            if (distanceToPlayer <= hearRadius)
+            float distanceToPlayer = Vector3.Distance(transform.position, hit.transform.position);
+            if (distanceToPlayer > hearRadius) continue;
+
+            // --- Tính toán mức độ tiếng ồn ---
+            bool isPlayerMakingNoise = false;
+
+            if (pc.isCrouching)
             {
-                if (survival.currentHealth < survival.maxHealth * 0.5f) canHear = true; // Nghe tiếng thở dốc
-                if (isPlayerSprinting) canHear = true; // Nghe tiếng bước chân chạy nước rút, xuyên tường
+                // Ngồi di chuyển = gần như im lặng
+                isPlayerMakingNoise = crouchDetectable && pc.isMoving;
+            }
+            else if (pc.isMoving || pc.isSprinting)
+            {
+                // Đi bộ hoặc chạy bình thường = tạo tiếng ồn
+                isPlayerMakingNoise = true;
             }
 
-            if (canSee || canHear)
+            // Thở dốc khi máu thấp vẫn bị nghe
+            if (survival.currentHealth < survival.maxHealth * 0.5f)
             {
-                targetPlayer = p;
+                isPlayerMakingNoise = true;
+            }
+
+            if (isPlayerMakingNoise)
+            {
+                targetPlayer = hit.transform;
                 lastKnownPosition = targetPlayer.position;
 
                 if (currentState == ExilerState.Patrol || currentState == ExilerState.Investigate)
@@ -294,6 +301,15 @@ public class ExilerAI : NetworkBehaviour
             return;
         }
 
+        // === MÙ: Mất mục tiêu nếu player ngồi xuống (im lặng) ===
+        PlayerController pc = targetPlayer.GetComponent<PlayerController>();
+        if (pc != null && pc.isCrouching && !crouchDetectable)
+        {
+            // Player ngồi xuống → Exiler không còn nghe thấy → mất dấu
+            LoseTarget();
+            return;
+        }
+
         lastKnownPosition = targetPlayer.position;
         agent.isStopped = false;
         
@@ -306,7 +322,6 @@ public class ExilerAI : NetworkBehaviour
         if (pathUpdateTimer <= 0f)
         {
             Vector3 targetDest = targetPlayer.position;
-            PlayerController pc = targetPlayer.GetComponent<PlayerController>();
             CharacterController cc = targetPlayer.GetComponent<CharacterController>();
             
             if (pc != null && pc.isMoving && cc != null)
@@ -317,8 +332,14 @@ public class ExilerAI : NetworkBehaviour
                 targetDest = targetPlayer.position + playerVel * 1.5f; 
             }
             
+            // Đảm bảo targetDest nằm trên NavMesh
+            if (NavMesh.SamplePosition(targetDest, out NavMeshHit hit, 5f, NavMesh.AllAreas))
+            {
+                targetDest = hit.position;
+            }
+            
             agent.SetDestination(targetDest);
-            pathUpdateTimer = 0.2f; // Chỉ cập nhật đường đi 5 lần/giây để tránh lỗi velocity = 0 (trượt)
+            pathUpdateTimer = 0.2f;
         }
         
         float distance = Vector3.Distance(transform.position, targetPlayer.position);
@@ -327,22 +348,10 @@ public class ExilerAI : NetworkBehaviour
         {
             currentState = ExilerState.Attack;
         }
-        else if (distance > sightRadius * 1.5f) 
+        else if (distance > hearRadius * 1.2f) 
         {
+            // Quá xa tầm nghe → mất mục tiêu
             LoseTarget();
-        }
-        else
-        {
-            // Update the check during chase
-            Vector3 rayOrigin = eyes != null ? eyes.position : transform.position + Vector3.up * 1.5f;
-            Vector3 rayTarget = targetPlayer.position + Vector3.up * 1f;
-            if (Physics.Linecast(rayOrigin, rayTarget, out RaycastHit hit, obstacleMask))
-            {
-                if (hit.transform != targetPlayer && !hit.transform.IsChildOf(targetPlayer))
-                {
-                    LoseTarget(); // Bị khuất tường, chuyển sang Investigate
-                }
-            }
         }
     }
 
@@ -454,6 +463,7 @@ public class ExilerAI : NetworkBehaviour
     public void TakeDamage(float damage)
     {
         if (!IsServer) return; // FIX: Prevent local damage on client
+        if (currentState == ExilerState.Dead) return;
         
         currentHealth.Value -= damage;
 
@@ -494,12 +504,41 @@ public class ExilerAI : NetworkBehaviour
         }
     }
 
+    public void ForceTarget(PlayerController player)
+    {
+        if (!IsServer || currentState == ExilerState.Dead) return;
+        
+        targetPlayer = player.transform;
+        lastKnownPosition = targetPlayer.position;
+
+        if (currentState == ExilerState.Patrol || currentState == ExilerState.Idle || currentState == ExilerState.Investigate)
+        {
+            if (RandomEventManager.IsBloodMoonActive)
+            {
+                currentState = ExilerState.Alert;
+                agent.isStopped = true;
+                agent.velocity = Vector3.zero;
+                animator.SetTrigger(hashAlert);
+                alertTimer = 1.0f;
+            }
+            else
+            {
+                currentState = ExilerState.Chase;
+                agent.isStopped = false;
+                agent.speed = chaseSpeed;
+            }
+        }
+    }
+
     private void Die()
     {
         if (!IsServer) return; // FIX: Despawn and Die logic should run on Server
 
         currentState = ExilerState.Dead;
         agent.isStopped = true;
+
+        // Play death sound via audio emitter
+        if (_audioEmitter != null) _audioEmitter.PlayDeathSound();
         
         if (animator != null)
         {

@@ -225,7 +225,8 @@ public class MultiplayerCenter : MonoBehaviour
             RelayServerData relayServerData = new RelayServerData(allocation, "dtls");
             netManager.GetComponent<UnityTransport>().SetRelayServerData(relayServerData);
 
-            // Không dùng ConnectionApproval của Netcode nữa vì Relay/Lobby đã khóa phòng rồi.
+            // 5. Bật kiểm duyệt kết nối để chặn người vào sau khi đã ở trong Map
+            netManager.ConnectionApprovalCallback = ApprovalCheck;
 
             // 6. Start Host
             if (netManager.StartHost())

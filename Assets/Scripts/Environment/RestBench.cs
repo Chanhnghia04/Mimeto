@@ -52,7 +52,7 @@ public class RestBench : MonoBehaviour, IInteractable
         _alpha = Mathf.Lerp(_alpha, 1f, dt * 5f);
 
         // Regen HP
-        if (_playerSurvival.currentHealth < _playerSurvival.maxHealth)
+        if (_playerSurvival.IsOwner && _playerSurvival.currentHealth < _playerSurvival.maxHealth)
         {
             _playerSurvival.currentHealth += hpRegenPerSecond * Time.deltaTime;
             if (_playerSurvival.currentHealth > _playerSurvival.maxHealth)

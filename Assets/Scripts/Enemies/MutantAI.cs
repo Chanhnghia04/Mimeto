@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.AI;
 using Unity.Netcode;
+using Mimeto.Audio;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class MutantAI : NetworkBehaviour
@@ -39,12 +40,14 @@ public class MutantAI : NetworkBehaviour
     private float confuseTimer = 0f;
     private float heartbeatCheckTimer = 0f;
     private bool isDead = false;
+    private MonsterAudioEmitter _audioEmitter;
 
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
         if (audioSource == null) audioSource = GetComponent<AudioSource>();
+        _audioEmitter = GetComponent<MonsterAudioEmitter>();
         
         agent.speed = patrolSpeed;
         currentState = MutantState.Patrol;
@@ -57,6 +60,10 @@ public class MutantAI : NetworkBehaviour
         if (!IsServer && agent != null)
         {
             agent.enabled = false;
+        }
+        else if (IsServer && agent != null)
+        {
+            agent.updateRotation = false; // Tắt tự động xoay giật cục
         }
     }
 
@@ -72,6 +79,17 @@ public class MutantAI : NetworkBehaviour
         }
         
         if (health.Value <= 0 || isDead) return;
+        
+        // --- SMOOTH ROTATION (Phong cách game kinh dị) ---
+        if (agent.enabled && !agent.isStopped && agent.desiredVelocity.sqrMagnitude > 0.1f && currentState != MutantState.Attack)
+        {
+            Vector3 direction = agent.desiredVelocity.normalized;
+            direction.y = 0;
+            if (direction != Vector3.zero)
+            {
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), Time.deltaTime * 6f);
+            }
+        }
         
         switch (currentState)
         {
@@ -89,7 +107,11 @@ public class MutantAI : NetworkBehaviour
                 break;
         }
 
-        UpdateAnimator();
+        // Update audio emitter chase state
+        if (_audioEmitter != null)
+        {
+            _audioEmitter.isChasing = (currentState == MutantState.Charge || currentState == MutantState.Attack);
+        }
     }
 
 
@@ -135,7 +157,7 @@ public class MutantAI : NetworkBehaviour
             float dist = Vector3.Distance(transform.position, p.transform.position);
             if (dist > hearRadius) continue;
 
-            float bpm = (ps.currentHealth / ps.maxHealth) * 50f + 40f;
+            float bpm = ((ps.maxHealth - ps.currentHealth) / ps.maxHealth) * 50f + 40f;
             if (ps.currentOxygen < ps.lowOxygenThreshold) bpm += 40f;
             if (p.isSprinting) bpm += 30f;
             if (!p.isMoving && p.isCrouching) bpm -= 20f;
@@ -184,7 +206,7 @@ public class MutantAI : NetworkBehaviour
         Vector3 flatTarget = new Vector3(targetPlayer.transform.position.x, 0, targetPlayer.transform.position.z);
         float dist = Vector3.Distance(flatPos, flatTarget);
         
-        float bpm = (ps.currentHealth / ps.maxHealth) * 50f + 40f;
+        float bpm = ((ps.maxHealth - ps.currentHealth) / ps.maxHealth) * 50f + 40f;
         if (ps.currentOxygen < ps.lowOxygenThreshold) bpm += 40f;
         if (!targetPlayer.isMoving && targetPlayer.isCrouching) bpm -= 20f;
 
@@ -258,6 +280,7 @@ public class MutantAI : NetworkBehaviour
         // Xoay mặt về phía người chơi khi tấn công
         Vector3 direction = (targetPlayer.transform.position - transform.position).normalized;
         direction.y = 0;
+        if (direction.sqrMagnitude < 0.001f) return;
         transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), Time.deltaTime * 10f);
 
         if (Time.time - lastAttackTime >= attackRate)
@@ -365,6 +388,9 @@ public class MutantAI : NetworkBehaviour
         isDead = true;
         agent.enabled = false;
         
+        // Play death sound via audio emitter
+        if (_audioEmitter != null) _audioEmitter.PlayDeathSound();
+
         if (animator != null) 
         {
             TriggerAnimClientRpc("Die");
@@ -382,7 +408,8 @@ public class MutantAI : NetworkBehaviour
         yield return new WaitForSeconds(delay);
         if (IsServer)
         {
-            GetComponent<NetworkObject>().Despawn(true);
+            var netObj = GetComponent<NetworkObject>();
+            if (netObj != null && netObj.IsSpawned) netObj.Despawn(true);
         }
     }
 

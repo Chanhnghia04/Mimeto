@@ -64,6 +64,7 @@ public class InventoryUI : MonoBehaviour
         if (inventoryPanel != null)
         {
             inventoryPanel.SetActive(isVisible);
+            inventoryPanel.transform.localScale = new Vector3(0.64f, 0.64f, 1f);
         }
         else
         {
@@ -97,6 +98,7 @@ public class InventoryUI : MonoBehaviour
                     if (obj.name == "InventoryPanel" && obj.scene.IsValid() && obj.transform.Find("GridContainer") != null)
                     {
                         inventoryPanel = obj;
+                        inventoryPanel.transform.localScale = new Vector3(0.64f, 0.64f, 1f);
                         break;
                     }
                 }
@@ -164,7 +166,6 @@ public class InventoryUI : MonoBehaviour
     {
         if (inventory == null) return;
 
-        // Current item types present in PlayerInventory
         Dictionary<string, int> counts = new Dictionary<string, int>();
         if (inventory.circuits > 0) counts["circuit"] = inventory.circuits;
         if (inventory.metalPipes > 0) counts["metal_pipe"] = inventory.metalPipes;
@@ -173,7 +174,37 @@ public class InventoryUI : MonoBehaviour
         if (inventory.plasticPipes > 0) counts["plastic_pipe"] = inventory.plasticPipes;
         if (inventory.scrapBatteries > 0) counts["battery"] = inventory.scrapBatteries;
 
-        // 1. Remove items from slots if they are no longer in inventory
+        // --- Bổ sung Tools & Consumables ---
+        if (inventory.hasMachete) counts["machete"] = 1;
+        if (inventory.hasAxe) counts["axe"] = 1;
+        if (inventory.hasBat) counts["bat"] = 1;
+        if (inventory.hasCrowbar) counts["crowbar"] = 1;
+        if (inventory.hasShovel) counts["shovel"] = 1;
+        if (inventory.hasFlashlight) counts["flashlight"] = 1;
+        if (inventory.antidotes > 0) counts["antidote"] = inventory.antidotes;
+        
+        // --- Hiển thị Gas Mask vào Grid túi đồ ---
+        if (inventory.basicGasMasks > 0) counts["basic_gasmask"] = inventory.basicGasMasks;
+        if (inventory.advancedGasMasks > 0) counts["adv_gasmask"] = inventory.advancedGasMasks;
+        // -----------------------------------
+
+        // --- Bổ sung: TRỪ ĐI những đồ ĐÃ CẦM TRÊN HOTBAR để không bị phân thân ---
+        var hotbarSys = GetComponent<HotbarSystem>();
+        if (hotbarSys != null && hotbarSys.hotbarItems != null)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                string ht = hotbarSys.hotbarItems[i];
+                if (!string.IsNullOrEmpty(ht) && counts.ContainsKey(ht))
+                {
+                    counts[ht]--;
+                    if (counts[ht] <= 0) counts.Remove(ht);
+                }
+            }
+        }
+        // ------------------------------------------------------------------------
+
+        // 1. Clear slots that have items we no longer have
         foreach (var slot in gridSlots)
         {
             if (!string.IsNullOrEmpty(slot.currentItemType) && !counts.ContainsKey(slot.currentItemType))
@@ -182,30 +213,55 @@ public class InventoryUI : MonoBehaviour
             }
         }
 
-        // 2. Add new items to first available slots
-        foreach (var kvp in counts)
+        // We need to distribute counts among slots that have this type.
+        // First pass: assign up to 5 to existing slots of that type
+        Dictionary<string, int> remainingCounts = new Dictionary<string, int>(counts);
+        int[] slotAmounts = new int[gridSlots.Count];
+        
+        for (int i = 0; i < gridSlots.Count; i++)
         {
-            bool alreadyInSlot = false;
-            foreach (var slot in gridSlots)
+            if (i >= inventory.maxSlots)
             {
-                if (slot.currentItemType == kvp.Key)
-                {
-                    alreadyInSlot = true;
-                    break;
-                }
+                gridSlots[i].bgObj.SetActive(false);
+                gridSlots[i].currentItemType = "";
+                continue;
             }
-
-            if (!alreadyInSlot)
+            gridSlots[i].bgObj.SetActive(true);
+            
+            string type = gridSlots[i].currentItemType;
+            if (!string.IsNullOrEmpty(type) && remainingCounts.ContainsKey(type) && remainingCounts[type] > 0)
             {
+                int toAdd = Mathf.Min(5, remainingCounts[type]);
+                slotAmounts[i] = toAdd;
+                remainingCounts[type] -= toAdd;
+            }
+            else
+            {
+                gridSlots[i].currentItemType = "";
+            }
+        }
+
+        // Second pass: for any remaining counts, put them in empty slots
+        foreach (var kvp in remainingCounts)
+        {
+            int amountLeft = kvp.Value;
+            while (amountLeft > 0)
+            {
+                int toAdd = Mathf.Min(5, amountLeft);
                 // Find empty slot
-                foreach (var slot in gridSlots)
+                bool placed = false;
+                for (int i = 0; i < inventory.maxSlots && i < gridSlots.Count; i++)
                 {
-                    if (string.IsNullOrEmpty(slot.currentItemType))
+                    if (string.IsNullOrEmpty(gridSlots[i].currentItemType))
                     {
-                        slot.currentItemType = kvp.Key;
+                        gridSlots[i].currentItemType = kvp.Key;
+                        slotAmounts[i] = toAdd;
+                        placed = true;
                         break;
                     }
                 }
+                if (!placed) break; // Should not happen if CanAddScrap logic is correct
+                amountLeft -= toAdd;
             }
         }
 
@@ -213,26 +269,58 @@ public class InventoryUI : MonoBehaviour
         for (int i = 0; i < gridSlots.Count; i++)
         {
             var slot = gridSlots[i];
-            if (slot.bgObj != null) slot.bgObj.SetActive(true);
+            if (i >= inventory.maxSlots) continue;
 
             if (!string.IsNullOrEmpty(slot.currentItemType))
             {
                 slot.icon.gameObject.SetActive(true);
+                slot.icon.enabled = true;
                 slot.icon.sprite = GetSpriteForType(slot.currentItemType);
                 slot.icon.color = Color.white;
-                
                 slot.amountText.gameObject.SetActive(true);
-                slot.amountText.text = counts[slot.currentItemType].ToString();
+                
+                string t = slot.currentItemType;
+                bool isTool = (t == "machete" || t == "axe" || t == "bat" || 
+                               t == "crowbar" || t == "shovel" || t == "flashlight" || t == "antidote");
+                
+                if (isTool)
+                {
+                    slot.amountText.text = t.Substring(0, Mathf.Min(3, t.Length)).ToUpper() + "\nx" + slotAmounts[i];
+                    slot.amountText.fontSize = 20; // Smaller to fit text
+                }
+                else
+                {
+                    slot.amountText.text = slotAmounts[i].ToString();
+                    slot.amountText.fontSize = 24; // Default
+                }
+                
+                // Add Drag & Drop Component
+                if (slot.bgObj.GetComponent<UIDragItem>() == null)
+                {
+                    slot.bgObj.AddComponent<UIDragItem>();
+                }
+                slot.bgObj.GetComponent<UIDragItem>().itemType = slot.currentItemType;
             }
             else
             {
-                slot.icon.gameObject.SetActive(false);
-                slot.amountText.gameObject.SetActive(false);
+                slot.icon.enabled = false;
+                slot.amountText.enabled = false;
+                
+                if (slot.bgObj.GetComponent<UIDragItem>() != null)
+                {
+                    slot.bgObj.GetComponent<UIDragItem>().itemType = "";
+                }
             }
         }
     }
 
-    private Sprite GetSpriteForType(string type)
+    [Header("Equipment Sprites")]
+    public Sprite axeSprite;
+    public Sprite macheteSprite;
+    public Sprite antidoteSprite;
+    public Sprite flashlightSprite;
+
+    public Sprite GetSpriteForType(string type)
     {
         Sprite sp = null;
         switch (type)
@@ -243,6 +331,12 @@ public class InventoryUI : MonoBehaviour
             case "chemical": sp = chemicalSprite; break;
             case "plastic_pipe": sp = plasticSprite; break;
             case "battery": sp = batterySprite; break;
+            
+            // THÊM TRANG BỊ
+            case "axe": sp = axeSprite; break;
+            case "machete": sp = macheteSprite; break;
+            case "antidote": sp = antidoteSprite; break;
+            case "flashlight": sp = flashlightSprite; break;
         }
 
         // --- HỆ THỐNG LOAD ẢNH TUYỆT ĐỐI (TRÁNH LỖI TRẮNG XÓA) ---
@@ -257,6 +351,14 @@ public class InventoryUI : MonoBehaviour
                 case "chemical": iconName = "Scrap_Chemical_Icon"; break;
                 case "plastic_pipe": iconName = "Scrap_PlasticPipe_Icon"; break;
                 case "battery": iconName = "Scrap_Battery_Icon"; break;
+                
+                // THÊM TRANG BỊ VÀO RESOURCES LOAD FALLBACK
+                case "axe": iconName = "Axe_Icon"; break;
+                case "machete": iconName = "Machete_Icon"; break;
+                case "antidote": iconName = "Antidote_Icon"; break;
+                case "flashlight": iconName = "Flashlight_Icon"; break;
+                case "basic_gasmask": iconName = "BasicGasMask_Icon"; break;
+                case "adv_gasmask": iconName = "AdvancedGasMask_Icon"; break;
             }
             if (!string.IsNullOrEmpty(iconName))
             {
@@ -284,25 +386,25 @@ public class InventoryUI : MonoBehaviour
         if (survival == null || inventory == null) return;
 
         // Prevent spamming the same mask type
-        if (advanced && survival.activeMaskType == GasMaskType.Advanced) return;
-        if (!advanced && survival.activeMaskType == GasMaskType.Basic) return;
+        if (advanced && survival.netEquippedMask.Value == 2) return;
+        if (!advanced && survival.netEquippedMask.Value == 1) return;
 
         if (advanced) 
         { 
             if (inventory.advancedGasMasks > 0) 
             { 
-                if (survival.activeMaskType == GasMaskType.Basic) inventory.basicGasMasks++;
+                if (survival.netEquippedMask.Value == 1) inventory.basicGasMasks++;
                 inventory.advancedGasMasks--; 
-                survival.EquipMask(GasMaskType.Advanced); 
+                survival.netEquippedMask.Value = 2; 
             } 
         }
         else 
         { 
             if (inventory.basicGasMasks > 0) 
             { 
-                if (survival.activeMaskType == GasMaskType.Advanced) inventory.advancedGasMasks++;
+                if (survival.netEquippedMask.Value == 2) inventory.advancedGasMasks++;
                 inventory.basicGasMasks--; 
-                survival.EquipMask(GasMaskType.Basic); 
+                survival.netEquippedMask.Value = 1; 
             } 
         }
     }

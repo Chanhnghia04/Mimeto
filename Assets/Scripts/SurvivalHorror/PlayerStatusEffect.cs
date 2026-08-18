@@ -73,12 +73,11 @@ public class PlayerStatusEffect : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             Collider col = _monsterBuffer[i];
-//             MimicAI mimic = col.GetComponentInParent<MimicAI>();
+            ExilerAI exiler = col.GetComponentInParent<ExilerAI>();
             MutantAI mutant = col.GetComponentInParent<MutantAI>();
-// bool isMimic = false;
-//             bool isMimic = mimic != null && mimic.currentState != MimicAI.MimicState.HumanForm;
+            bool isExiler = exiler != null;
             bool isMutant = mutant != null;
-//             if (isMimic || isMutant)
+            if (isExiler || isMutant)
             {
                 monsterNearby = true;
                 float dist = Vector3.Distance(transform.position, col.transform.position);

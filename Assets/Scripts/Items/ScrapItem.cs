@@ -44,7 +44,7 @@ public class ScrapItem : MonoBehaviour, IInteractable
             glowLight.color = glowColor;
             glowLight.intensity = glowIntensity;
             glowLight.range = glowRange;
-            glowLight.renderMode = LightRenderMode.ForcePixel; // Đảm bảo luôn sáng đẹp
+            glowLight.renderMode = LightRenderMode.Auto; // Đã đổi thành Auto để tối ưu hiệu năng
         }
     }
 
@@ -132,6 +132,12 @@ public class ScrapItem : MonoBehaviour, IInteractable
         {
             Debug.LogWarning($"[ScrapItem] Cannot pick up '{name}': " +
                              $"no PlayerInventory found on '{interactor.name}' or its hierarchy.");
+            return;
+        }
+
+        if (!inventory.CanAddScrap(scrapType, amount))
+        {
+            Debug.Log($"[ScrapItem] Cannot pick up '{name}': Inventory full.");
             return;
         }
 

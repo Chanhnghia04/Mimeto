@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class BaseSetup : MonoBehaviour
@@ -5,12 +6,28 @@ public class BaseSetup : MonoBehaviour
     [Tooltip("Vị trí Player sẽ xuất hiện khi vào game")]
     public Transform spawnPoint;
 
-    void Awake()
+    private IEnumerator Start()
     {
-        // Tự động tìm Player trong scene
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player != null)
+        // Chờ NetworkManager và Local PlayerObject được spawn
+        float timeout = 10f;
+        float elapsed = 0f;
+
+        while (elapsed < timeout)
         {
+            if (Unity.Netcode.NetworkManager.Singleton != null &&
+                Unity.Netcode.NetworkManager.Singleton.LocalClient != null &&
+                Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject != null)
+            {
+                break;
+            }
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        // Tự động tìm Player trong scene
+        if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.LocalClient?.PlayerObject != null)
+        {
+            GameObject player = Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject.gameObject;
             PlayerSurvival survival = player.GetComponent<PlayerSurvival>();
             if (survival != null && spawnPoint != null)
             {
@@ -26,7 +43,7 @@ public class BaseSetup : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("Không tìm thấy object nào có tag 'Player' trong Scene để dịch chuyển về căn cứ.");
+            Debug.LogWarning("Không tìm thấy LocalClient.PlayerObject để dịch chuyển về căn cứ.");
         }
     }
 }

@@ -307,6 +307,8 @@ public class EscapeManager : NetworkBehaviour
 
         int maxAttempts = 100;
         int triCount = navData.indices.Length / 3;
+        if (triCount == 0) return center + new Vector3(minDistance, 0, minDistance);
+        
         int[] triIndices = new int[maxAttempts];
         float[] lerpA = new float[maxAttempts];
         float[] lerpB = new float[maxAttempts];

@@ -1,7 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
+using Unity.Netcode;
 
-public class SlotMachineStation : MonoBehaviour, IInteractable
+public class SlotMachineStation : NetworkBehaviour, IInteractable
 {
     public bool isOpen = false;
     private PlayerInventory _inventory;
@@ -66,10 +67,14 @@ public class SlotMachineStation : MonoBehaviour, IInteractable
     }
 
     void OnEnable() { PlayerInventory.OnSlotSpinResult += HandleSlotResult; }
-    void OnDisable() { PlayerInventory.OnSlotSpinResult -= HandleSlotResult; }
+    void OnDisable() {
+        PlayerInventory.OnSlotSpinResult -= HandleSlotResult;
+        if (isOpen) { isOpen = false; PlayerController.OpenMinigameCount--; }
+    }
 
-    void HandleSlotResult(int r0, int r1, int r2)
+    void HandleSlotResult(ulong stationId, int r0, int r1, int r2)
     {
+        if (stationId != NetworkObjectId) return;
         if (_state != State.WaitingForServer) return;
         _result[0] = r0; _result[1] = r1; _result[2] = r2;
         _state = State.Spinning;
@@ -145,7 +150,7 @@ public class SlotMachineStation : MonoBehaviour, IInteractable
         { _msg = "!! INSUFFICIENT COINS !!"; return; }
         _state = State.WaitingForServer; _win = false;
         _msg = "W A I T I N G . . .";
-        _inventory.RequestSlotSpinServerRpc(_bet);
+        _inventory.RequestSlotSpinServerRpc(NetworkObjectId, _bet);
     }
 
     int WeightedPick()

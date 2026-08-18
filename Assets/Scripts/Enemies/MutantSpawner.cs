@@ -169,7 +169,7 @@ public class MutantSpawner : NetworkBehaviour
             // Weighted random selection
             float roll = Random.Range(0f, totalWeight);
             float cumulative = 0f;
-            int selectedIndex = 0;
+            int selectedIndex = -1;
 
             for (int i = 0; i < eligible.Count; i++)
             {
@@ -180,6 +180,11 @@ public class MutantSpawner : NetworkBehaviour
                     selectedIndex = i;
                     break;
                 }
+            }
+
+            if (selectedIndex == -1)
+            {
+                selectedIndex = eligible.Count - 1;
             }
 
             usedIndices.Add(selectedIndex);
@@ -228,12 +233,13 @@ public class MutantSpawner : NetworkBehaviour
     /// <summary>Spawn at completely random NavMesh positions.</summary>
     private void SpawnRandomly(GameObject[] allPlayers)
     {
-        Vector3 anchorPos = allPlayers.Length > 0 ? allPlayers[0].transform.position : Vector3.zero;
         int spawned = 0;
         int attempts = 0;
 
         while (spawned < mutantsToSpawn && attempts < 100)
         {
+            attempts++;
+            Vector3 anchorPos = allPlayers.Length > 0 ? allPlayers[Random.Range(0, allPlayers.Length)].transform.position : Vector3.zero;
             Vector2 randomCircle = Random.insideUnitCircle.normalized * Random.Range(globalMinDistanceFromPlayer, globalMinDistanceFromPlayer + 150f);
             Vector3 tryPos = anchorPos + new Vector3(randomCircle.x, 0, randomCircle.y);
             
@@ -276,7 +282,6 @@ public class MutantSpawner : NetworkBehaviour
                     spawned++;
                 }
             }
-            attempts++;
         }
 
         if (spawned < mutantsToSpawn)

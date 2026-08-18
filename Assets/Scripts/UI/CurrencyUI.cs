@@ -45,6 +45,10 @@ public class CurrencyUI : MonoBehaviour
         // Cần có inventory để lấy số Energy Cells
         if (_localInventory == null) return;
         
+        // Ẩn UI tiền tệ nếu đang mở túi đồ, bảng setting, pause menu...
+        PlayerController pc = Object.FindAnyObjectByType<PlayerController>();
+        if (pc != null && pc.IsUIOpen()) return;
+        
         if (_bgTex == null)
         {
             _bgTex = new Texture2D(1, 1);

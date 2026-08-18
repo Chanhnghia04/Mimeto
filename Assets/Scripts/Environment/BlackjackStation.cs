@@ -81,6 +81,7 @@ public class BlackjackStation : MonoBehaviour, IInteractable
         PlayerInventory.OnBlackjackStartResult -= HandleStart;
         PlayerInventory.OnBlackjackHitResult -= HandleHit;
         PlayerInventory.OnBlackjackStandResult -= HandleStand;
+        if (isOpen) { isOpen = false; PlayerController.OpenMinigameCount--; }
     }
 
     Card IntToCard(int c) {

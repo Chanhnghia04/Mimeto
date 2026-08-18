@@ -43,7 +43,7 @@ public class AmbientAudioManager : MonoBehaviour
 
     private void PlayRandomStinger()
     {
-        if (stingerClips.Length > 0)
+        if (stingerClips != null && stingerClips.Length > 0)
         {
             AudioClip clip = stingerClips[Random.Range(0, stingerClips.Length)];
             stingerSource.pitch = Random.Range(0.8f, 1.2f);
