@@ -1,0 +1,14 @@
+﻿<Solution>
+  <Project Path="com.IvanMurzak.Unity.MCP.Editor.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="com.IvanMurzak.Unity.MCP.Runtime.csproj" />
+  <Project Path="com.IvanMurzak.Unity.MCP.Editor.Tests.csproj" />
+  <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="com.IvanMurzak.Unity.MCP.TestFiles.csproj" />
+  <Project Path="com.IvanMurzak.Unity.MCP.DependencyResolver.csproj" />
+  <Project Path="Chanhnghia43.Comunityservicesmultiplayer.Editor.csproj" />
+  <Project Path="Chanhnghia43.Comunityservicesmultiplayer.csproj" />
+  <Project Path="com.IvanMurzak.Unity.MCP.Tests.csproj" />
+  <Project Path="Chanhnghia43.Comunityservicesmultiplayer.Tests.csproj" />
+  <Project Path="Chanhnghia43.Comunityservicesmultiplayer.Editor.Tests.csproj" />
+</Solution>
