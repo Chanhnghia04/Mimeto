@@ -55,6 +55,18 @@ public class EquipmentManager : MonoBehaviour
         else if (_animator != null) _animator.SetTrigger(triggerName);
     }
 
+    [System.Serializable]
+    public struct ItemTransformOffset
+    {
+        public string itemName;
+        public Vector3 localPos;
+        public Vector3 localRotEuler;
+        public float localScale;
+    }
+
+    [Header("Item Offsets")]
+    public List<ItemTransformOffset> itemOffsets = new List<ItemTransformOffset>();
+
     public void EquipItem(string itemName, EquipmentSlot slot)
     {
         string nameKey = itemName.ToLower();
@@ -73,14 +85,26 @@ public class EquipmentManager : MonoBehaviour
         if (socket == null) return;
 
         GameObject instance = Instantiate(prefab, socket);
-        instance.transform.localPosition = Vector3.zero;
-        instance.transform.localRotation = Quaternion.identity;
-        
-        // Scale adjustment for generated models
-        if (nameKey == "crowbar" || nameKey == "shovel" || nameKey == "machete" || nameKey == "axe" || nameKey == "bat")
-            instance.transform.localScale = Vector3.one * 0.5f; 
-        else if (nameKey == "gasmask")
-            instance.transform.localScale = Vector3.one * 0.1f;
+
+        bool foundOffset = false;
+        foreach (var offset in itemOffsets)
+        {
+            if (offset.itemName.ToLower() == nameKey)
+            {
+                instance.transform.localPosition = offset.localPos;
+                instance.transform.localRotation = Quaternion.Euler(offset.localRotEuler);
+                instance.transform.localScale = Vector3.one * offset.localScale;
+                foundOffset = true;
+                break;
+            }
+        }
+
+        if (!foundOffset)
+        {
+            instance.transform.localPosition = Vector3.zero;
+            instance.transform.localRotation = Quaternion.identity;
+            instance.transform.localScale = Vector3.one;
+        }
 
         switch (slot)
         {

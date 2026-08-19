@@ -159,11 +159,11 @@ public class MutantAI : NetworkBehaviour
 
             float bpm = ((ps.maxHealth - ps.currentHealth) / ps.maxHealth) * 50f + 40f;
             if (ps.currentOxygen < ps.lowOxygenThreshold) bpm += 40f;
-            if (p.isSprinting) bpm += 30f;
-            if (!p.isMoving && p.isCrouching) bpm -= 20f;
+            if (p.netIsSprinting.Value) bpm += 30f;
+            if (!p.netIsMoving.Value && p.netIsCrouching.Value) bpm -= 20f;
 
             // 3. Bạn đứng quá gần (dist < 8f) dù nhịp tim thấp
-            if (bpm > 95f || p.isSprinting || dist < 8f) 
+            if (bpm > 95f || p.netIsSprinting.Value || dist < 8f) 
             {
                 float threat = bpm - (dist * 0.5f); 
                 if (threat > highestThreat)
@@ -208,9 +208,9 @@ public class MutantAI : NetworkBehaviour
         
         float bpm = ((ps.maxHealth - ps.currentHealth) / ps.maxHealth) * 50f + 40f;
         if (ps.currentOxygen < ps.lowOxygenThreshold) bpm += 40f;
-        if (!targetPlayer.isMoving && targetPlayer.isCrouching) bpm -= 20f;
+        if (!targetPlayer.netIsMoving.Value && targetPlayer.netIsCrouching.Value) bpm -= 20f;
 
-        if (bpm < 85f && !targetPlayer.isMoving && targetPlayer.isCrouching)
+        if (bpm < 85f && !targetPlayer.netIsMoving.Value && targetPlayer.netIsCrouching.Value)
         {
             // Đi tới vị trí cuối cùng nghe thấy tiếng tim thay vì đứng yên ngơ ngác ngay lập tức
             if (agent.isOnNavMesh) agent.SetDestination(targetPlayer.transform.position);

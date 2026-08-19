@@ -48,14 +48,14 @@ public class EscapeAssembly : MonoBehaviour
 
     void SpawnAllParts()
     {
-        GameObject playerGO = GameObject.FindGameObjectWithTag("Player");
-        Vector3 playerPos   = playerGO != null ? playerGO.transform.position : Vector3.zero;
+        // BUG FIX: Use Vector3.zero instead of player position so all clients calculate the exact same coordinates!
+        Vector3 fixedOrigin = Vector3.zero;
         List<Vector3> used  = new List<Vector3>();
 
         int count = Mathf.Min(totalParts, PartDefs.Length);
         for (int i = 0; i < count; i++)
         {
-            Vector3 pos = FindValidPos(playerPos, used);
+            Vector3 pos = FindValidPos(fixedOrigin, used);
             used.Add(pos);
             SpawnPart(i, pos);
         }
@@ -122,10 +122,10 @@ public class EscapeAssembly : MonoBehaviour
         Debug.Log($"[EscapeAssembly] Spawn '{PartDefs[index].name}' tại {worldPos}");
     }
 
-    Vector3 FindValidPos(Vector3 playerPos, List<Vector3> usedPos)
+    Vector3 FindValidPos(Vector3 originPos, List<Vector3> usedPos)
     {
         UnityEngine.AI.NavMeshTriangulation navData = UnityEngine.AI.NavMesh.CalculateTriangulation();
-        if (navData.vertices.Length == 0) return playerPos + Vector3.forward * 20f;
+        if (navData.vertices.Length == 0) return originPos + Vector3.forward * 20f;
 
         int triCount = navData.indices.Length / 3;
 
@@ -160,17 +160,15 @@ public class EscapeAssembly : MonoBehaviour
             Vector3 pt = Vector3.Lerp(navData.vertices[v1], navData.vertices[v2], lerpA[attempt]);
             pt = Vector3.Lerp(pt, navData.vertices[v3], lerpB[attempt]);
 
-            if (Mathf.Abs(pt.y - playerPos.y) > 4f) continue;
-            if (Vector3.Distance(pt, playerPos) < minDistFromPlayer) continue;
+            if (Mathf.Abs(pt.y - originPos.y) > 4f) continue;
+            if (Vector3.Distance(pt, originPos) < minDistFromPlayer) continue;
 
             bool tooClose = false;
             foreach (var u in usedPos)
                 if (Vector3.Distance(pt, u) < minDistBetweenParts) { tooClose = true; break; }
             if (tooClose) continue;
 
-            if (Physics.CheckSphere(pt + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
-                continue;
-
+            // BUG FIX: Removed Physics.CheckSphere to guarantee deterministic result across all clients
             return pt;
         }
 

@@ -44,6 +44,11 @@ public class PlayerController : NetworkBehaviour
     public Light uvLight;
     public NetworkVariable<bool> netFlashlightEnabled = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
     
+    // Đồng bộ trạng thái di chuyển cho AI Server đọc
+    public NetworkVariable<bool> netIsMoving = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+    public NetworkVariable<bool> netIsSprinting = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+    public NetworkVariable<bool> netIsCrouching = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
     [Header("Realistic Effects")]
     public float bobSpeed = 10f;
     public float bobAmount = 0.05f;
@@ -462,8 +467,8 @@ public class PlayerController : NetworkBehaviour
 
             if (attackAction != null && attackAction.WasPressedThisFrame())
             {
-                // Tự động ép Cooldown xuống thấp (0.2s) để bấm nhanh được
-                float actualCooldown = Mathf.Min(punchCooldown, 0.2f); 
+                // Cooldown phải lớn hơn delay đấm trúng để không bị hủy Invoke
+                float actualCooldown = Mathf.Max(punchCooldown, punchHitDelay + 0.05f); 
                 
                 if (Time.time - lastPunchTime >= actualCooldown)
                 {
@@ -529,6 +534,14 @@ public class PlayerController : NetworkBehaviour
         Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
         if (move.magnitude > 1f) move.Normalize();
         isMoving = move.magnitude > 0.1f;
+        
+        // Sync movement states to server for AI
+        if (IsOwner)
+        {
+            netIsMoving.Value = isMoving;
+            netIsSprinting.Value = isSprinting;
+            netIsCrouching.Value = isCrouching;
+        }
 
         if (animator != null && animator.runtimeAnimatorController != null)
         {

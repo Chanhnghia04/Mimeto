@@ -42,6 +42,7 @@ public class ExilerAI : NetworkBehaviour
     private float patrolTimer = 0f;
     private float alertTimer = 0f;
     private float investigateTimer = 0f;
+    private float senseTimer = 0f;
 
     // Animation Hashes
     private readonly int hashSpeed = Animator.StringToHash("MoveSpeed");
@@ -126,12 +127,14 @@ public class ExilerAI : NetworkBehaviour
 
             case ExilerState.Patrol:
                 PatrolLogic();
-                SensePlayer();
+                senseTimer -= Time.deltaTime;
+                if (senseTimer <= 0f) { senseTimer = 0.5f; SensePlayer(); }
                 break;
 
             case ExilerState.Investigate:
                 InvestigateLogic();
-                SensePlayer();
+                senseTimer -= Time.deltaTime;
+                if (senseTimer <= 0f) { senseTimer = 0.5f; SensePlayer(); }
                 break;
 
             case ExilerState.Alert:
@@ -220,12 +223,12 @@ public class ExilerAI : NetworkBehaviour
             // --- Tính toán mức độ tiếng ồn ---
             bool isPlayerMakingNoise = false;
 
-            if (pc.isCrouching)
+            if (pc.netIsCrouching.Value)
             {
                 // Ngồi di chuyển = gần như im lặng
-                isPlayerMakingNoise = crouchDetectable && pc.isMoving;
+                isPlayerMakingNoise = crouchDetectable && pc.netIsMoving.Value;
             }
-            else if (pc.isMoving || pc.isSprinting)
+            else if (pc.netIsMoving.Value || pc.netIsSprinting.Value)
             {
                 // Đi bộ hoặc chạy bình thường = tạo tiếng ồn
                 isPlayerMakingNoise = true;
@@ -249,7 +252,7 @@ public class ExilerAI : NetworkBehaviour
                         currentState = ExilerState.Alert;
                         agent.isStopped = true;
                         agent.velocity = Vector3.zero;
-                        animator.SetTrigger(hashAlert);
+                        TriggerAnimClientRpc(hashAlert);
                         alertTimer = 1.5f; 
                     }
                     else
@@ -303,7 +306,7 @@ public class ExilerAI : NetworkBehaviour
 
         // === MÙ: Mất mục tiêu nếu player ngồi xuống (im lặng) ===
         PlayerController pc = targetPlayer.GetComponent<PlayerController>();
-        if (pc != null && pc.isCrouching && !crouchDetectable)
+        if (pc != null && pc.netIsCrouching.Value && !crouchDetectable)
         {
             // Player ngồi xuống → Exiler không còn nghe thấy → mất dấu
             LoseTarget();
@@ -324,9 +327,10 @@ public class ExilerAI : NetworkBehaviour
             Vector3 targetDest = targetPlayer.position;
             CharacterController cc = targetPlayer.GetComponent<CharacterController>();
             
-            if (pc != null && pc.isMoving && cc != null)
+            if (pc != null && pc.netIsMoving.Value && cc != null)
             {
-                Vector3 playerVel = cc.velocity;
+                float speed = pc.netIsSprinting.Value ? pc.sprintSpeed : pc.walkSpeed;
+                Vector3 playerVel = targetPlayer.forward * speed;
                 playerVel.y = 0;
                 // Đón đầu chặn đường trước 1.5 giây
                 targetDest = targetPlayer.position + playerVel * 1.5f; 
@@ -400,7 +404,7 @@ public class ExilerAI : NetworkBehaviour
         if (Time.time >= lastAttackTime + currentCooldown)
         {
             lastAttackTime = Time.time;
-            animator.SetTrigger(hashAttack);
+            TriggerAnimClientRpc(hashAttack);
             
             // Dùng Coroutine để delay sát thương cho khớp với animation
             StartCoroutine(DealDamageWithDelay(survival, attackDamage, 0.4f));
@@ -487,7 +491,7 @@ public class ExilerAI : NetworkBehaviour
                 currentState = ExilerState.Alert;
                 agent.isStopped = true;
                 agent.velocity = Vector3.zero;
-                animator.SetTrigger(hashAlert);
+                TriggerAnimClientRpc(hashAlert);
                 alertTimer = 1.0f;
             }
             else
@@ -518,7 +522,7 @@ public class ExilerAI : NetworkBehaviour
                 currentState = ExilerState.Alert;
                 agent.isStopped = true;
                 agent.velocity = Vector3.zero;
-                animator.SetTrigger(hashAlert);
+                TriggerAnimClientRpc(hashAlert);
                 alertTimer = 1.0f;
             }
             else
@@ -542,7 +546,7 @@ public class ExilerAI : NetworkBehaviour
         
         if (animator != null)
         {
-            animator.SetTrigger(hashDead);
+            TriggerAnimClientRpc(hashDead);
         }
         
         Collider col = GetComponent<Collider>();
@@ -556,6 +560,15 @@ public class ExilerAI : NetworkBehaviour
         if (IsServer)
         {
             NetworkObject.Despawn(true);
+        }
+    }
+
+    [ClientRpc]
+    private void TriggerAnimClientRpc(int hashValue)
+    {
+        if (animator != null)
+        {
+            animator.SetTrigger(hashValue);
         }
     }
 }

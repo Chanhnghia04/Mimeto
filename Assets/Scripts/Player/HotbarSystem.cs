@@ -17,7 +17,7 @@ public class HotbarSystem : MonoBehaviour
 
     void Awake()
     {
-        if (Instance == null) Instance = this;
+        // Singleton sẽ được gán ở Update để đảm bảo chỉ Owner mới lấy quyền Instance
     }
 
     void Start()
@@ -29,6 +29,8 @@ public class HotbarSystem : MonoBehaviour
     {
         var pc = GetComponent<PlayerController>();
         if (pc != null && !pc.IsOwner) return;
+
+        if (Instance != this) Instance = this; // Đảm bảo Instance chỉ trỏ tới Local Player
 
         // Bắt đầu khởi tạo UI nếu chưa có (khi IsOwner đã là true)
         if (hotbarCanvas == null)
