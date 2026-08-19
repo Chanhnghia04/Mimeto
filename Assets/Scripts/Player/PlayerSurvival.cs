@@ -507,6 +507,7 @@ public class PlayerSurvival : NetworkBehaviour
         {
             isGameOver = true;
             ShowGameOverClientRpc(false);
+            if (IsServer) StartCoroutine(AutoTransitionToWaitingRoom(10f));
         }
     }
 
@@ -538,6 +539,16 @@ public class PlayerSurvival : NetworkBehaviour
         if (isGameOver) return;
         isGameOver = true;
         ShowGameOverClientRpc(true);
+        StartCoroutine(AutoTransitionToWaitingRoom(10f));
+    }
+
+    private System.Collections.IEnumerator AutoTransitionToWaitingRoom(float delayRealtime)
+    {
+        yield return new WaitForSecondsRealtime(delayRealtime);
+        if (IsServer && !pendingSceneLoad)
+        {
+            pendingSceneLoad = true;
+        }
     }
 
     public void TakeDamage(float amount, string reason = "Toxicity! Health reached 0.")

@@ -96,14 +96,8 @@ public class InteractionSystem : MonoBehaviour
 
     private bool IsUIOpen()
     {
-        RefreshUIReferences();
-        
-        if (_inventoryUI != null && _inventoryUI.inventoryPanel != null && _inventoryUI.inventoryPanel.activeSelf) return true;
-        if (_craftingUI  != null && _craftingUI.craftingPanel  != null && _craftingUI.craftingPanel.activeSelf)  return true;
-        if (_chestUI     != null && _chestUI.chestPanel        != null && _chestUI.chestPanel.activeSelf)        return true;
-        if (_shopStation != null && _shopStation.isOpen)                                                         return true;
-        if (_sellStation != null && _sellStation.isOpen)                                                         return true;
-        if (_blackjackStation != null && _blackjackStation.isOpen)                                               return true;
+        var pc = GetComponentInParent<PlayerController>();
+        if (pc != null) return pc.IsUIOpen();
         return false;
     }
 

@@ -295,8 +295,8 @@ public class EscapeManager : NetworkBehaviour
 
     Vector3 GetRandomNavMeshPos(float minDistance)
     {
-        GameObject playerGO = GameObject.FindGameObjectWithTag("Player");
-        Vector3 center = playerGO != null ? playerGO.transform.position : Vector3.zero;
+        // BUG FIX: Use Vector3.zero instead of player position so all clients calculate the exact same coordinates!
+        Vector3 center = Vector3.zero;
 
         UnityEngine.AI.NavMeshTriangulation navData = UnityEngine.AI.NavMesh.CalculateTriangulation();
         
@@ -337,15 +337,13 @@ public class EscapeManager : NetworkBehaviour
 
             float dist = Vector3.Distance(center, pt);
             
+            // BUG FIX: Removed Physics.CheckSphere to guarantee deterministic result across all clients
             if (dist >= minDistance)
             {
-                if (!Physics.CheckSphere(pt + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
-                {
-                    return pt;
-                }
+                return pt;
             }
 
-            if (dist > bestDist && !Physics.CheckSphere(pt + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
+            if (dist > bestDist)
             {
                 bestDist = dist;
                 bestPos = pt;
