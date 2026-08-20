@@ -4,7 +4,7 @@
 
 - [ ] Chốt ngôn ngữ tutorial: tiếng Việt, tiếng Anh hoặc hỗ trợ cả hai.
 - [ ] Chốt phiên bản tutorial đầu tiên là `1`.
-- [ ] Xác nhận scene build order: `StartGame`, `Waiting`, `Map`.
+- [x] Xác nhận scene build order có `StartGame`, `Waiting`, `Map` và `Tutorial`.
 - [ ] Xác nhận Canvas của tutorial không trùng với `InventoryCanvas`, `PauseMenuCanvas` hoặc `SettingsCanvas`.
 - [ ] Xác nhận tutorial không dùng NetworkVariable cho trạng thái local.
 - [ ] Chọn vị trí `TutorialStation_Object` gần spawn/InfoBoard và ngoài vùng `LevelTransportStation`.
@@ -38,7 +38,7 @@
 - [ ] Map mở M0 sau khi player local spawn.
 - [ ] M4 đọc đúng `EscapeManager.CurrentMethod` và chỉ hiển thị nhánh đang dùng.
 - [ ] M5 liên kết với trạng thái `IsEscapeUnlocked` và cửa `ExtractionSystem`.
-- [ ] Không yêu cầu người chơi phải hoàn thành bước phụ để scene chuyển.
+- [x] Tutorial không tự chuyển scene khi chỉ đọc xong các trang; chỉ chuyển sau khi hoàn tất đủ 5 bước và mở cửa thoát.
 
 ## Phase 4 — Sửa nội dung gây hiểu nhầm
 
@@ -76,3 +76,8 @@
 - [ ] Host/client, offline và scene chuyển qua lại đều đã test.
 - [ ] Các dòng hint gây hiểu nhầm trong Waiting đã được sửa hoặc cơ chế E đã được triển khai thật.
 - [ ] TutorialStation đã được test trong scene Waiting thật, không chỉ test bằng prefab riêng.
+- [x] Scene `Tutorial.unity` có trong Build Settings và có thể chạy offline.
+- [x] Scene tutorial không yêu cầu Unity Services, Lobby, Relay hoặc NetworkManager.
+- [x] Guided course có line dẫn đường từ player tới mục tiêu hiện tại.
+- [x] Có pickup Circuit Board và Oxygen Tank bằng phím E.
+- [x] Có Safe Zone, Mutant demo và Exit Door để thực hành trọn vòng lặp.

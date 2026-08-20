@@ -20,6 +20,7 @@ Tutorial phải dễ bỏ qua, không làm kẹt người chơi khác trong phò
 - `Waiting` sẽ có một `TutorialStation` riêng để mở tutorial bằng E và test lại bất kỳ lúc nào.
 - `SettingsCanvas → CÀI ĐẶT → PHÍM ĐIỀU KHIỂN` đã có danh sách phím.
 - `EscapeHUD` mở bằng `R` và hiển thị mục tiêu thoát.
+- `Tutorial.unity` là scene hướng dẫn độc lập, chạy offline với các trạm kiến thức và UI nhiều bước.
 - Chưa có bộ điều phối hướng dẫn lần đầu, cờ hoàn thành tutorial, popup onboarding hoặc `TutorialStation` trong scene thật.
 
 ## 3. Thiết kế đề xuất
@@ -69,6 +70,10 @@ Tutorial là trạng thái **local của từng client**. Không dùng NetworkVa
 ## 4. Luồng tổng thể
 
 ```text
+StartGame
+  ↓ tùy chọn mở Tutorial.unity để học trước
+Tutorial.unity: học điều khiển, Waiting, Map, stealth và 4 mục tiêu thoát
+  ↓ quay về StartGame
 StartGame
   ↓ tạo hoặc tham gia phòng
 Waiting: đi tới TutorialStation và nhấn E để xem hướng dẫn

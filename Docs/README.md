@@ -9,6 +9,7 @@ Bộ tài liệu này mô tả cơ chế hiện tại của game và kế hoạc
 3. [Hướng dẫn hoàn thành game](03_GameCompletion_Guide.md)
 4. [Checklist triển khai và kiểm thử](04_Implementation_Checklist.md)
 5. [Thiết kế Tutorial Station trong Waiting](05_Tutorial_TestStation.md)
+6. [Hướng dẫn chạy scene Tutorial mới](06_TutorialScene_Runbook.md)
 
 ## Phạm vi hiện tại
 
@@ -16,4 +17,4 @@ Luồng game chính là:
 
 `StartGame → Waiting → Map → hoàn thành mục tiêu thoát → cửa thoát → Waiting`
 
-Các scene này đã có trong `ProjectSettings/EditorBuildSettings.asset`. Tutorial được đề xuất là một lớp UI hướng dẫn chạy trên các scene hiện có, có một `TutorialStation` trong `Waiting` để người chơi và QA chủ động vào xem trước, không tạo một gameplay map riêng và không can thiệp vào quyền điều khiển mạng của host.
+Các scene chính đã có trong `ProjectSettings/EditorBuildSettings.asset`. Ngoài ra dự án hiện có scene `Tutorial.unity` độc lập để học và test offline. Scene này tự dựng phòng 3D, các trạm kiến thức, guided gameplay course (line → pickup → Safe Zone → Mutant → exit) và UI bằng `TutorialSceneController`, không phụ thuộc prefab mạng của Waiting/Map.

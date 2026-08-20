@@ -68,6 +68,21 @@ Hiển thị các phím:
 
 ## B. Map — phần học gameplay
 
+### G0 — Guided gameplay course trong Tutorial.unity
+
+Scene Tutorial có một tuyến thực hành mô phỏng Map thật, không chỉ là popup chữ:
+
+1. Đi theo đường line phát sáng tới Circuit Board.
+2. Nhìn vào item và nhấn E để nhận vật phẩm.
+3. Đi theo line tới Oxygen Tank và nhấn E lần nữa.
+4. Vào vòng xanh Safe Zone để hiểu nơi hồi Oxygen.
+5. Tới vùng Mutant demo; giữ C/Ctrl để cúi và đi qua vùng phát hiện.
+6. Theo line tới Exit Door và nhấn E để hoàn thành bài thực hành.
+
+Nếu Mutant bắt được người chơi, scene đưa người chơi về Safe Zone checkpoint và hiển thị lý do cần cúi/đi chậm.
+
+Các script mô phỏng nằm trong `Assets/Scripts/Tutorial/`; chúng chỉ chạy trong scene Tutorial, không thay thế AI network trong Map.
+
 ### M0 — Mục tiêu của ván
 
 **Trigger:** player local spawn trong `Map`.
@@ -117,7 +132,7 @@ Không hướng dẫn người chơi tìm vật phẩm ở tọa độ cố đ�
 
 > Khi mục tiêu hoàn thành, bảng nhiệm vụ sẽ báo đã mở khóa. Đi tới cửa thoát và nhấn E. Thắng sẽ lưu vật phẩm; chết hoặc thua sẽ xóa vật phẩm của chuyến đi.
 
-**Hoàn tất tutorial:** khi player mở `EscapeHUD` bằng R hoặc đóng M5, đánh dấu phiên bản tutorial đã hoàn thành.
+**Hoàn tất tutorial:** chỉ đánh dấu phiên bản khi player hoàn thành đủ các bước thực hành và tương tác cửa thoát; đọc hết nội dung M5 không tự kết thúc scene.
 
 ## C. Trường hợp đặc biệt
 
