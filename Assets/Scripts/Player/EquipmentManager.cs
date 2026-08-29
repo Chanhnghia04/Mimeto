@@ -89,11 +89,16 @@ public class EquipmentManager : MonoBehaviour
         bool foundOffset = false;
         foreach (var offset in itemOffsets)
         {
-            if (offset.itemName.ToLower() == nameKey)
+            if (offset.itemName != null && offset.itemName.ToLower() == nameKey)
             {
                 instance.transform.localPosition = offset.localPos;
                 instance.transform.localRotation = Quaternion.Euler(offset.localRotEuler);
-                instance.transform.localScale = Vector3.one * offset.localScale;
+                
+                // Tránh trường hợp User thêm mới trong Inspector quên chỉnh Scale (bị = 0) làm item tàng hình
+                float safeScale = offset.localScale;
+                if (safeScale <= 0.001f) safeScale = 1f; 
+
+                instance.transform.localScale = Vector3.one * safeScale;
                 foundOffset = true;
                 break;
             }
@@ -101,9 +106,96 @@ public class EquipmentManager : MonoBehaviour
 
         if (!foundOffset)
         {
-            instance.transform.localPosition = Vector3.zero;
-            instance.transform.localRotation = Quaternion.identity;
-            instance.transform.localScale = Vector3.one;
+            // Default offsets pre-calculated for Player Scale 2x
+            switch (nameKey)
+            {
+                case "axe":
+                    instance.transform.localPosition = Vector3.zero;
+                    instance.transform.localRotation = Quaternion.identity;
+                    instance.transform.localScale = Vector3.one;
+                    Transform axeChild = instance.transform.Find("scene/tripo_node_02ad3ae2-1eda-44a4-b47a-d41a58ba3334");
+                    if (axeChild != null)
+                    {
+                        axeChild.localPosition = new Vector3(-0.002f, 0.188f, -0.121f);
+                        axeChild.localRotation = Quaternion.Euler(82.375f, -7.107f, -177.677f);
+                        axeChild.localScale = new Vector3(0.1f, 0.5f, 0.5f);
+                    }
+                    break;
+                case "machete":
+                    instance.transform.localPosition = Vector3.zero;
+                    instance.transform.localRotation = Quaternion.identity;
+                    instance.transform.localScale = Vector3.one;
+                    Transform macheteChild = instance.transform.Find("scene/tripo_node_6b8fde40-9ecb-40c9-a06a-86023b405a4e");
+                    if (macheteChild != null)
+                    {
+                        macheteChild.localPosition = new Vector3(-0.018f, 0.131f, -0.141f);
+                        macheteChild.localRotation = Quaternion.Euler(36.941f, 10.864f, -157.229f);
+                        macheteChild.localScale = new Vector3(0.1f, 0.3f, 0.5f);
+                    }
+                    break;
+                case "bat":
+                    instance.transform.localPosition = new Vector3(0f, -0.175f, 0f);
+                    instance.transform.localRotation = Quaternion.identity;
+                    instance.transform.localScale = Vector3.one * 0.5f;
+                    break;
+                case "crowbar":
+                    instance.transform.localPosition = new Vector3(0f, -0.125f, 0f);
+                    instance.transform.localRotation = Quaternion.identity;
+                    instance.transform.localScale = Vector3.one * 0.5f;
+                    break;
+                case "shovel":
+                    instance.transform.localPosition = new Vector3(0f, -0.20f, 0f);
+                    instance.transform.localRotation = Quaternion.identity;
+                    instance.transform.localScale = Vector3.one * 0.5f;
+                    break;
+                case "flashlight":
+                    instance.transform.localPosition = new Vector3(-0.0445f, 0.1079f, 0.0311f);
+                    instance.transform.localRotation = Quaternion.Euler(203.757f, 91.118f, 89.83f);
+                    instance.transform.localScale = new Vector3(100f, 100f, 100f);
+                    break;
+                case "gasmask":
+                    instance.transform.localPosition = Vector3.zero;
+                    instance.transform.localRotation = Quaternion.identity;
+                    instance.transform.localScale = Vector3.one;
+                    Transform maskChild = instance.transform.Find("default");
+                    if (maskChild != null)
+                    {
+                        maskChild.localPosition = new Vector3(-0.003f, 0.118f, 0.074f);
+                        maskChild.localRotation = Quaternion.Euler(0f, 90f, 0f);
+                        maskChild.localScale = new Vector3(0.08f, 0.075f, 0.085f);
+                    }
+                    break;
+                case "antidote":
+                    instance.transform.localPosition = Vector3.zero;
+                    instance.transform.localRotation = Quaternion.identity;
+                    instance.transform.localScale = Vector3.one;
+                    
+                    Transform targetCylinder = null;
+                    foreach (Transform child in instance.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (child.name == "Cylinder.004") targetCylinder = child;
+                    }
+                    
+                    if (targetCylinder != null)
+                    {
+                        targetCylinder.SetParent(instance.transform);
+                        targetCylinder.localPosition = new Vector3(-0.009f, 0.095f, 0.0253f);
+                        targetCylinder.localRotation = Quaternion.Euler(21.16f, 90.38f, -89.973f);
+                        targetCylinder.localScale = new Vector3(1f, 1f, 15f);
+                    }
+                    
+                    // Xóa tất cả các object con khác
+                    foreach (Transform child in instance.transform)
+                    {
+                        if (child != targetCylinder) Destroy(child.gameObject);
+                    }
+                    break;
+                default:
+                    instance.transform.localPosition = Vector3.zero;
+                    instance.transform.localRotation = Quaternion.identity;
+                    instance.transform.localScale = Vector3.one;
+                    break;
+            }
         }
 
         switch (slot)
@@ -196,15 +288,25 @@ public class EquipmentManager : MonoBehaviour
             float easeT = 1f - Mathf.Pow(1f - t, 3f);
 
             mask.transform.localPosition = Vector3.Lerp(targetLocalPos + new Vector3(0f, -0.4f, 0.2f), targetLocalPos, easeT);
-            mask.transform.localRotation = Quaternion.Lerp(targetLocalRot * Quaternion.Euler(60f, 0f, 0f), targetLocalRot, easeT);
-
+            mask.transform.localRotation = Quaternion.Slerp(targetLocalRot * Quaternion.Euler(60f, 0f, 0f), targetLocalRot, easeT);
             yield return null;
         }
-        
+
         if (mask != null)
         {
             mask.transform.localPosition = targetLocalPos;
             mask.transform.localRotation = targetLocalRot;
+            
+            // Giấu mặt nạ đi đối với người chơi Local để không bị che tầm nhìn Camera (nhưng vẫn giữ lại bóng đổ)
+            NetworkObject netObj = GetComponentInParent<NetworkObject>();
+            if (netObj != null && netObj.IsOwner)
+            {
+                Renderer[] renderers = mask.GetComponentsInChildren<Renderer>();
+                foreach (var r in renderers)
+                {
+                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+                }
+            }
         }
     }
 

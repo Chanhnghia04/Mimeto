@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.AI;
+using Unity.Netcode;
 
 namespace Mimeto.Audio
 {
@@ -8,7 +9,7 @@ namespace Mimeto.Audio
     /// Generates footstep, growl, attack, chase breathing, and death sounds.
     /// </summary>
     [RequireComponent(typeof(NavMeshAgent))]
-    public class MonsterAudioEmitter : MonoBehaviour
+    public class MonsterAudioEmitter : NetworkBehaviour
     {
         [Header("Footsteps")]
         [SerializeField] private AudioClip[] footstepClips;
@@ -39,7 +40,7 @@ namespace Mimeto.Audio
         [SerializeField] private float deathMaxDistance = 40f;
 
         // Public state
-        public bool isChasing = false;
+        public NetworkVariable<bool> isChasing = new NetworkVariable<bool>(false);
 
         // Components
         private NavMeshAgent agent;
@@ -151,7 +152,7 @@ namespace Mimeto.Audio
         {
             if (chaseBreatheClip == null) return;
 
-            float targetVolume = isChasing ? chaseVolume : 0f;
+            float targetVolume = isChasing.Value ? chaseVolume : 0f;
             chaseSource.volume = Mathf.MoveTowards(chaseSource.volume, targetVolume, Time.deltaTime * breatheFadeSpeed);
         }
 
@@ -163,7 +164,8 @@ namespace Mimeto.Audio
         /// <summary>
         /// Call this method from AI script when the monster attacks.
         /// </summary>
-        public void PlayAttackSound()
+        [ClientRpc]
+        public void PlayAttackSoundClientRpc()
         {
             if (isDead || attackClips == null || attackClips.Length == 0) return;
             PlayRandomClip(attackSource, attackClips, 0.9f, 1.1f);
@@ -172,7 +174,8 @@ namespace Mimeto.Audio
         /// <summary>
         /// Call this method from AI script when the monster dies.
         /// </summary>
-        public void PlayDeathSound()
+        [ClientRpc]
+        public void PlayDeathSoundClientRpc()
         {
             if (isDead) return;
             isDead = true;
@@ -187,7 +190,9 @@ namespace Mimeto.Audio
 
             if (deathClips != null && deathClips.Length > 0)
             {
-                PlayRandomClip(deathSource, deathClips, 0.9f, 1.1f);
+                AudioClip clip = deathClips[Random.Range(0, deathClips.Length)];
+                float volume = Random.Range(0.9f, 1.1f); // Just an example volume variation
+                AudioSource.PlayClipAtPoint(clip, transform.position, volume);
             }
         }
 

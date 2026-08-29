@@ -103,7 +103,9 @@ public class BlackjackStation : MonoBehaviour, IInteractable
         state = GameState.PlayerTurn;
         statusMessage = "Your turn  —  HIT or STAND?";
         
-        if (GetScore(playerHand) == 21) { statusMessage = "✦ BLACKJACK! Natural 21! ✦"; EndGameCheck(); }
+        bool isXiBang = (pHand[0] % 13 == 0) && (pHand[1] % 13 == 0);
+        if (isXiBang) { statusMessage = "🌟 XÌ BÀNG! 3x Payout! 🌟"; EndGameCheck(); }
+        else if (GetScore(playerHand) == 21) { statusMessage = "💰 BLACKJACK! Natural 21! 💰"; EndGameCheck(); }
     }
     
     void HandleHit(int card) {

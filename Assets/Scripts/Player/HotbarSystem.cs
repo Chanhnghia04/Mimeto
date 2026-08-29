@@ -164,13 +164,28 @@ public class HotbarSystem : MonoBehaviour
         string itemId = hotbarItems[index];
         if (string.IsNullOrEmpty(itemId)) return;
 
-        pc.EquipWeaponFromHotbar(itemId);
+        if (itemId.Contains("gasmask"))
+        {
+            var survival = pc.GetComponent<PlayerSurvival>();
+            if (survival != null) survival.ToggleGasMask(itemId);
+        }
+        else
+        {
+            pc.EquipWeaponFromHotbar(itemId);
+        }
     }
 
     public void OnItemDropped(int slotIndex, string itemType)
     {
         if (string.IsNullOrEmpty(itemType)) return;
         
+        string oldItem = hotbarItems[slotIndex];
+        if (!string.IsNullOrEmpty(oldItem) && oldItem != itemType)
+        {
+            var pc = GetComponent<PlayerController>();
+            if (pc != null) pc.UnequipIfEquipped(oldItem);
+        }
+
         // Remove from other slots if it's unique (like tools)
         for (int i = 0; i < 3; i++)
         {
@@ -226,6 +241,13 @@ public class HotbarSystem : MonoBehaviour
     }
     public void ClearSlot(int slotIndex)
     {
+        string oldItem = hotbarItems[slotIndex];
+        if (!string.IsNullOrEmpty(oldItem))
+        {
+            var pc = GetComponent<PlayerController>();
+            if (pc != null) pc.UnequipIfEquipped(oldItem);
+        }
+
         hotbarItems[slotIndex] = "";
         slotImages[slotIndex].enabled = false;
         
@@ -289,8 +311,21 @@ public class UIDragItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDr
         if (myDrop != null && HotbarSystem.Instance != null)
         {
             GameObject droppedOn = eventData.pointerCurrentRaycast.gameObject;
-            // Nếu ném ra ngoài không trúng ô Hotbar nào khác -> Tháo vũ khí (Clear)
-            if (droppedOn == null || droppedOn.GetComponentInParent<UIDropSlot>() == null)
+            // Nếu ném ra ngoài UI (vứt đồ)
+            if (droppedOn == null || droppedOn.GetComponentInParent<UnityEngine.UI.Graphic>() == null)
+            {
+                string droppedItem = itemType;
+                HotbarSystem.Instance.ClearSlot(myDrop.slotIndex);
+                
+                // Gọi Server vứt đồ ra đất
+                var inv = HotbarSystem.Instance.GetComponent<PlayerInventory>();
+                if (inv != null && !string.IsNullOrEmpty(droppedItem))
+                {
+                    inv.RequestDropItemServerRpc(droppedItem);
+                }
+            }
+            // Ném vào chỗ khác (VD UI) nhưng không phải là UIDropSlot (Tháo khỏi hotbar nhưng vẫn trong túi)
+            else if (droppedOn.GetComponentInParent<UIDropSlot>() == null)
             {
                 HotbarSystem.Instance.ClearSlot(myDrop.slotIndex);
             }

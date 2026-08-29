@@ -77,18 +77,23 @@ public class InventoryUI : MonoBehaviour
         // CHỈ xử lý UI cho người chơi local (tránh xung đột với các player khác qua mạng)
         if (inventory != null && inventory.IsSpawned && !inventory.IsOwner) return;
 
-        bool inventoryPressed = false;
+        bool openPressed = false;
+        bool closePressed = false;
         
         if (_inventoryAction != null && _inventoryAction.WasPressedThisFrame())
         {
-            inventoryPressed = true;
+            openPressed = true;
         }
         else if (Keyboard.current != null && Keyboard.current.iKey.wasPressedThisFrame)
         {
-            inventoryPressed = true;
+            openPressed = true;
+        }
+        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+            closePressed = true;
         }
 
-        if (inventoryPressed)
+        if ((openPressed && !isVisible) || (closePressed && isVisible))
         {
             if (inventoryPanel == null)
             {
@@ -127,8 +132,8 @@ public class InventoryUI : MonoBehaviour
                 }
             }
 
-            isVisible = !isVisible;
-            Debug.Log($"[InventoryUI] Đã bấm I. Trạng thái bật: {isVisible}");
+            isVisible = openPressed && !closePressed;
+            Debug.Log($"[InventoryUI] Đã toggle Inventory. Trạng thái bật: {isVisible}");
             
             if (inventoryPanel != null)
                 inventoryPanel.SetActive(isVisible);
@@ -149,15 +154,6 @@ public class InventoryUI : MonoBehaviour
         }
 
         if (!isVisible) return;
-
-        if (Keyboard.current != null)
-        {
-            if (Keyboard.current.digit1Key.wasPressedThisFrame) TryEquipMask(false);
-            else if (Keyboard.current.digit2Key.wasPressedThisFrame) TryEquipMask(true);
-            else if (Keyboard.current.digit3Key.wasPressedThisFrame) TryUseAntidote();
-            else if (Keyboard.current.digit4Key.wasPressedThisFrame) TryUseHealthPack();
-            else if (Keyboard.current.digit5Key.wasPressedThisFrame) TryUseOxygenTank();
-        }
 
         UpdateUI();
     }
@@ -281,7 +277,8 @@ public class InventoryUI : MonoBehaviour
                 
                 string t = slot.currentItemType;
                 bool isTool = (t == "machete" || t == "axe" || t == "bat" || 
-                               t == "crowbar" || t == "shovel" || t == "flashlight" || t == "antidote");
+                               t == "crowbar" || t == "shovel" || t == "flashlight" || 
+                               t == "antidote" || t == "basic_gasmask" || t == "adv_gasmask");
                 
                 if (isTool)
                 {
@@ -294,22 +291,15 @@ public class InventoryUI : MonoBehaviour
                     slot.amountText.fontSize = 24; // Default
                 }
                 
-                // Add Drag & Drop Component
-                if (slot.bgObj.GetComponent<UIDragItem>() == null)
-                {
-                    slot.bgObj.AddComponent<UIDragItem>();
-                }
-                slot.bgObj.GetComponent<UIDragItem>().itemType = slot.currentItemType;
+                // Note: We intentionally do NOT add UIDragItem here.
+                // Inventory slots already use InventoryItemDrag. Adding both causes duplicate drag events.
             }
             else
             {
                 slot.icon.enabled = false;
                 slot.amountText.enabled = false;
                 
-                if (slot.bgObj.GetComponent<UIDragItem>() != null)
-                {
-                    slot.bgObj.GetComponent<UIDragItem>().itemType = "";
-                }
+                // No UIDragItem cleanup needed anymore
             }
         }
     }
@@ -381,33 +371,6 @@ public class InventoryUI : MonoBehaviour
         UpdateUI();
     }
 
-    private void TryEquipMask(bool advanced)
-    {
-        if (survival == null || inventory == null) return;
-
-        // Prevent spamming the same mask type
-        if (advanced && survival.netEquippedMask.Value == 2) return;
-        if (!advanced && survival.netEquippedMask.Value == 1) return;
-
-        if (advanced) 
-        { 
-            if (inventory.advancedGasMasks > 0) 
-            { 
-                if (survival.netEquippedMask.Value == 1) inventory.basicGasMasks++;
-                inventory.advancedGasMasks--; 
-                survival.netEquippedMask.Value = 2; 
-            } 
-        }
-        else 
-        { 
-            if (inventory.basicGasMasks > 0) 
-            { 
-                if (survival.netEquippedMask.Value == 2) inventory.advancedGasMasks++;
-                inventory.basicGasMasks--; 
-                survival.netEquippedMask.Value = 1; 
-            } 
-        }
-    }
 
     private void TryUseAntidote()
     {

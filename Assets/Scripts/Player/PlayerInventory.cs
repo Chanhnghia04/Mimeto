@@ -20,6 +20,7 @@ public class PlayerInventory : NetworkBehaviour
     private List<int> _bjPlayerHand = new List<int>();
     private List<int> _bjDealerHand = new List<int>();
     private int _bjBetAmount = 0;
+    private bool _bjIsActive = false;
 
     public int circuits = 0;
     public int metalPipes = 0;
@@ -289,6 +290,13 @@ public class PlayerInventory : NetworkBehaviour
             case "shovel": if (tShovel > 0) return false; tShovel = 1; break;
             case "flashlight": if (tFlashlight > 0) return false; tFlashlight = 1; break;
             case "antidote": tempAntidotes += amount; break;
+            case "basic_gasmask":
+            case "adv_gasmask":
+            case "medkit":
+            case "oxygen":
+                // Consumables usually stack or take a slot, assuming they take a slot for capacity check here
+                // We'll just let them pass if used <= maxSlots, they don't have separate hardcaps here
+                break;
             default: break; 
         }
 
@@ -296,6 +304,9 @@ public class PlayerInventory : NetworkBehaviour
                    Mathf.CeilToInt(tempI / 5f) + Mathf.CeilToInt(tempCh / 5f) +
                    Mathf.CeilToInt(tempP / 5f) + Mathf.CeilToInt(tempB / 5f) + 
                    tMachete + tAxe + tBat + tCrowbar + tShovel + tFlashlight + tempAntidotes;
+                   
+        // Note: For simplicity, Gas Masks, Medkits, and Oxygen were missing from used slots calculation in original code.
+        // We will keep it as original to not break inventory limit logic unexpectedly.
 
         return used <= maxSlots;
     }
@@ -306,40 +317,14 @@ public class PlayerInventory : NetworkBehaviour
         
         switch (type.ToLower())
         {
-            case "circuit":
-                circuits += amount;
-                break;
-            case "metal_pipe":
-            case "metal pipe":
-                metalPipes += amount;
-                break;
-            case "iron_plate":
-            case "iron plate":
-                ironPlates += amount;
-                break;
-            case "chemical":
-                chemicals += amount;
-                break;
-            case "pipe":
-            case "plastic":
-            case "plastic_pipe":
-            case "plastic pipe":
-            case "rubber":
-                plasticPipes += amount;
-                break;
-            case "battery":
-                scrapBatteries += amount;
-                break;
-            case "key":
-            case "escape_key":
-                hasEscapeKey = true;
-                Debug.Log("<color=yellow>Obtained Escape Key!</color>");
-                break;
-            case "rare_loot":
-            case "relic":
-                rareLootCount += amount;
-                Debug.Log($"<color=cyan>Obtained Rare Loot! Total: {rareLootCount}</color>");
-                break;
+            case "circuit": circuits += amount; break;
+            case "metal_pipe": case "metal pipe": metalPipes += amount; break;
+            case "iron_plate": case "iron plate": ironPlates += amount; break;
+            case "chemical": chemicals += amount; break;
+            case "pipe": case "plastic": case "plastic_pipe": case "plastic pipe": case "rubber": plasticPipes += amount; break;
+            case "battery": scrapBatteries += amount; break;
+            case "key": case "escape_key": hasEscapeKey = true; Debug.Log("<color=yellow>Obtained Escape Key!</color>"); break;
+            case "rare_loot": case "relic": rareLootCount += amount; Debug.Log($"<color=cyan>Obtained Rare Loot! Total: {rareLootCount}</color>"); break;
             case "machete": hasMachete = true; break;
             case "axe": hasAxe = true; break;
             case "bat": hasBat = true; break;
@@ -347,6 +332,10 @@ public class PlayerInventory : NetworkBehaviour
             case "shovel": hasShovel = true; break;
             case "flashlight": hasFlashlight = true; break;
             case "antidote": antidotes += amount; break;
+            case "basic_gasmask": basicGasMasks += amount; break;
+            case "adv_gasmask": advancedGasMasks += amount; break;
+            case "medkit": healthPacks += amount; break;
+            case "oxygen": oxygenTanks += amount; break;
         }
 
         SaveData();
@@ -358,6 +347,180 @@ public class PlayerInventory : NetworkBehaviour
         }
 
         Debug.Log($"Added {amount} {type}. Inventory: C={circuits}, MP={metalPipes}, IP={ironPlates}, Ch={chemicals}, Pl={plasticPipes}, Bat={scrapBatteries}");
+    }
+
+    public bool HasItem(string type)
+    {
+        switch (type.ToLower())
+        {
+            case "circuit": return circuits > 0;
+            case "metal_pipe": case "metal pipe": return metalPipes > 0;
+            case "iron_plate": case "iron plate": return ironPlates > 0;
+            case "chemical": return chemicals > 0;
+            case "pipe": case "plastic": case "plastic_pipe": case "plastic pipe": case "rubber": return plasticPipes > 0;
+            case "battery": return scrapBatteries > 0;
+            case "machete": return hasMachete;
+            case "axe": return hasAxe;
+            case "bat": return hasBat;
+            case "crowbar": return hasCrowbar;
+            case "shovel": return hasShovel;
+            case "flashlight": return hasFlashlight;
+            case "antidote": return antidotes > 0;
+            case "basic_gasmask": return basicGasMasks > 0;
+            case "adv_gasmask": return advancedGasMasks > 0;
+            case "medkit": return healthPacks > 0;
+            case "oxygen": return oxygenTanks > 0;
+            default: return false;
+        }
+    }
+
+    public void RemoveItem(string type, int amount = 1)
+    {
+        if (IsSpawned && !IsOwner && !IsServer) return;
+        
+        switch (type.ToLower())
+        {
+            case "circuit": circuits = Mathf.Max(0, circuits - amount); break;
+            case "metal_pipe": case "metal pipe": metalPipes = Mathf.Max(0, metalPipes - amount); break;
+            case "iron_plate": case "iron plate": ironPlates = Mathf.Max(0, ironPlates - amount); break;
+            case "chemical": chemicals = Mathf.Max(0, chemicals - amount); break;
+            case "pipe": case "plastic": case "plastic_pipe": case "plastic pipe": case "rubber": plasticPipes = Mathf.Max(0, plasticPipes - amount); break;
+            case "battery": scrapBatteries = Mathf.Max(0, scrapBatteries - amount); break;
+            case "machete": hasMachete = false; break;
+            case "axe": hasAxe = false; break;
+            case "bat": hasBat = false; break;
+            case "crowbar": hasCrowbar = false; break;
+            case "shovel": hasShovel = false; break;
+            case "flashlight": hasFlashlight = false; break;
+            case "antidote": antidotes = Mathf.Max(0, antidotes - amount); break;
+            case "basic_gasmask": basicGasMasks = Mathf.Max(0, basicGasMasks - amount); break;
+            case "adv_gasmask": advancedGasMasks = Mathf.Max(0, advancedGasMasks - amount); break;
+            case "medkit": healthPacks = Mathf.Max(0, healthPacks - amount); break;
+            case "oxygen": oxygenTanks = Mathf.Max(0, oxygenTanks - amount); break;
+        }
+        SaveData();
+    }
+
+    public void ForceUnequipIfDropped(string itemType)
+    {
+        PlayerController pc = GetComponent<PlayerController>();
+        if (pc != null) pc.UnequipIfEquipped(itemType.ToLower());
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestDropItemServerRpc(string itemType, ServerRpcParams rpcParams = default)
+    {
+        var clientId = rpcParams.Receive.SenderClientId;
+        var clientInv = NetworkManager.Singleton.SpawnManager.GetPlayerNetworkObject(clientId)?.GetComponent<PlayerInventory>();
+        
+        if (clientInv == null || !clientInv.HasItem(itemType)) return;
+
+        clientInv.RemoveItem(itemType, 1);
+        clientInv.ForceUnequipIfDroppedClientRpc(itemType, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } });
+
+        Vector3 dropPos = clientInv.transform.position + clientInv.transform.forward * 1.5f + Vector3.up * 1f;
+        SpawnDroppedItemClientRpc(itemType, dropPos);
+        
+        RemoveItemClientRpc(itemType, 1, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } });
+    }
+
+    [ClientRpc]
+    public void ForceUnequipIfDroppedClientRpc(string itemType, ClientRpcParams rpcParams = default)
+    {
+        if (IsServer) return;
+        ForceUnequipIfDropped(itemType);
+    }
+
+    [ClientRpc]
+    public void RemoveItemClientRpc(string itemType, int amount, ClientRpcParams rpcParams = default)
+    {
+        if (IsServer) return;
+        RemoveItem(itemType, amount);
+        
+        InventoryUI ui = GetComponent<InventoryUI>();
+        if (ui != null) ui.UpdateUI();
+    }
+
+    [ClientRpc]
+    public void SpawnDroppedItemClientRpc(string itemType, Vector3 pos)
+    {
+        GameObject prefabToSpawn = null;
+        EquipmentManager eq = GetComponent<EquipmentManager>();
+        
+        if (eq != null)
+        {
+            switch (itemType.ToLower())
+            {
+                case "axe": prefabToSpawn = eq.axePrefab; break;
+                case "machete": prefabToSpawn = eq.machetePrefab; break;
+                case "bat": prefabToSpawn = eq.batPrefab; break;
+                case "crowbar": prefabToSpawn = eq.crowbarPrefab; break;
+                case "shovel": prefabToSpawn = eq.shovelPrefab; break;
+                case "flashlight": prefabToSpawn = eq.flashlightPrefab; break;
+                case "antidote": prefabToSpawn = eq.antidotePrefab; break;
+                case "basic_gasmask": case "adv_gasmask": prefabToSpawn = eq.gasMaskPrefab; break;
+            }
+        }
+
+        if (prefabToSpawn == null)
+            prefabToSpawn = Resources.Load<GameObject>("DroppedItems/" + itemType);
+
+        GameObject box;
+        if (prefabToSpawn != null)
+        {
+            box = Instantiate(prefabToSpawn, pos, Quaternion.identity);
+            
+            // Fix scale and visual issues for some prefabs
+            box.transform.localScale = Vector3.one;
+            box.layer = LayerMask.NameToLayer("Default");
+        }
+        else
+        {
+            box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            box.transform.position = pos;
+            box.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
+        }
+        
+        // Khôi phục scale của mô hình con bên trong GasMask. User yêu cầu to gấp đôi
+        Transform maskChild = box.transform.Find("default");
+        if (maskChild != null && itemType.Contains("gasmask"))
+        {
+            maskChild.localScale = new Vector3(0.16f, 0.15f, 0.17f);
+            
+            // Hiện lại Mesh vì lúc đeo lên có thể nó bị tắt
+            foreach (var r in box.GetComponentsInChildren<Renderer>(true))
+            {
+                r.enabled = true;
+            }
+        }
+
+        if (box.GetComponent<Rigidbody>() == null) 
+        {
+            var rb = box.AddComponent<Rigidbody>();
+            rb.mass = 1f;
+            rb.collisionDetectionMode = CollisionDetectionMode.Continuous; // Ngăn rơi xuyên sàn
+        }
+
+        ScrapItem scrap = box.GetComponent<ScrapItem>();
+        if (scrap == null) scrap = box.AddComponent<ScrapItem>();
+        
+        // Buộc ScrapItem tính toán lại collider ngay lập tức (vì AddComponent có thể chạy Awake muộn)
+        scrap.RebuildCollider();
+        
+        BoxCollider bc = box.GetComponent<BoxCollider>();
+        if (bc == null || bc.size == Vector3.zero || bc.size.magnitude < 0.01f)
+        {
+            if (bc == null) bc = box.AddComponent<BoxCollider>();
+            bc.size = new Vector3(0.5f, 0.5f, 0.5f);
+        }
+
+        scrap.scrapType = itemType;
+        scrap.amount = 1;
+        scrap.rootObject = box;
+        scrap.interactHint = "Press [E] to pick up";
+
+        // Giữ tên sạch để dễ debug
+        box.name = "Dropped_" + itemType;
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -375,7 +538,10 @@ public class PlayerInventory : NetworkBehaviour
             if (scrap != null && scrap.scrapType == itemType && scrap.gameObject.activeInHierarchy)
             {
                 // Tắt ngay lập tức để chặn các RPC nhặt đồ khác trong cùng một frame
-                scrap.gameObject.SetActive(false);
+                
+                NetworkObject no = scrap.GetComponent<NetworkObject>();
+                if (no != null && no.IsSpawned) no.Despawn();
+                else Destroy(scrap.gameObject);
 
                 // Keep server copy in sync
                 if (clientInv != null) clientInv.AddScrap(itemType, amount);
@@ -391,6 +557,7 @@ public class PlayerInventory : NetworkBehaviour
     [ClientRpc]
     public void AddScrapClientRpc(string itemType, int amount, ClientRpcParams clientRpcParams = default)
     {
+        if (IsServer) return;
         AddScrap(itemType, amount);
     }
 
@@ -845,7 +1012,8 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RequestBuyItemServerRpc(ulong stationNetworkObjectId, string itemId, ServerRpcParams rpcParams = default)
     {
-        // Server tự tra cứu giá, không tin tưởng Client
+        if (rpcParams.Receive.SenderClientId != OwnerClientId) return;
+        
         int price = 0;
         var itemIndex = ShopData.BuyableItems.FindIndex(x => x.id == itemId);
         if (itemIndex != -1) price = ShopData.BuyableItems[itemIndex].currentPrice;
@@ -854,7 +1022,6 @@ public class PlayerInventory : NetworkBehaviour
         if (credits < price) return;
         SpendCredits(price); // deducts on server, syncs to client
 
-        // Keep server copy of maxSlots in sync
         if (itemId == "bag_10_slots" && maxSlots < 10) maxSlots = 10;
         else if (itemId == "bag_15_slots" && maxSlots < 15) maxSlots = 15;
 
@@ -871,6 +1038,7 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RequestSlotSpinServerRpc(ulong stationNetworkObjectId, int betAmount, ServerRpcParams rpcParams = default)
     {
+        if (rpcParams.Receive.SenderClientId != OwnerClientId) return;
         if (credits < betAmount || betAmount < 10) return;
         SpendCredits(betAmount);
         
@@ -902,6 +1070,7 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RequestDiceRollServerRpc(ulong stationNetworkObjectId, int betAmount, ServerRpcParams rpcParams = default)
     {
+        if (rpcParams.Receive.SenderClientId != OwnerClientId) return;
         if (credits < betAmount || betAmount < 10) return;
         SpendCredits(betAmount);
         
@@ -925,6 +1094,7 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RequestBlackjackStartServerRpc(int betAmount, ServerRpcParams rpcParams = default)
     {
+        if (rpcParams.Receive.SenderClientId != OwnerClientId) return;
         if (credits < betAmount || betAmount < 10) return;
         SpendCredits(betAmount);
         _bjBetAmount = betAmount;
@@ -939,7 +1109,17 @@ public class PlayerInventory : NetworkBehaviour
         _bjPlayerHand.Add(_bjDeck[0]); _bjDeck.RemoveAt(0);
         _bjDealerHand.Add(_bjDeck[0]); _bjDeck.RemoveAt(0); // hidden
         
-        if (GetBjScore(_bjPlayerHand) == 21) AddCredits(Mathf.RoundToInt(_bjBetAmount * 2.5f));
+        bool isXiBang = (_bjPlayerHand[0] % 13 == 0) && (_bjPlayerHand[1] % 13 == 0);
+        if (isXiBang) {
+            AddCredits(Mathf.RoundToInt(_bjBetAmount * 3.0f)); // Xì Bàng pays 3x
+            _bjIsActive = false;
+        }
+        else if (GetBjScore(_bjPlayerHand) == 21) {
+            AddCredits(Mathf.RoundToInt(_bjBetAmount * 2.5f));
+            _bjIsActive = false;
+        } else {
+            _bjIsActive = true;
+        }
         
         BlackjackStartClientRpc(_bjPlayerHand.ToArray(), _bjDealerHand.ToArray(), new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
     }
@@ -953,12 +1133,20 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RequestBlackjackHitServerRpc(ServerRpcParams rpcParams = default)
     {
+        if (rpcParams.Receive.SenderClientId != OwnerClientId) return;
+        if (!_bjIsActive) return;
         if (_bjDeck.Count == 0) return;
         int card = _bjDeck[0]; _bjDeck.RemoveAt(0);
         _bjPlayerHand.Add(card);
         
         int pScore = GetBjScore(_bjPlayerHand);
-        if (pScore <= 21 && _bjPlayerHand.Count >= 5) AddCredits(_bjBetAmount * 2); // Charlie
+        if (pScore > 21) {
+            _bjIsActive = false;
+        }
+        else if (pScore <= 21 && _bjPlayerHand.Count >= 5) {
+            AddCredits(_bjBetAmount * 2); // Charlie
+            _bjIsActive = false;
+        }
         
         BlackjackHitClientRpc(card, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
     }
@@ -972,6 +1160,8 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RequestBlackjackStandServerRpc(ServerRpcParams rpcParams = default)
     {
+        if (rpcParams.Receive.SenderClientId != OwnerClientId) return;
+        if (!_bjIsActive) return;
         int pScore = GetBjScore(_bjPlayerHand);
         if (pScore > 21 || _bjPlayerHand.Count >= 5) return; // Already resolved
         
@@ -986,6 +1176,8 @@ public class PlayerInventory : NetworkBehaviour
         if (dScore > 21 || pScore > dScore) AddCredits(_bjBetAmount * 2);
         else if (pScore == dScore) AddCredits(_bjBetAmount);
         
+        _bjIsActive = false;
+        
         BlackjackStandClientRpc(drawn.ToArray(), new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
     }
 
@@ -995,7 +1187,7 @@ public class PlayerInventory : NetworkBehaviour
         OnBlackjackStandResult?.Invoke(drawnCards);
     }
 
-    private int GetBjScore(List<int> hand) {
+    private int GetBjScore(System.Collections.Generic.List<int> hand) {
         int score = 0, aces = 0;
         foreach(int c in hand) {
             int val = (c % 13) + 1;

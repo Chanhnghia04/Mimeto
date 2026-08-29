@@ -90,11 +90,50 @@ public class InventoryItemDrag : MonoBehaviour, IBeginDragHandler, IDragHandler,
         GameObject droppedOn = eventData.pointerCurrentRaycast.gameObject;
         if (droppedOn != null && inventoryUI != null)
         {
+            // Nếu thả vào ô Hotbar → gọi trực tiếp HotbarSystem để nó nhận đồ
+            UIDropSlot hotbarSlot = droppedOn.GetComponentInParent<UIDropSlot>();
+            if (hotbarSlot != null)
+            {
+                string typeToDrop = inventoryUI.gridSlots[slotIndex].currentItemType;
+                if (!string.IsNullOrEmpty(typeToDrop) && HotbarSystem.Instance != null)
+                {
+                    HotbarSystem.Instance.OnItemDropped(hotbarSlot.slotIndex, typeToDrop);
+                }
+                
+                inventoryUI.UpdateUI();
+                return;
+            }
+
             InventoryItemDrag targetSlot = droppedOn.GetComponentInParent<InventoryItemDrag>();
             if (targetSlot != null && targetSlot != this)
             {
                 inventoryUI.SwapSlots(slotIndex, targetSlot.slotIndex);
             }
+            else if (droppedOn.GetComponentInParent<UnityEngine.UI.Graphic>() == null)
+            {
+                DropCurrentItem();
+            }
+        }
+        else if (droppedOn == null)
+        {
+            DropCurrentItem();
+        }
+    }
+
+    private void DropCurrentItem()
+    {
+        if (inventoryUI == null) return;
+        string itemType = inventoryUI.gridSlots[slotIndex].currentItemType;
+        if (!string.IsNullOrEmpty(itemType))
+        {
+            var inv = inventoryUI.GetComponent<PlayerInventory>();
+            if (inv != null) inv.RequestDropItemServerRpc(itemType);
+            
+            // Dọn sạch slot UI lập tức để phản hồi nhanh, Server sẽ update sau
+            inventoryUI.gridSlots[slotIndex].currentItemType = "";
+            inventoryUI.gridSlots[slotIndex].icon.enabled = false;
+            if (inventoryUI.gridSlots[slotIndex].amountText != null) 
+                inventoryUI.gridSlots[slotIndex].amountText.text = "";
         }
     }
 }
