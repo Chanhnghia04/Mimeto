@@ -18,12 +18,28 @@ public class ItemSpawner : MonoBehaviour
 
     System.Collections.IEnumerator Start()
     {
-        while (PlayerInventory.GlobalMatchSeed == 0) yield return null;
+        float seedElapsed = 0f;
+        while (PlayerInventory.GlobalMatchSeed == 0 && seedElapsed < 15f)
+        {
+            seedElapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        // Wait for Netcode Scene Synchronization to finish before spawning NetworkObjects
+        yield return new WaitForSeconds(2f);
+
+        if (PlayerInventory.GlobalMatchSeed == 0)
+        {
+            Debug.LogWarning("[ItemSpawner] Timeout chờ seed! Dùng fallback seed.");
+            PlayerInventory.GlobalMatchSeed = (int)(System.DateTime.Now.Ticks % 100000000);
+        }
         SpawnItems();
     }
 
     public void SpawnItems()
     {
+        if (Unity.Netcode.NetworkManager.Singleton != null && !Unity.Netcode.NetworkManager.Singleton.IsServer) return;
+
         if (itemPrefabs == null || itemPrefabs.Length == 0)
         {
             Debug.LogWarning("No item prefabs assigned to ItemSpawner.");
@@ -71,6 +87,10 @@ public class ItemSpawner : MonoBehaviour
 
             SpawnUtils.FitColliders(spawned);
             SpawnUtils.SnapToGround(spawned, hit.point);
+            if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.IsServer)
+            {
+                spawned.GetComponent<Unity.Netcode.NetworkObject>()?.Spawn();
+            }
 
             actuallySpawned++;
         }

@@ -21,7 +21,6 @@ public class InteractionSystem : MonoBehaviour
 
     // Fix: cache UI references in Start() instead of calling FindAnyObjectByType every frame
     private InventoryUI _inventoryUI;
-    private CraftingUI  _craftingUI;
     private ChestUI          _chestUI;
     private ShopStation      _shopStation;
     private ScrapSellStation _sellStation;
@@ -58,7 +57,6 @@ public class InteractionSystem : MonoBehaviour
 
         // Cache UI references once at startup
         _inventoryUI = FindAnyObjectByType<InventoryUI>();
-        _craftingUI  = FindAnyObjectByType<CraftingUI>();
         _chestUI     = FindAnyObjectByType<ChestUI>();
         _shopStation = FindAnyObjectByType<ShopStation>();
         _sellStation = FindAnyObjectByType<ScrapSellStation>();
@@ -87,7 +85,6 @@ public class InteractionSystem : MonoBehaviour
     private void RefreshUIReferences()
     {
         if (_inventoryUI == null) _inventoryUI = FindAnyObjectByType<InventoryUI>();
-        if (_craftingUI == null)  _craftingUI  = FindAnyObjectByType<CraftingUI>();
         if (_chestUI == null)     _chestUI     = FindAnyObjectByType<ChestUI>();
         if (_shopStation == null) _shopStation = FindAnyObjectByType<ShopStation>();
         if (_sellStation == null) _sellStation = FindAnyObjectByType<ScrapSellStation>();
@@ -203,6 +200,12 @@ public class InteractionSystem : MonoBehaviour
         bool isPickupAnim = interactable is ScrapItem;
         if (isPickupAnim && animator != null)
             animator.SetTrigger("Lifting");
+
+        var pc = GetComponentInParent<PlayerController>();
+        if (pc != null && pc.pickupClip != null && pc.footstepSource != null)
+        {
+            pc.footstepSource.PlayOneShot(pc.pickupClip, pc.pickupVolume);
+        }
 
         StartCoroutine(DelayedPickup(interactable, isPickupAnim));
     }

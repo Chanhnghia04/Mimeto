@@ -131,14 +131,22 @@ public class HorrorAudioDirector : MonoBehaviour
 
     private void UpdateMonsterDetectionAndThreat()
     {
+        Vector3 checkPosition = transform.position;
+        if (Unity.Netcode.NetworkManager.Singleton != null && 
+            Unity.Netcode.NetworkManager.Singleton.LocalClient != null && 
+            Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject != null)
+        {
+            checkPosition = Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject.transform.position;
+        }
+
         // Find nearest monster
-        int monsterCount = Physics.OverlapSphereNonAlloc(transform.position, 20f, monsterColliders, monsterLayer);
+        int monsterCount = Physics.OverlapSphereNonAlloc(checkPosition, 20f, monsterColliders, monsterLayer);
         float nearestMonsterDist = float.MaxValue;
         bool isMonsterNearby = false;
 
         for (int i = 0; i < monsterCount; i++)
         {
-            float dist = Vector3.Distance(transform.position, monsterColliders[i].transform.position);
+            float dist = Vector3.Distance(checkPosition, monsterColliders[i].transform.position);
             if (dist < nearestMonsterDist)
             {
                 nearestMonsterDist = dist;

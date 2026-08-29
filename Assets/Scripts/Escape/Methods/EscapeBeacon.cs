@@ -11,7 +11,7 @@ using System.Collections;
 ///   3. Gắn script này vào. Tuỳ chọn: kéo Light, AudioSource vào.
 ///   4. EscapeManager sẽ tự bật nếu màn này chọn Beacon.
 /// </summary>
-public class EscapeBeacon : MonoBehaviour, IInteractable
+public class EscapeBeacon : Unity.Netcode.NetworkBehaviour, IInteractable
 {
     [Header("Chi phí xây dựng")]
     public int requiredCircuits  = 2;
@@ -33,7 +33,7 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
     // ── State ─────────────────────────────────────────────────────────────────
     private bool  _isBuilt    = false;
     private bool  _isDone     = false;
-    private float _remaining;
+    public Unity.Netcode.NetworkVariable<float> _remaining = new Unity.Netcode.NetworkVariable<float>(0f);
 
     // OnGUI message
     private string _msg      = "";
@@ -51,7 +51,7 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
 
     void Start()
     {
-        _remaining = countdownSeconds;
+        if (IsServer) _remaining.Value = countdownSeconds;
 
         // Tìm đèn trong con trước khi tạo mới
         if (beaconLight == null)
@@ -89,7 +89,7 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
         if (!_isBuilt || _isDone) return;
 
         // Nhấp nháy đèn xanh
-        float pulse = Mathf.Sin(Time.time * (2f + _remaining < 30f ? 6f : 2f)) * 0.5f + 1f;
+        float pulse = Mathf.Sin(Time.time * (2f + _remaining.Value < 30f ? 6f : 2f)) * 0.5f + 1f;
         if (beaconLight != null)
         {
             beaconLight.color     = activeColor;
@@ -97,10 +97,10 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
         }
 
         // Đếm ngược
-        _remaining -= Time.deltaTime;
-        float progress = 1f - (_remaining / countdownSeconds);
+        if (IsServer) _remaining.Value -= Time.deltaTime;
+        float progress = 1f - (_remaining.Value / countdownSeconds);
         EscapeManager.Instance?.ReportProgress(
-            $"Sống sót thêm: {FormatTime(Mathf.Max(0, _remaining))}  ←  Đội cứu hộ đang đến",
+            $"Sống sót thêm: {FormatTime(Mathf.Max(0, _remaining.Value))}  ←  Đội cứu hộ đang đến",
             progress);
 
         // Báo động thu hút Mimic mỗi 5 giây
@@ -116,15 +116,14 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
                 if (pingClip != null) audioSource.PlayOneShot(pingClip);
             }
 
-UnityEngine.Component[] mimics = new UnityEngine.Component[0];
-//             MimicAI[] mimics = FindObjectsByType<MimicAI>();
-            foreach (var m in mimics)
-            {
-//                 m.Investigate(transform.position);
-            }
+            ExilerAI[] exilers = FindObjectsByType<ExilerAI>(FindObjectsSortMode.None);
+            foreach (var e in exilers) e.ForceInvestigate(transform.position);
+
+            MutantAI[] mutants = FindObjectsByType<MutantAI>(FindObjectsSortMode.None);
+            foreach (var m in mutants) m.ForceInvestigate(transform.position);
         }
 
-        if (_remaining <= 0f) StartCoroutine(RescueArrived());
+        if (_remaining.Value <= 0f) StartCoroutine(RescueArrived());
     }
 
     // ── IInteractable ─────────────────────────────────────────────────────────
@@ -154,10 +153,30 @@ UnityEngine.Component[] mimics = new UnityEngine.Component[0];
     {
         if (_isBuilt) return;
         _isBuilt = true;
-        if (audioSource != null && buildClip != null) audioSource.PlayOneShot(buildClip);
+        
+        // Đảm bảo object và parent được active để AudioSource và UI có thể hoạt động
+        gameObject.SetActive(true);
+        if (transform.parent != null) transform.parent.gameObject.SetActive(true);
+        
+        if (audioSource != null)
+        {
+            if (buildClip == null) buildClip = Resources.Load<AudioClip>("Audio/alarm");
+            if (buildClip != null)
+            {
+                audioSource.enabled = true;
+                audioSource.volume = 1f;
+                audioSource.spatialBlend = 1f;
+                audioSource.maxDistance = 100f;
+                audioSource.rolloffMode = AudioRolloffMode.Linear;
+                audioSource.clip = buildClip;
+                audioSource.loop = true;
+                audioSource.Play();
+            }
+        }
+        
         Debug.Log("<color=cyan>[EscapeBeacon] Beacon kích hoạt! Đếm ngược bắt đầu!</color>");
         
-        EscapeHUD hud = Object.FindAnyObjectByType<EscapeHUD>();
+        EscapeHUD hud = Object.FindAnyObjectByType<EscapeHUD>(FindObjectsInactive.Include);
         if (hud != null) hud.ForceOpenHUD();
     }
 
@@ -166,7 +185,7 @@ UnityEngine.Component[] mimics = new UnityEngine.Component[0];
         _isDone = true;
 
         if (beaconLight != null) beaconLight.color = Color.green;
-        if (audioSource != null && rescueClip != null) audioSource.PlayOneShot(rescueClip);
+        if (audioSource != null) { audioSource.Stop(); if (rescueClip != null) audioSource.PlayOneShot(rescueClip); }
 
         ShowMsg("ĐỘI CỨU HỘ ĐÃ ĐẾN! Đến cửa thoát ngay!", Color.green);
         Debug.Log("<color=lime>[EscapeBeacon] Đội cứu hộ đến! Escape unlocked!</color>");
@@ -266,7 +285,7 @@ UnityEngine.Component[] mimics = new UnityEngine.Component[0];
         s.fontStyle = FontStyle.Bold;
         s.alignment = TextAnchor.MiddleCenter;
 
-        string alarmText = $"BẦY QUÁI VẬT ĐANG TỚI\nCỨU HỘ ĐẾN SAU: {FormatTime(Mathf.Max(0, _remaining))}";
+        string alarmText = $"BẦY QUÁI VẬT ĐANG TỚI\nCỨU HỘ ĐẾN SAU: {FormatTime(Mathf.Max(0, _remaining.Value))}";
 
         // Đổ bóng chữ đen
         s.normal.textColor = Color.black;
@@ -347,7 +366,7 @@ UnityEngine.Component[] mimics = new UnityEngine.Component[0];
         Gizmos.color = _isBuilt ? new Color(0.1f, 0.8f, 1f, 0.6f) : new Color(0.5f, 0.5f, 0.5f, 0.4f);
         Gizmos.DrawWireCube(transform.position + Vector3.up, new Vector3(0.7f, 2f, 0.7f));
         UnityEditor.Handles.Label(transform.position + Vector3.up * 2.5f,
-            _isBuilt ? $"[BEACON ON]  {FormatTime(_remaining)}" : $"[BEACON OFF]  {requiredCircuits}x Circuit + {requiredBatteries}x Battery");
+            _isBuilt ? $"[BEACON ON]  {FormatTime(_remaining.Value)}" : $"[BEACON OFF]  {requiredCircuits}x Circuit + {requiredBatteries}x Battery");
     }
 #endif
 }
