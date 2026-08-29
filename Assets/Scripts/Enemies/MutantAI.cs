@@ -6,7 +6,7 @@ using Mimeto.Audio;
 [RequireComponent(typeof(NavMeshAgent))]
 public class MutantAI : NetworkBehaviour
 {
-    public enum MutantState { Patrol, Listen, Charge, Confused, Attack }
+    public enum MutantState { Patrol, Listen, Charge, Confused, Attack, Investigate }
     
     [Header("Current State")]
     public MutantState currentState = MutantState.Patrol;
@@ -35,9 +35,12 @@ public class MutantAI : NetworkBehaviour
     public AudioClip confusedClip;
 
     private PlayerController targetPlayer;
+    private Vector3 investigateTarget;
     private float lastAttackTime;
     private float patrolTimer = 0f;
     private float confuseTimer = 0f;
+    private float investigateTimer = 0f;
+    private float pathUpdateTimer = 0f;
     private float heartbeatCheckTimer = 0f;
     private bool isDead = false;
     private MonsterAudioEmitter _audioEmitter;
@@ -105,12 +108,15 @@ public class MutantAI : NetworkBehaviour
             case MutantState.Attack:
                 HandleAttack();
                 break;
+            case MutantState.Investigate:
+                HandleInvestigate();
+                break;
         }
 
         // Update audio emitter chase state
-        if (_audioEmitter != null)
+        if (_audioEmitter != null && IsServer)
         {
-            _audioEmitter.isChasing = (currentState == MutantState.Charge || currentState == MutantState.Attack);
+            _audioEmitter.isChasing.Value = (currentState == MutantState.Charge || currentState == MutantState.Attack);
         }
     }
 
@@ -137,35 +143,62 @@ public class MutantAI : NetworkBehaviour
         if (heartbeatCheckTimer <= 0f)
         {
             heartbeatCheckTimer = 0.5f; // Chỉ quét 2 lần 1 giây để tối ưu hiệu năng
-            ListenForHeartbeats();
+            SenseSurroundings();
         }
     }
 
-    void ListenForHeartbeats()
+    public float viewRadius = 30f;
+    public float viewAngle = 100f; // 50 degrees left/right
+
+    void SenseSurroundings()
     {
-        PlayerController[] players = FindObjectsByType<PlayerController>();
+        PlayerController[] players = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
         PlayerController bestTarget = null;
         float highestThreat = 0f;
 
         foreach (var p in players)
         {
             if (p.isHiding) continue;
-            
             PlayerSurvival ps = p.GetComponent<PlayerSurvival>();
             if (ps == null || ps.currentHealth <= 0) continue;
 
             float dist = Vector3.Distance(transform.position, p.transform.position);
-            if (dist > hearRadius) continue;
+            float threat = 0f;
+            bool detected = false;
 
-            float bpm = ((ps.maxHealth - ps.currentHealth) / ps.maxHealth) * 50f + 40f;
-            if (ps.currentOxygen < ps.lowOxygenThreshold) bpm += 40f;
-            if (p.netIsSprinting.Value) bpm += 30f;
-            if (!p.netIsMoving.Value && p.netIsCrouching.Value) bpm -= 20f;
-
-            // 3. Bạn đứng quá gần (dist < 8f) dù nhịp tim thấp
-            if (bpm > 95f || p.netIsSprinting.Value || dist < 8f) 
+            // 1. VISION CHECK
+            if (dist <= viewRadius)
             {
-                float threat = bpm - (dist * 0.5f); 
+                Vector3 dirToPlayer = (p.transform.position - transform.position).normalized;
+                if (Vector3.Angle(transform.forward, dirToPlayer) < viewAngle / 2f)
+                {
+                    RaycastHit hit;
+                    // Raycast từ vị trí mắt (cao khoảng 1.5m)
+                    if (Physics.Raycast(transform.position + Vector3.up * 1.5f, dirToPlayer, out hit, viewRadius))
+                    {
+                        if (hit.transform.CompareTag("Player") || hit.transform.GetComponentInParent<PlayerController>() != null)
+                        {
+                            detected = true;
+                            threat += 300f - dist; // Nhìn thấy là ưu tiên cao nhất, ưu tiên kẻ gần hơn
+                        }
+                    }
+                }
+            }
+
+            // 2. HEARING / HEARTBEAT CHECK
+            if (dist <= hearRadius)
+            {
+                float bpm = ps.netCurrentBPM.Value;
+                if (RandomEventManager.IsBloodMoonActive || bpm > 95f || p.netIsSprinting.Value || dist < 8f) 
+                {
+                    detected = true;
+                    threat += bpm - (dist * 0.5f);
+                    if (RandomEventManager.IsBloodMoonActive) threat += 100f;
+                }
+            }
+
+            if (detected)
+            {
                 if (threat > highestThreat)
                 {
                     highestThreat = threat;
@@ -212,17 +245,25 @@ public class MutantAI : NetworkBehaviour
 
         if (bpm < 85f && !targetPlayer.netIsMoving.Value && targetPlayer.netIsCrouching.Value)
         {
-            // Đi tới vị trí cuối cùng nghe thấy tiếng tim thay vì đứng yên ngơ ngác ngay lập tức
-            if (agent.isOnNavMesh) agent.SetDestination(targetPlayer.transform.position);
-            targetPlayer = null;
-            SetConfused();
-            return;
+            if (dist > 8f)
+            {
+                // Đi tới vị trí cuối cùng nghe thấy tiếng tim thay vì đứng yên ngơ ngác ngay lập tức
+                if (agent.isOnNavMesh) agent.SetDestination(targetPlayer.transform.position);
+                targetPlayer = null;
+                SetConfused();
+                return;
+            }
         }
 
         agent.isStopped = false;
         agent.speed = chargeSpeed;
-        agent.SetDestination(targetPlayer.transform.position);
 
+        pathUpdateTimer -= Time.deltaTime;
+        if (pathUpdateTimer <= 0f)
+        {
+            if (agent.isOnNavMesh) agent.SetDestination(targetPlayer.transform.position);
+            pathUpdateTimer = 0.2f;
+        }
         if (dist <= attackRange)
         {
             // Bắt đầu tấn công: Giữ lại một chút quán tính trượt lên thay vì phanh cháy đường (Khựng lại hoàn toàn)
@@ -309,7 +350,7 @@ public class MutantAI : NetworkBehaviour
             float dist = Vector3.Distance(flatPos, flatTarget);
 
             // Chỉ gây sát thương nếu Player vẫn còn trong tầm đánh (thêm độ trễ / leniency 1.5f)
-            if (dist <= attackRange + 1.5f) 
+            if (dist <= attackRange + 0.5f) 
             {
                 PlayerSurvival survival = targetPlayer.GetComponent<PlayerSurvival>();
                 if (survival != null && survival.currentHealth > 0)
@@ -333,7 +374,7 @@ public class MutantAI : NetworkBehaviour
 
         if (IsServer)
         {
-            currentSpeed = agent.velocity.magnitude;
+            currentSpeed = (agent != null && agent.enabled && agent.isOnNavMesh) ? agent.velocity.magnitude : 0f;
             _netSpeed.Value = currentSpeed;
             _netState.Value = (int)currentState;
         }
@@ -356,13 +397,14 @@ public class MutantAI : NetworkBehaviour
 
     public void TakeDamage(float amount)
     {
+        UnityEngine.Debug.Log($"Mutant taking {amount} damage on server. Current HP: {health.Value}");
         if (!IsServer) return; // FIX: Prevent local damage on client
         if (isDead) return;
 
         health.Value -= amount;
         
         // Bị đánh đau quá thì rống lên và nhắm vào người chơi gần nhất
-        ListenForHeartbeats(); 
+        SenseSurroundings(); 
 
         if (health.Value <= 0)
         {
@@ -375,6 +417,7 @@ public class MutantAI : NetworkBehaviour
         if (isDead) return;
         targetPlayer = player;
         currentState = MutantState.Charge;
+        agent.isStopped = false;
         if (audioSource != null && chargeScreamClip != null && !audioSource.isPlaying)
         {
             PlaySoundClientRpc(0);
@@ -383,23 +426,20 @@ public class MutantAI : NetworkBehaviour
 
     void Die()
     {
+        UnityEngine.Debug.Log("Mutant Die() called!");
         if (!IsServer) return; // FIX: Ensure Die logic and ClientRpc are only called from Server
 
         isDead = true;
         agent.enabled = false;
         
         // Play death sound via audio emitter
-        if (_audioEmitter != null) _audioEmitter.PlayDeathSound();
+        if (_audioEmitter != null) _audioEmitter.PlayDeathSoundClientRpc();
 
         if (animator != null) 
         {
             TriggerAnimClientRpc("Die");
         }
         
-        Collider col = GetComponent<Collider>();
-        if (col != null) col.enabled = false;
-        
-        this.enabled = false;
         StartCoroutine(DespawnAfterDelay(5f)); // FIX: NetworkObject.Despawn instead of Destroy
     }
 
@@ -414,20 +454,23 @@ public class MutantAI : NetworkBehaviour
     }
 
     private float originalSpeed = -1f;
-    private float originalDamage = -1f;
     private float originalPatrolSpeed = -1f;
+    private float originalDamage = -1f;
+    private float originalHearRadius = -1f;
 
-    public void ApplyBloodMoonBuff(float speedMult, float damageMult)
+    public void ApplyBloodMoonBuff(float speedMult, float buffMult)
     {
         if (originalSpeed < 0)
         {
             originalSpeed = chargeSpeed;
             originalDamage = attackDamage;
             originalPatrolSpeed = patrolSpeed;
+            originalHearRadius = hearRadius;
         }
         chargeSpeed = originalSpeed * speedMult;
         patrolSpeed = originalPatrolSpeed * speedMult;
-        attackDamage = originalDamage * damageMult;
+        attackDamage = originalDamage * buffMult;
+        hearRadius = originalHearRadius * buffMult;
         
         // Cập nhật agent.speed ngay lập tức cho state hiện tại
         if (agent != null)
@@ -446,6 +489,7 @@ public class MutantAI : NetworkBehaviour
             chargeSpeed = originalSpeed;
             patrolSpeed = originalPatrolSpeed;
             attackDamage = originalDamage;
+            hearRadius = originalHearRadius;
             if (agent != null)
             {
                 if (currentState == MutantState.Charge || currentState == MutantState.Attack)
@@ -469,5 +513,60 @@ public class MutantAI : NetworkBehaviour
     private void TriggerAnimClientRpc(string triggerName)
     {
         if (animator != null) animator.SetTrigger(triggerName);
+        if (triggerName == "Die")
+        {
+            isDead = true;
+            if (agent != null) agent.enabled = false;
+            Collider col = GetComponent<Collider>();
+            if (col != null) col.enabled = false;
+        }
+    }
+
+    public void ForceInvestigate(Vector3 pos)
+    {
+        if (!IsServer || isDead) return;
+        targetPlayer = null;
+        investigateTarget = pos;
+
+        currentState = MutantState.Investigate;
+        investigateTimer = 8f;
+        if (agent.isOnNavMesh)
+        {
+            agent.SetDestination(investigateTarget);
+            agent.isStopped = false;
+            agent.speed = chargeSpeed * 0.8f;
+        }
+    }
+
+    void HandleInvestigate()
+    {
+        if (agent.pathPending) return;
+
+        if (agent.hasPath && agent.remainingDistance > 1f)
+        {
+            agent.isStopped = false;
+            agent.speed = chargeSpeed * 0.8f;
+        }
+        else
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+            investigateTimer -= Time.deltaTime;
+            
+            // Xoay quanh tìm kiếm
+            transform.rotation = Quaternion.Euler(0, transform.eulerAngles.y + 60f * Time.deltaTime, 0);
+
+            if (investigateTimer <= 0f)
+            {
+                SetConfused();
+            }
+        }
+        
+        heartbeatCheckTimer -= Time.deltaTime;
+        if (heartbeatCheckTimer <= 0f)
+        {
+            heartbeatCheckTimer = 0.5f;
+            SenseSurroundings();
+        }
     }
 }

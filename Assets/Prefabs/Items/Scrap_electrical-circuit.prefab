@@ -101,6 +101,7 @@ GameObject:
   - component: {fileID: 5130193905672550578}
   - component: {fileID: 1661883912285198620}
   - component: {fileID: 9215224328256479927}
+  - component: {fileID: -6160930162708833664}
   m_Layer: 0
   m_Name: Scrap_electrical-circuit
   m_TagString: Untagged
@@ -161,3 +162,28 @@ MonoBehaviour:
   amount: 1
   rootObject: {fileID: 5510660476621300232}
   interactHint: Press [E] to pick up
+  enableGlowEffect: 1
+  glowColor: {r: 0.2, g: 0.8, b: 1, a: 1}
+  glowIntensity: 2
+  glowRange: 1.5
+--- !u!114 &-6160930162708833664
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5510660476621300232}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 0
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1

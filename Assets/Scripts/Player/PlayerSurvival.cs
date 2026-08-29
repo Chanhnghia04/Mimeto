@@ -8,8 +8,11 @@ public class PlayerSurvival : NetworkBehaviour
 {
     [Header("Health Settings")]
     public float maxHealth = 100f;
-    public float currentHealth;
+    public NetworkVariable<float> netHealth = new NetworkVariable<float>();
+    public float currentHealth { get { return netHealth.Value; } set { if (IsServer) netHealth.Value = value; } }
     public float toxicDamagePerSecond = 5f;
+    public float currentBPM { get; private set; } = 60f;
+    public NetworkVariable<float> netCurrentBPM = new NetworkVariable<float>(60f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
     public NetworkVariable<bool> isGhost = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
@@ -17,6 +20,7 @@ public class PlayerSurvival : NetworkBehaviour
     private static bool showGameOver = false;
     private static bool isWinResult = false;
     private static bool pendingSceneLoad = false;
+    private float _cachedNearbyPanic = 0f;
 
     public static bool IsGameOverUIOpen()
     {
@@ -25,6 +29,8 @@ public class PlayerSurvival : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        if (IsServer) { netHealth.Value = maxHealth; netOxygen.Value = maxOxygen; netStamina.Value = maxStamina; }
+        
         string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         if (sceneName == "Map" || sceneName == "PollutedZone")
         {
@@ -46,13 +52,24 @@ public class PlayerSurvival : NetworkBehaviour
         if (netEquippedMask.Value != 0) OnEquippedMaskChanged(0, netEquippedMask.Value);
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [ServerRpc]
     public void SetGhostServerRpc(bool ghost)
     {
         isGhost.Value = ghost;
         if (ghost && IsServer)
         {
             CheckTeamWipe();
+        }
+    }
+    
+    [ServerRpc]
+    private void BreakMaskServerRpc(int maskType)
+    {
+        PlayerInventory inv = GetComponent<PlayerInventory>();
+        if (inv != null)
+        {
+            if (maskType == 2 && inv.advancedGasMasks > 0) inv.advancedGasMasks--;
+            else if (maskType == 1 && inv.basicGasMasks > 0) inv.basicGasMasks--;
         }
     }
     
@@ -119,14 +136,28 @@ public class PlayerSurvival : NetworkBehaviour
     
     [Header("Oxygen Settings")]
     public float maxOxygen = 100f;
-    public float currentOxygen;
+    public NetworkVariable<float> netOxygen = new NetworkVariable<float>();
+    public float currentOxygen { get { return netOxygen.Value; } set { if (IsServer) netOxygen.Value = value; } }
     public float oxygenDepletionRate = 0.3333f; // 3s mất 1 oxy
     public float oxygenRestoreRate = 10f; 
     public bool inSafeZone = false;
 
     [Header("Stamina Settings")]
     public float maxStamina = 100f;
-    public float currentStamina;
+    public NetworkVariable<float> netStamina = new NetworkVariable<float>();
+    public float currentStamina 
+    { 
+        get 
+        { 
+            var staminaSys = GetComponent<Mimeto.PlayerSystems.StaminaSystem>();
+            if (staminaSys != null) return staminaSys.currentStamina;
+            return netStamina.Value; 
+        } 
+        set 
+        { 
+            if (IsServer) netStamina.Value = value; 
+        } 
+    }
     public float staminaDepletionRate = 20f; // Chạy 5s là hết lực
     public float staminaRestoreRate = 15f;
 
@@ -158,8 +189,10 @@ public class PlayerSurvival : NetworkBehaviour
     [Header("Audio")]
     public AudioSource breathingSource;
     public AudioSource sfxSource;
+    public AudioSource heartbeatSource;
     public AudioClip heavyBreathingClip;
     public AudioClip damageHitClip;
+    public AudioClip heartbeatClip;
     public float lowOxygenThreshold = 30f;
 
     void Start()
@@ -178,6 +211,10 @@ public class PlayerSurvival : NetworkBehaviour
         // Setup AudioSources if missing
         if (breathingSource == null) breathingSource = gameObject.AddComponent<AudioSource>();
         if (sfxSource == null) sfxSource = gameObject.AddComponent<AudioSource>();
+        if (heartbeatSource == null) heartbeatSource = gameObject.AddComponent<AudioSource>();
+        
+        if (heartbeatClip == null) heartbeatClip = Resources.Load<AudioClip>("Audio/Heartbeat");
+        if (heartbeatClip != null) heartbeatSource.clip = heartbeatClip;
         
         breathingSource.loop = true;
         breathingSource.playOnAwake = false;
@@ -185,6 +222,10 @@ public class PlayerSurvival : NetworkBehaviour
         
         sfxSource.playOnAwake = false;
         sfxSource.spatialBlend = 0f;
+        
+        heartbeatSource.loop = true;
+        heartbeatSource.playOnAwake = false;
+        heartbeatSource.spatialBlend = 0f;
 
         // Move player to spawn point at the start of the game
         if (spawnPoint != null)
@@ -219,7 +260,7 @@ public class PlayerSurvival : NetworkBehaviour
             }
         }
 
-        if (IsSpawned && !IsOwner) return; // CHỈ CẬP NHẬT MÁU/OXY CHO NHÂN VẬT CỦA MÌNH HOẶC KHI OFFLINE
+        if (IsSpawned && !IsOwner && !IsServer) return; // CHỈ CẬP NHẬT MÁU/OXY CHO NHÂN VẬT CỦA MÌNH HOẶC KHI OFFLINE, VÀ SERVER CẬP NHẬT CHO TẤT CẢ
 
         string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         if (sceneName != "Map" && sceneName != "PollutedZone")
@@ -238,8 +279,11 @@ public class PlayerSurvival : NetworkBehaviour
         if (inSafeZone)
         {
             // Restore oxygen and don't deplete mask or oxygen
-            currentOxygen += oxygenRestoreRate * Time.deltaTime;
-            if (currentOxygen > maxOxygen) currentOxygen = maxOxygen;
+            if (IsServer)
+            {
+                currentOxygen += oxygenRestoreRate * Time.deltaTime;
+                if (currentOxygen > maxOxygen) currentOxygen = maxOxygen;
+            }
         }
         else if (activeMaskType != GasMaskType.None)
         {
@@ -253,12 +297,7 @@ public class PlayerSurvival : NetworkBehaviour
                 
                 if (IsOwner)
                 {
-                    PlayerInventory inv = GetComponent<PlayerInventory>();
-                    if (inv != null)
-                    {
-                        if (netEquippedMask.Value == 2 && inv.advancedGasMasks > 0) inv.advancedGasMasks--;
-                        else if (netEquippedMask.Value == 1 && inv.basicGasMasks > 0) inv.basicGasMasks--;
-                    }
+                    BreakMaskServerRpc(netEquippedMask.Value);
                     netEquippedMask.Value = 0; // Tự động gọi callback tháo mặt nạ
                 }
             }
@@ -266,13 +305,16 @@ public class PlayerSurvival : NetworkBehaviour
         else
         {
             // Deplete oxygen only when NOT wearing a mask
-            currentOxygen -= oxygenDepletionRate * Time.deltaTime;
+            if (IsServer)
+            {
+                currentOxygen -= oxygenDepletionRate * Time.deltaTime;
+                if (currentOxygen <= 0) currentOxygen = 0;
+            }
             if (currentOxygen <= 0)
             {
-                currentOxygen = 0;
                 float tickDamage = 5f * Time.deltaTime;
                 accumulatedOxygenDamage += tickDamage;
-                if (!IsServer) currentHealth -= tickDamage; // Dự đoán ở Client
+                // if (!IsServer) currentHealth -= tickDamage; // Removed client prediction
                 
                 if (accumulatedOxygenDamage >= 1f || currentHealth <= 0)
                 {
@@ -307,7 +349,7 @@ public class PlayerSurvival : NetworkBehaviour
             else staminaSys.RestoreStamina(Time.deltaTime);
             
             // Đồng bộ ngược lại biến cũ để UI hiện tại không bị vỡ (Step 3)
-            currentStamina = staminaSys.currentStamina; 
+            if (IsServer) currentStamina = staminaSys.currentStamina; 
             
             if (pc != null) 
             {
@@ -320,17 +362,23 @@ public class PlayerSurvival : NetworkBehaviour
             // Fallback: Logic cũ phòng trường hợp bạn chưa kéo component vào Prefab
             if (pc != null && pc.isSprinting)
             {
-                currentStamina -= staminaDepletionRate * Time.deltaTime;
+                if (IsServer)
+                {
+                    currentStamina -= staminaDepletionRate * Time.deltaTime;
+                    if (currentStamina <= 0) currentStamina = 0;
+                }
                 if (currentStamina <= 0) 
                 {
-                    currentStamina = 0;
                     pc.isExhausted = true;
                 }
             }
             else
             {
-                currentStamina += staminaRestoreRate * Time.deltaTime;
-                if (currentStamina > maxStamina) currentStamina = maxStamina;
+                if (IsServer)
+                {
+                    currentStamina += staminaRestoreRate * Time.deltaTime;
+                    if (currentStamina > maxStamina) currentStamina = maxStamina;
+                }
                 
                 if (currentStamina >= maxStamina * 0.2f && pc != null)
                 {
@@ -344,7 +392,7 @@ public class PlayerSurvival : NetworkBehaviour
         {
             float tickDamage = bleedDps * Time.deltaTime;
             accumulatedBleedDamage += tickDamage;
-            if (!IsServer) currentHealth -= tickDamage; // Dự đoán ở Client
+            // if (!IsServer) currentHealth -= tickDamage; // Removed client prediction
             
             if (accumulatedBleedDamage >= 1f || currentHealth <= 0)
             {
@@ -355,41 +403,94 @@ public class PlayerSurvival : NetworkBehaviour
         }
         // -------------------
 
-        // Update UI Bars
-        if (healthBar != null) healthBar.value = currentHealth / maxHealth;
-        if (oxygenBar != null) oxygenBar.value = currentOxygen / maxOxygen;
-
-        // Handle Breathing Audio (Hết oxy hoặc hết thể lực đều thở dốc)
-        if ((currentOxygen < lowOxygenThreshold || currentStamina <= 5f) && !isDead)
+        if (IsOwner)
         {
-            if (breathingSource != null && !breathingSource.isPlaying && heavyBreathingClip != null)
+            // Update UI Bars
+            if (healthBar != null) healthBar.value = currentHealth / maxHealth;
+            if (oxygenBar != null) oxygenBar.value = currentOxygen / maxOxygen;
+    
+            // Handle Breathing Audio (Hết oxy hoặc hết thể lực đều thở dốc)
+            if ((currentOxygen < lowOxygenThreshold || currentStamina <= 5f) && !isDead)
             {
-                breathingSource.clip = heavyBreathingClip;
-                breathingSource.Play();
+                if (breathingSource != null && !breathingSource.isPlaying && heavyBreathingClip != null)
+                {
+                    breathingSource.clip = heavyBreathingClip;
+                    breathingSource.Play();
+                }
+                
+                if (breathingSource != null)
+                {
+                    // Increase volume as oxygen gets lower
+                    float oxygenPercent = currentOxygen / lowOxygenThreshold;
+                    breathingSource.volume = Mathf.Lerp(0.8f, 0.2f, oxygenPercent);
+                }
+            }
+            else
+            {
+                if (breathingSource != null && breathingSource.isPlaying)
+                {
+                    breathingSource.Stop();
+                }
+            }
+    
+            // Handle Heartbeat Audio
+            float panicLevel = 0f;
+            
+            // Panic from nearby monsters
+            if (Time.frameCount % 30 == 0)
+            {
+                _cachedNearbyPanic = 0f;
+                Collider[] hitColliders = Physics.OverlapSphere(transform.position, 15f);
+                foreach (var hitCollider in hitColliders)
+                {
+                    if (hitCollider.GetComponent<MutantAI>() != null || hitCollider.GetComponent<ExilerAI>() != null)
+                    {
+                        _cachedNearbyPanic = 40f; // Tim đập rất nhanh khi gặp quái
+                        break;
+                    }
+                }
+            }
+            panicLevel += _cachedNearbyPanic;
+    
+            float calculatedBPM = ((maxHealth - currentHealth) / maxHealth) * 40f + 60f + panicLevel;
+            if (pc != null)
+            {
+                if (pc.netIsSprinting.Value) calculatedBPM += 30f;
+                else if (pc.netIsMoving.Value) calculatedBPM += 10f;
             }
             
-            if (breathingSource != null)
+            currentBPM = calculatedBPM;
+            netCurrentBPM.Value = currentBPM;
+            if (currentOxygen < lowOxygenThreshold) calculatedBPM += 30f;
+            
+            if (calculatedBPM >= 70f && !isDead)
             {
-                // Increase volume as oxygen gets lower
-                float oxygenPercent = currentOxygen / lowOxygenThreshold;
-                breathingSource.volume = Mathf.Lerp(0.8f, 0.2f, oxygenPercent);
+                if (heartbeatSource != null && heartbeatClip != null && !heartbeatSource.isPlaying)
+                {
+                    heartbeatSource.Play();
+                }
+                if (heartbeatSource != null)
+                {
+                    heartbeatSource.volume = Mathf.Clamp01((calculatedBPM - 65f) / 60f); // Max volume at 125 BPM
+                    heartbeatSource.pitch = Mathf.Clamp(calculatedBPM / 80f, 0.8f, 1.5f);
+                }
             }
-        }
-        else
-        {
-            if (breathingSource != null && breathingSource.isPlaying)
+            else
             {
-                breathingSource.Stop();
+                if (heartbeatSource != null && heartbeatSource.isPlaying)
+                {
+                    heartbeatSource.Stop();
+                }
             }
+    
+            // Feed stats to Horror Audio Director for adaptive music
+            if (HorrorAudioDirector.Instance != null)
+            {
+                HorrorAudioDirector.Instance.SetPlayerStats(currentHealth, currentOxygen, currentStamina, IsBleeding);
+            }
+    
+            UpdateEKG(); // Update EKG every frame
         }
-
-        // Feed stats to Horror Audio Director for adaptive music
-        if (HorrorAudioDirector.Instance != null)
-        {
-            HorrorAudioDirector.Instance.SetPlayerStats(currentHealth, currentOxygen, currentStamina, IsBleeding);
-        }
-
-        UpdateEKG(); // Update EKG every frame
     }
 
     public void EquipMask(GasMaskType type)
@@ -533,7 +634,7 @@ public class PlayerSurvival : NetworkBehaviour
         }
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [ServerRpc]
     public void DeclareVictoryServerRpc()
     {
         if (isGameOver) return;
@@ -567,7 +668,7 @@ public class PlayerSurvival : NetworkBehaviour
         }
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [ServerRpc]
     private void TakeDamageServerRpc(float amount, string reason)
     {
         if (currentHealth <= 0) return;
@@ -595,7 +696,7 @@ public class PlayerSurvival : NetworkBehaviour
             }
         }
         
-        UpdateHealthClientRpc(currentHealth, reason);
+        UpdateHealthClientRpc(currentHealth, amount, reason);
         
         // Host (Server) tự gọi hàm Die hoặc phát âm thanh vì ClientRpc có thể không chạy trên Host nếu logic bọc sai
         if (IsOwner)
@@ -606,14 +707,15 @@ public class PlayerSurvival : NetworkBehaviour
     }
 
     [ClientRpc]
-    public void UpdateHealthClientRpc(float newHealth, string reason)
+    public void UpdateHealthClientRpc(float newHealth, float amount, string reason)
     {
-        currentHealth = newHealth;
+        // currentHealth setter only updates netHealth on Server, so it does nothing on Client.
+        // We must use newHealth for immediate logic.
         
         if (IsOwner)
         {
-            PlayHitSound(maxHealth - newHealth); // pass amount roughly
-            if (currentHealth <= 0)
+            PlayHitSound(amount);
+            if (newHealth <= 0)
             {
                 Die(reason);
             }
@@ -633,7 +735,7 @@ public class PlayerSurvival : NetworkBehaviour
     {
         if (currentHealth <= 0 || isDead) return;
         
-        currentHealth = Mathf.Min(currentHealth + amount, maxHealth); // Dự đoán ở Client
+        // currentHealth = Mathf.Min(currentHealth + amount, maxHealth); // Removed client prediction
         
         if (IsServer)
         {
@@ -645,14 +747,14 @@ public class PlayerSurvival : NetworkBehaviour
         }
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [ServerRpc]
     private void HealServerRpc(float amount)
     {
         if (currentHealth <= 0 || isDead) return;
         ApplyHealLogic(amount);
     }
     
-    [ServerRpc(RequireOwnership = false)]
+    [ServerRpc]
     public void ApplyAntidoteServerRpc(ServerRpcParams rpcParams = default)
     {
         // Placeholder for Parasite cure logic
@@ -660,7 +762,7 @@ public class PlayerSurvival : NetworkBehaviour
         Debug.Log($"[Survival] Player {OwnerClientId} was cured by an Antidote!");
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [ServerRpc]
     public void UpdateHealthServerRpc(float newHealth)
     {
         var healthSys = GetComponent<Mimeto.PlayerSystems.HealthSystem>();
@@ -727,6 +829,8 @@ public class PlayerSurvival : NetworkBehaviour
             SetGhostServerRpc(true);
             PlayerController controller = GetComponent<PlayerController>();
             if (controller != null) controller.isGhostMode = true;
+            
+            // GetComponent<PlayerInventory>().DropAllItemsOnDeath();
 
             string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
             if (deathPanel != null)
@@ -762,7 +866,7 @@ public class PlayerSurvival : NetworkBehaviour
         }
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [ServerRpc]
     public void NotifyTeamWipeCheckServerRpc()
     {
         CheckTeamWipe();

@@ -49,11 +49,17 @@ public class PlayerController : NetworkBehaviour
     public NetworkVariable<bool> netIsSprinting = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
     public NetworkVariable<bool> netIsCrouching = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
+    [Header("Audio")]
+    public AudioSource footstepSource;
+    public AudioClip pickupClip;
+    public float pickupVolume = 1f;
+
     [Header("Realistic Effects")]
     public float bobSpeed = 10f;
     public float bobAmount = 0.05f;
     public float tiltAmount = 2f;
     public float tiltSpeed = 5f;
+    private float _bobTimer = 0f;
     public float sprintFOVMultiplier = 1.2f;
     public float fovTransitionSpeed = 5f;
     public float landDipAmount = 0.1f;
@@ -62,8 +68,10 @@ public class PlayerController : NetworkBehaviour
     private float defaultPosY = 0;
     private float timer = 0;
     private float currentTilt = 0f;
-    private float defaultFOV = 60f;
-    private float targetFOV = 60f;
+    private float yRotation = 0f; // Absolute world yaw for the head/camera
+    private float bodyYaw = 0f;   // Current body yaw
+    private float defaultFOV = 75f;
+    private float targetFOV = 75f;
     private float landDipOffset = 0f;
     private bool wasGrounded = true;
 
@@ -103,7 +111,6 @@ public class PlayerController : NetworkBehaviour
     private UnityEngine.InputSystem.InputAction attackAction;
 
     private InventoryUI _inventoryUI;
-    private CraftingUI  _craftingUI;
     private ChestUI     _chestUI;
 
     public override void OnNetworkSpawn()
@@ -113,6 +120,17 @@ public class PlayerController : NetworkBehaviour
         
         netFlashlightEnabled.OnValueChanged += OnFlashlightChanged;
         OnFlashlightChanged(false, netFlashlightEnabled.Value);
+
+        // Fix Flashlight not looking up/down:
+        // Make the light a child of the camera so it pitches with the camera's view
+        if (uvLight != null && playerCamera != null && uvLight.transform.parent != playerCamera)
+        {
+            uvLight.transform.SetParent(playerCamera, true);
+            
+            // Tùy chọn: reset local position/rotation để đèn chiếu chính xác từ giữa màn hình,
+            // hoặc giữ nguyên vị trí cũ (ở ngực/vai) nhưng chỉ reset rotation để chiếu thẳng.
+            uvLight.transform.localRotation = Quaternion.identity;
+        }
 
         // Tắt CharacterController trên các client không phải chủ sở hữu 
         // để ClientNetworkTransform có thể đồng bộ vị trí tự do mà không bị khóa
@@ -166,6 +184,53 @@ public class PlayerController : NetworkBehaviour
                 cam.gameObject.tag = "MainCamera";
             }
             
+            // -- FULL BODY FIRST PERSON CAMERA SETUP --
+            // 1. Ẩn toàn bộ mesh đầu/mặt khỏi camera local (vẫn đổ bóng, người khác vẫn thấy)
+            Transform modelChild = transform.Find("Model");
+            Animator setupAnim = GetComponentInChildren<Animator>();
+            Transform headBone = (setupAnim != null && setupAnim.isHuman) 
+                ? setupAnim.GetBoneTransform(HumanBodyBones.Head) : null;
+
+            if (modelChild != null)
+            {
+                Renderer[] renderers = modelChild.GetComponentsInChildren<Renderer>(true);
+                foreach (Renderer r in renderers)
+                {
+                    string rName = r.gameObject.name.ToLower();
+                    
+                    // Kiểm tra tên mesh có liên quan đến đầu/mặt không
+                    bool isHeadPart = rName.Contains("hair") || rName.Contains("eyelash") ||
+                                     rName.Contains("head") || rName.Contains("face") ||
+                                     rName.Contains("eye")  || rName.Contains("teeth") ||
+                                     rName.Contains("tongue")|| rName.Contains("brow") ||
+                                     rName.Contains("beard") || rName.Contains("lips") ||
+                                     rName.Contains("mouth") || rName.Contains("nose");
+                    
+                    // Nếu renderer là con của xương Head → cũng ẩn
+                    if (!isHeadPart && headBone != null && r.transform.IsChildOf(headBone))
+                    {
+                        isHeadPart = true;
+                    }
+                    
+                    if (isHeadPart)
+                    {
+                        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+                    }
+                    else
+                    {
+                        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+                    }
+                }
+            }
+            
+            // 2. Tùy chỉnh Camera thay vì thu nhỏ đầu
+            if (playerCamera != null)
+            {
+                Camera pCam = playerCamera.GetComponent<Camera>();
+                // Chỉnh nearClipPlane (0.18f) để gọt sạch mặt/răng/mắt
+                if (pCam != null) pCam.nearClipPlane = 0.25f;
+            }
+            
             // Cập nhật vị trí cho Vivox 3D Audio
             if (VivoxManager.Instance != null)
             {
@@ -205,11 +270,19 @@ public class PlayerController : NetworkBehaviour
         
         originalHeight = controller.height;
         originalCenter = controller.center;
-        originalCameraLocalPos = playerCamera != null ? playerCamera.localPosition : Vector3.zero;
+        
+        // Đẩy camera tới trước một chút xíu (8cm) để thoát hẳn ra khỏi vùng mắt/mũi
+        Vector3 camBasePos = playerCamera != null ? playerCamera.localPosition : Vector3.zero;
+        originalCameraLocalPos = camBasePos + new Vector3(0, 0, 0.08f);
+
+        yRotation = transform.eulerAngles.y;
+        bodyYaw = transform.eulerAngles.y;
+
+        Cursor.lockState = CursorLockMode.Locked;
+        
         defaultPosY = originalCameraLocalPos.y;
 
         _inventoryUI = GetComponent<InventoryUI>();
-        _craftingUI  = GetComponent<CraftingUI>();
         _chestUI     = Object.FindAnyObjectByType<ChestUI>();
 
         // Chuyển UI từ Camera sang Overlay giống như Scene StartGame
@@ -260,6 +333,36 @@ public class PlayerController : NetworkBehaviour
         netEquippedWeapon.Value = newWeapon;
     }
 
+    public void UnequipIfEquipped(string itemId)
+    {
+        if (!IsOwner) return;
+
+        if (itemId == "basic_gasmask" || itemId == "adv_gasmask")
+        {
+            var survival = GetComponent<PlayerSurvival>();
+            if (survival != null && survival.netEquippedMask.Value != 0)
+            {
+                survival.netEquippedMask.Value = 0;
+            }
+            return;
+        }
+
+        int checkWeapon = 0;
+        if (itemId == "flashlight") checkWeapon = 1;
+        else if (itemId == "axe") checkWeapon = 2;
+        else if (itemId == "machete") checkWeapon = 3;
+        else if (itemId == "bat") checkWeapon = 4;
+        else if (itemId == "crowbar") checkWeapon = 5;
+        else if (itemId == "shovel") checkWeapon = 6;
+        else if (itemId == "antidote") checkWeapon = 7;
+        
+        if (netEquippedWeapon.Value == checkWeapon && checkWeapon != 0)
+        {
+            netEquippedWeapon.Value = 0;
+        }
+    }
+
+
     private float lastPunchTime = 0f;
     private int punchStep = 0;
 
@@ -275,6 +378,10 @@ public class PlayerController : NetworkBehaviour
         if (uvLight != null)
         {
             uvLight.enabled = current;
+            if (IsOwner) // Chỉ đổi sương mù cho người chơi hiện tại
+            {
+                RenderSettings.fogEndDistance = current ? 8.5f : 3.5f;
+            }
         }
     }
 
@@ -323,6 +430,7 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
+
     void Update()
     {
         if (controller == null)
@@ -334,7 +442,6 @@ public class PlayerController : NetworkBehaviour
             Camera cam = GetComponentInChildren<Camera>();
             if (cam != null) playerCamera = cam.transform;
             _inventoryUI = GetComponent<InventoryUI>();
-            _craftingUI  = GetComponent<CraftingUI>();
             _chestUI     = Object.FindAnyObjectByType<ChestUI>();
         }
 
@@ -462,8 +569,26 @@ public class PlayerController : NetworkBehaviour
             xRotation = Mathf.Clamp(xRotation, -90f, 90f);
             if (IsSpawned) netXRotation.Value = xRotation;
 
-            // Removed playerCamera.localRotation here, handled in HandleRealisticCameraEffects
-            transform.Rotate(Vector3.up * mouseX);
+            yRotation += mouseX;
+
+            // Xoay cơ thể đuổi theo đầu nếu đang di chuyển, hoặc đầu ngoái quá 70 độ
+            float angleDiff = Mathf.DeltaAngle(bodyYaw, yRotation);
+            Vector2 rawMove = (canMove && moveAction != null) ? moveAction.ReadValue<Vector2>() : Vector2.zero;
+            bool isMoving = Mathf.Abs(rawMove.x) > 0.1f || Mathf.Abs(rawMove.y) > 0.1f;
+            
+            if (isMoving)
+            {
+                // Khi chạy, cơ thể xoay về hướng nhìn
+                bodyYaw = Mathf.LerpAngle(bodyYaw, yRotation, Time.deltaTime * 10f);
+            }
+            else
+            {
+                // Khi đứng im, chỉ xoay cơ thể nếu cổ đã ngoái quá góc giới hạn
+                if (angleDiff > 75f) bodyYaw = yRotation - 75f;
+                else if (angleDiff < -75f) bodyYaw = yRotation + 75f;
+            }
+
+            transform.rotation = Quaternion.Euler(0, bodyYaw, 0);
 
             if (attackAction != null && attackAction.WasPressedThisFrame())
             {
@@ -566,8 +691,29 @@ public class PlayerController : NetworkBehaviour
         controller.Move(finalMove * Time.deltaTime);
         
         // Realistic Camera Effects (gọi sau khi đã Move và tính toán Crouch)
-        if (canMove)
+    }
+
+    void LateUpdate()
+    {
+        if (IsOwner && IsSpawned)
         {
+            // Procedural Spine & Neck Bending (Cho phép thân trên vặn theo chuột)
+            if (animator != null && animator.isHuman)
+            {
+                Transform spine = animator.GetBoneTransform(HumanBodyBones.Spine);
+                Transform neck = animator.GetBoneTransform(HumanBodyBones.Neck);
+                
+                float headLocalYaw = Mathf.DeltaAngle(bodyYaw, yRotation);
+                
+                // Vặn xương sống và cổ theo trục ngang (nhìn trái phải)
+                if (spine != null) spine.rotation = Quaternion.AngleAxis(headLocalYaw * 0.4f, transform.up) * spine.rotation;
+                if (neck != null) neck.rotation = Quaternion.AngleAxis(headLocalYaw * 0.6f, transform.up) * neck.rotation;
+
+                // Gập xương sống và cổ theo trục dọc (nhìn lên xuống)
+                if (spine != null) spine.rotation = Quaternion.AngleAxis(xRotation * 0.4f, transform.right) * spine.rotation;
+                if (neck != null) neck.rotation = Quaternion.AngleAxis(xRotation * 0.6f, transform.right) * neck.rotation;
+            }
+
             HandleRealisticCameraEffects();
         }
     }
@@ -743,40 +889,52 @@ public class PlayerController : NetworkBehaviour
         bool isMoving = Mathf.Abs(moveInput.x) > 0.1f || Mathf.Abs(moveInput.y) > 0.1f;
         bool isSprinting = sprintAction != null && sprintAction.IsPressed() && isMoving;
 
-        // Tính base Y dựa theo độ lún của character khi crouch
-        float bottomY = originalCenter.y - originalHeight / 2f;
-        float baseCameraY = bottomY + (originalCameraLocalPos.y - bottomY) * (controller.height / originalHeight);
-
         // 2. Pickup Dip Recovery
         pickupDipRotation = Mathf.Lerp(pickupDipRotation, 0f, Time.deltaTime * 8f);
         pickupDipOffset = Mathf.Lerp(pickupDipOffset, 0f, Time.deltaTime * 8f);
 
-        // 3. Bobbing
-        if (isMoving && controller.isGrounded)
+        if (isMoving && controller != null && controller.isGrounded)
         {
-            timer += Time.deltaTime * (isSprinting ? bobSpeed * 1.5f : bobSpeed);
-            float bob = Mathf.Sin(timer) * bobAmount;
-            playerCamera.localPosition = new Vector3(
-                originalCameraLocalPos.x,
-                baseCameraY + bob - landDipOffset - pickupDipOffset,
-                originalCameraLocalPos.z
-            );
+            _bobTimer += Time.deltaTime * (isSprinting ? bobSpeed * 1.5f : bobSpeed);
         }
         else
         {
-            // Idle breathing
-            timer += Time.deltaTime * 1.5f;
+            _bobTimer = 0f;
+        }
+        float bobOffset = Mathf.Sin(_bobTimer) * bobAmount;
+
+        // 3. True First Person: Track head position
+        bool headTracked = false;
+        if (animator != null && animator.isHuman)
+        {
+            Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+            if (head != null)
+            {
+                // Đẩy camera ra phía trước mặt thêm một chút (từ 0.32 lên 0.40) để vượt hẳn qua chóp mũi
+                Vector3 targetPos = head.position + head.up * 0.05f + head.forward * 0.40f;
+                // Cộng thêm độ rung lắc (bobOffset) vào trục Y của camera
+                targetPos.y += bobOffset;
+                
+                playerCamera.position = targetPos - transform.up * (landDipOffset + pickupDipOffset);
+                headTracked = true;
+            }
+        }
+        
+        if (!headTracked)
+        {
             playerCamera.localPosition = new Vector3(
                 originalCameraLocalPos.x,
-                baseCameraY + Mathf.Sin(timer) * (bobAmount * 0.2f) - landDipOffset - pickupDipOffset,
+                originalCameraLocalPos.y - landDipOffset - pickupDipOffset + bobOffset,
                 originalCameraLocalPos.z
             );
         }
 
-        // 4. Camera Tilt (Strafe) + Pickup Dip Rotation
+        // 4. Camera Tilt (Strafe) + Pickup Dip Rotation + Independent Head Yaw
         float targetTilt = -moveInput.x * tiltAmount;
         currentTilt = Mathf.Lerp(currentTilt, targetTilt, Time.deltaTime * tiltSpeed);
-        playerCamera.localRotation = Quaternion.Euler(xRotation + pickupDipRotation, 0f, currentTilt);
+        
+        float headLocalYaw = Mathf.DeltaAngle(bodyYaw, yRotation);
+        playerCamera.localRotation = Quaternion.Euler(xRotation + pickupDipRotation, headLocalYaw, currentTilt);
 
         // 3. Sprint FOV
         Camera cam = playerCamera.GetComponent<Camera>();
@@ -787,83 +945,73 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
+    
     private float _uiCheckTimer = 0f;
     private bool _cachedUiOpen = false;
+    private EscapeCipher _cipher;
+    private ExtractionSystem _extraction;
+    private EscapeBeacon _beacon;
+    private EscapeReactor _reactor;
+    private BlackjackStation _blackjack;
+    private SlotMachineStation _slot;
+    private DiceBetStation _dice;
+    private InfoBoard _board;
+    private SettingsUI _settingsUI;
 
     public bool IsUIOpen()
     {
-        // 1. Kiểm tra nhanh (fast path) bằng cờ bool hoặc tham chiếu đã có sẵn
         if (isShopMode) return true;
         
         if (_inventoryUI == null) _inventoryUI = GetComponent<InventoryUI>();
-        if (_inventoryUI != null && _inventoryUI.inventoryPanel   != null && _inventoryUI.inventoryPanel.activeSelf)   return true;
-        
-        if (_craftingUI == null) _craftingUI = GetComponent<CraftingUI>();
-        if (_craftingUI  != null && _craftingUI.craftingPanel     != null && _craftingUI.craftingPanel.activeSelf)     return true;
+        if (_inventoryUI != null && _inventoryUI.inventoryPanel != null && _inventoryUI.inventoryPanel.activeSelf) return true;
         
         if (_chestUI == null) _chestUI = Object.FindAnyObjectByType<ChestUI>();
-        if (_chestUI     != null && _chestUI.chestPanel           != null && _chestUI.chestPanel.activeSelf)           return true;
+        if (_chestUI != null && _chestUI.chestPanel != null && _chestUI.chestPanel.activeSelf) return true;
 
-        SettingsUI settingsUI = Object.FindAnyObjectByType<SettingsUI>();
-        if (settingsUI != null && settingsUI.settingsPanel != null && settingsUI.settingsPanel.activeSelf) return true;
+        if (_settingsUI == null) _settingsUI = Object.FindAnyObjectByType<SettingsUI>();
+        if (_settingsUI != null && _settingsUI.settingsPanel != null && _settingsUI.settingsPanel.activeSelf) return true;
 
         if (PauseMenuUI.Instance != null && PauseMenuUI.Instance.IsOpen) return true;
-
         if (OpenMinigameCount > 0) return true;
         
-        // 2. Kiểm tra chậm (slow path): Quét toàn Scene 4 lần/giây thay vì 60 lần/giây để chống giật lag (Optimize)
         _uiCheckTimer -= Time.unscaledDeltaTime;
         if (_uiCheckTimer <= 0f)
         {
-            _uiCheckTimer = 0.25f; // Chờ 0.25s mới quét lại
+            _uiCheckTimer = 0.25f;
             _cachedUiOpen = false;
 
-            EscapeCipher cipher = Object.FindAnyObjectByType<EscapeCipher>();
-            if (cipher != null && cipher.IsKeypadOpen) _cachedUiOpen = true;
+            if (_cipher == null) _cipher = Object.FindAnyObjectByType<EscapeCipher>();
+            if (_cipher != null && _cipher.IsKeypadOpen) _cachedUiOpen = true;
             
-            if (!_cachedUiOpen)
-            {
-                ExtractionSystem extraction = Object.FindAnyObjectByType<ExtractionSystem>();
-                if (extraction != null && extraction.isAssembling) _cachedUiOpen = true;
+            if (!_cachedUiOpen) {
+                if (_extraction == null) _extraction = Object.FindAnyObjectByType<ExtractionSystem>();
+                if (_extraction != null && _extraction.isAssembling) _cachedUiOpen = true;
             }
-            
-            if (!_cachedUiOpen)
-            {
-                EscapeBeacon beacon = Object.FindAnyObjectByType<EscapeBeacon>();
-                if (beacon != null && beacon.isUIOpen) _cachedUiOpen = true;
+            if (!_cachedUiOpen) {
+                if (_beacon == null) _beacon = Object.FindAnyObjectByType<EscapeBeacon>();
+                if (_beacon != null && _beacon.isUIOpen) _cachedUiOpen = true;
             }
-            
-            if (!_cachedUiOpen)
-            {
-                EscapeReactor reactor = Object.FindAnyObjectByType<EscapeReactor>();
-                if (reactor != null && reactor.isUIOpen) _cachedUiOpen = true;
+            if (!_cachedUiOpen) {
+                if (_reactor == null) _reactor = Object.FindAnyObjectByType<EscapeReactor>();
+                if (_reactor != null && _reactor.isUIOpen) _cachedUiOpen = true;
             }
-
-            if (!_cachedUiOpen)
-            {
-                BlackjackStation blackjack = Object.FindAnyObjectByType<BlackjackStation>();
-                if (blackjack != null && blackjack.isOpen) _cachedUiOpen = true;
+            if (!_cachedUiOpen) {
+                if (_blackjack == null) _blackjack = Object.FindAnyObjectByType<BlackjackStation>();
+                if (_blackjack != null && _blackjack.isOpen) _cachedUiOpen = true;
             }
-            
-            if (!_cachedUiOpen)
-            {
-                SlotMachineStation slot = Object.FindAnyObjectByType<SlotMachineStation>();
-                if (slot != null && slot.isOpen) _cachedUiOpen = true;
+            if (!_cachedUiOpen) {
+                if (_slot == null) _slot = Object.FindAnyObjectByType<SlotMachineStation>();
+                if (_slot != null && _slot.isOpen) _cachedUiOpen = true;
             }
-            
-            if (!_cachedUiOpen)
-            {
-                DiceBetStation dice = Object.FindAnyObjectByType<DiceBetStation>();
-                if (dice != null && dice.isOpen) _cachedUiOpen = true;
+            if (!_cachedUiOpen) {
+                if (_dice == null) _dice = Object.FindAnyObjectByType<DiceBetStation>();
+                if (_dice != null && _dice.isOpen) _cachedUiOpen = true;
             }
-            
-            if (!_cachedUiOpen)
-            {
-                InfoBoard board = Object.FindAnyObjectByType<InfoBoard>();
-                if (board != null && board.isOpen) _cachedUiOpen = true;
+            if (!_cachedUiOpen) {
+                if (_board == null) _board = Object.FindAnyObjectByType<InfoBoard>();
+                if (_board != null && _board.isOpen) _cachedUiOpen = true;
             }
         }
-
         return _cachedUiOpen;
     }
 

@@ -89,6 +89,8 @@ public class EscapeManager : NetworkBehaviour
         // QUAN TRỌNG: Đợi lấy Seed chung từ Host trước khi chọn Nhiệm vụ
         while (PlayerInventory.GlobalMatchSeed == 0) yield return null;
         
+        yield return new UnityEngine.WaitForSeconds(2f);
+
         System.Random rng = new System.Random(PlayerInventory.GlobalMatchSeed);
         CurrentMethod = forceSpecificMethod ? specificMethodToForce : (EscapeMethodType)rng.Next(0, 4);
         Debug.Log($"<color=cyan>[EscapeManager] Đã random nhiệm vụ màn này: <b>{GetMethodName()}</b> (Seed: {PlayerInventory.GlobalMatchSeed})</color>");
@@ -295,62 +297,37 @@ public class EscapeManager : NetworkBehaviour
 
     Vector3 GetRandomNavMeshPos(float minDistance)
     {
-        // BUG FIX: Use Vector3.zero instead of player position so all clients calculate the exact same coordinates!
         Vector3 center = Vector3.zero;
-
-        UnityEngine.AI.NavMeshTriangulation navData = UnityEngine.AI.NavMesh.CalculateTriangulation();
-        
-        if (navData.vertices.Length == 0) 
-            return center + new Vector3(minDistance, 0, minDistance); // Fallback an toàn
-
         System.Random rng = new System.Random(PlayerInventory.GlobalMatchSeed + 1234);
 
         int maxAttempts = 100;
-        int triCount = navData.indices.Length / 3;
-        if (triCount == 0) return center + new Vector3(minDistance, 0, minDistance);
-        
-        int[] triIndices = new int[maxAttempts];
-        float[] lerpA = new float[maxAttempts];
-        float[] lerpB = new float[maxAttempts];
-
-        for (int i = 0; i < maxAttempts; i++)
-        {
-            triIndices[i] = rng.Next(0, triCount);
-            lerpA[i] = (float)rng.NextDouble();
-            lerpB[i] = (float)rng.NextDouble();
-        }
-
         Vector3 bestPos = center;
         float bestDist = -1f;
 
         for (int i = 0; i < maxAttempts; i++)
         {
-            int t = triIndices[i];
-            int v1 = navData.indices[t * 3];
-            int v2 = navData.indices[t * 3 + 1];
-            int v3 = navData.indices[t * 3 + 2];
+            float x = (float)(rng.NextDouble() * 300.0 - 150.0);
+            float z = (float)(rng.NextDouble() * 300.0 - 150.0);
+            Vector3 randomPos = new Vector3(x, 0, z);
 
-            Vector3 pt = Vector3.Lerp(navData.vertices[v1], navData.vertices[v2], lerpA[i]);
-            pt = Vector3.Lerp(pt, navData.vertices[v3], lerpB[i]);
-
-            if (Mathf.Abs(pt.y - center.y) > 4f) continue;
-
-            float dist = Vector3.Distance(center, pt);
-            
-            // BUG FIX: Removed Physics.CheckSphere to guarantee deterministic result across all clients
-            if (dist >= minDistance)
+            if (UnityEngine.AI.NavMesh.SamplePosition(randomPos, out UnityEngine.AI.NavMeshHit hit, 50f, UnityEngine.AI.NavMesh.AllAreas))
             {
-                return pt;
-            }
+                if (Mathf.Abs(hit.position.y - center.y) > 4f) continue;
+                
+                float dist = Vector3.Distance(center, hit.position);
+                if (dist >= minDistance)
+                {
+                    return hit.position;
+                }
 
-            if (dist > bestDist)
-            {
-                bestDist = dist;
-                bestPos = pt;
+                if (dist > bestDist)
+                {
+                    bestDist = dist;
+                    bestPos = hit.position;
+                }
             }
         }
-
-        return bestPos;
+        return bestPos != center ? bestPos : center + new Vector3(minDistance, 0, minDistance);
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -409,4 +386,13 @@ public class EscapeManager : NetworkBehaviour
             _                         => "",
         };
     }
+
+    [Unity.Netcode.ClientRpc]
+    public void TriggerBeaconBuildClientRpc() { }
+
+    [Unity.Netcode.ClientRpc]
+    public void TriggerReactorShutdownClientRpc() { }
+
+    [Unity.Netcode.ClientRpc]
+    public void TriggerAssembleStepClientRpc() { }
 }

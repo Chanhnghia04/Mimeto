@@ -78,6 +78,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 533878cf329312d42ad67867e4905a53, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1476080841357493767}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 533878cf329312d42ad67867e4905a53, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -696111685110449519}
   m_SourcePrefab: {fileID: 100100000, guid: 533878cf329312d42ad67867e4905a53, type: 3}
 --- !u!1 &2423001989383948042 stripped
 GameObject:
@@ -100,6 +103,10 @@ MonoBehaviour:
   amount: 1
   rootObject: {fileID: 2423001989383948042}
   interactHint: Press [E] to pick up
+  enableGlowEffect: 1
+  glowColor: {r: 0.2, g: 0.8, b: 1, a: 1}
+  glowIntensity: 2
+  glowRange: 1.5
 --- !u!65 &1476080841357493767
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -121,3 +128,24 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.5680001, y: 1.1960003, z: 0.56800026}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &-696111685110449519
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2423001989383948042}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 0
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1

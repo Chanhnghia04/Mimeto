@@ -62,29 +62,33 @@ namespace Mimeto.Audio
         {
             if (other.CompareTag("Player"))
             {
-                isPlayerInZone = true;
-
-                // Handle Ambient Sound Fade In
-                if (ambientSource != null)
+                var netObj = other.GetComponentInParent<Unity.Netcode.NetworkObject>();
+                if (netObj != null && netObj.IsOwner)
                 {
-                    if (!ambientSource.isPlaying)
+                    isPlayerInZone = true;
+
+                    // Handle Ambient Sound Fade In
+                    if (ambientSource != null)
                     {
-                        ambientSource.Play();
+                        if (!ambientSource.isPlaying)
+                        {
+                            ambientSource.Play();
+                        }
+
+                        if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
+                        fadeCoroutine = StartCoroutine(FadeAmbientVolume(maxVolume, fadeTime));
                     }
 
-                    if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
-                    fadeCoroutine = StartCoroutine(FadeAmbientVolume(maxVolume, fadeTime));
-                }
+                    // Handle Random Sounds
+                    if (randomClips != null && randomClips.Length > 0)
+                    {
+                        if (randomSoundCoroutine != null) StopCoroutine(randomSoundCoroutine);
+                        randomSoundCoroutine = StartCoroutine(PlayRandomSoundsRoutine());
+                    }
 
-                // Handle Random Sounds
-                if (randomClips != null && randomClips.Length > 0)
-                {
-                    if (randomSoundCoroutine != null) StopCoroutine(randomSoundCoroutine);
-                    randomSoundCoroutine = StartCoroutine(PlayRandomSoundsRoutine());
+                    // Notify HorrorAudioDirector (adjust method name based on actual implementation)
+                    // HorrorAudioDirector.Instance?.SetThreatModifier(ZoneThreatModifier);
                 }
-
-                // Notify HorrorAudioDirector (adjust method name based on actual implementation)
-                // HorrorAudioDirector.Instance?.SetThreatModifier(ZoneThreatModifier);
             }
         }
 
@@ -92,24 +96,28 @@ namespace Mimeto.Audio
         {
             if (other.CompareTag("Player"))
             {
-                isPlayerInZone = false;
-
-                // Handle Ambient Sound Fade Out
-                if (ambientSource != null)
+                var netObj = other.GetComponentInParent<Unity.Netcode.NetworkObject>();
+                if (netObj != null && netObj.IsOwner)
                 {
-                    if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
-                    fadeCoroutine = StartCoroutine(FadeAmbientVolume(0f, fadeTime, stopWhenZero: true));
-                }
+                    isPlayerInZone = false;
 
-                // Handle Random Sounds
-                if (randomSoundCoroutine != null)
-                {
-                    StopCoroutine(randomSoundCoroutine);
-                    randomSoundCoroutine = null;
-                }
+                    // Handle Ambient Sound Fade Out
+                    if (ambientSource != null)
+                    {
+                        if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
+                        fadeCoroutine = StartCoroutine(FadeAmbientVolume(0f, fadeTime, stopWhenZero: true));
+                    }
 
-                // Notify HorrorAudioDirector to reset modifier
-                // HorrorAudioDirector.Instance?.SetThreatModifier(0f);
+                    // Handle Random Sounds
+                    if (randomSoundCoroutine != null)
+                    {
+                        StopCoroutine(randomSoundCoroutine);
+                        randomSoundCoroutine = null;
+                    }
+
+                    // Notify HorrorAudioDirector to reset modifier
+                    // HorrorAudioDirector.Instance?.SetThreatModifier(0f);
+                }
             }
         }
 

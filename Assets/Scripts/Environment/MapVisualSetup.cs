@@ -21,19 +21,23 @@ public class MapVisualSetup : MonoBehaviour
 
     [Header("Fog Settings")]
     public bool  enableFog       = true;
-    public Color fogColor        = new Color(0.12f, 0.18f, 0.06f, 1f); // xanh độc
-    public float fogDensity      = 0.025f;
-    public FogMode fogMode       = FogMode.ExponentialSquared;
+    public Color fogColor        = Color.black; // Tối đen
+    public float fogDensity      = 0.2f; // Sương mù cực đặc cho Linear/Exponential
+    public FogMode fogMode       = FogMode.Linear;
+
+    // Linear Fog parameters (since we use Linear for 5m limit)
+    public float fogStartDistance = 0f;
+    public float fogEndDistance   = 6f;
 
     [Header("Ambient Light")]
     public bool  overrideAmbient = true;
-    public Color skyAmbient      = new Color(0.08f, 0.14f, 0.04f);   // xanh tối
-    public Color groundAmbient   = new Color(0.05f, 0.04f, 0.02f);   // nâu đất
+    public Color skyAmbient      = Color.black; // Đen hoàn toàn
+    public Color groundAmbient   = Color.black; // Đen hoàn toàn
 
     [Header("Directional Light (Mặt trời)")]
     public Light sunLight;
-    public Color sunColor        = new Color(0.7f, 0.8f, 0.5f);      // vàng nhạt ô nhiễm
-    public float sunIntensity    = 0.5f;
+    public Color sunColor        = new Color(0.1f, 0.1f, 0.15f); // Ánh trăng cực nhạt
+    public float sunIntensity    = 0.005f; // Gần như bằng 0
     [Range(0f, 180f)]
     public float sunAngle        = 35f;   // góc thấp = chiều tà
 
@@ -43,6 +47,21 @@ public class MapVisualSetup : MonoBehaviour
 
     void Start()
     {
+        // Force override Inspector values to ensure it's pitch black
+        enableFog = true;
+        fogColor = Color.black;
+        fogDensity = 0.5f; 
+        fogMode = FogMode.Linear;
+        fogStartDistance = 0f;
+        fogEndDistance = 3f; // Quay lại 3m sương mù đặc
+        
+        overrideAmbient = true;
+        skyAmbient = Color.black;
+        groundAmbient = Color.black;
+        
+        sunColor = new Color(0.02f, 0.02f, 0.03f); // Cực kỳ tối
+        sunIntensity = 0.001f;
+
         ApplyVisualPreset();
     }
 
@@ -66,6 +85,11 @@ public class MapVisualSetup : MonoBehaviour
         RenderSettings.fogColor   = fogColor;
         RenderSettings.fogMode    = fogMode;
         RenderSettings.fogDensity = fogDensity;
+        if (fogMode == FogMode.Linear)
+        {
+            RenderSettings.fogStartDistance = fogStartDistance;
+            RenderSettings.fogEndDistance   = fogEndDistance;
+        }
     }
 
     // ── Ambient Light ────────────────────────────────────────────────────────
@@ -134,9 +158,9 @@ public class MapVisualSetup : MonoBehaviour
             colorAdj = profile.Add<ColorAdjustments>(true);
 
         colorAdj.active                 = true;
-        colorAdj.postExposure.value     = -0.3f;   // tối hơn 1 chút
+        colorAdj.postExposure.value     = -4.0f;   // Tối kịt cực mạnh, gần như đen thui
         colorAdj.contrast.value         = 20f;     // tương phản cao
-        colorAdj.colorFilter.value      = new Color(0.85f, 0.95f, 0.7f); // filter xanh
+        colorAdj.colorFilter.value      = new Color(0.3f, 0.3f, 0.3f); // Xám đen thay vì xanh
         colorAdj.saturation.value       = -15f;    // bớt bão hòa màu
 
         // ── Vignette: viền tối ───────────────────────────────────────────────

@@ -74,11 +74,11 @@ Light:
   m_Enabled: 0
   serializedVersion: 13
   m_Type: 0
-  m_Color: {r: 0.6, g: 0.4, b: 1, a: 1}
-  m_Intensity: 2
-  m_Range: 15
-  m_SpotAngle: 45
-  m_InnerSpotAngle: 21.80208
+  m_Color: {r: 0.95, g: 0.98, b: 1, a: 1}
+  m_Intensity: 4
+  m_Range: 8
+  m_SpotAngle: 65
+  m_InnerSpotAngle: 35
   m_CookieSize2D: {x: 0.5, y: 0.5}
   m_Shadows:
     m_Type: 0
@@ -199,7 +199,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -64.1, y: 8.6, z: -69.3}
-  m_LocalScale: {x: 1, y: 2, z: 1}
+  m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8525840675828215897}
@@ -302,6 +302,8 @@ MonoBehaviour:
     m_Bits: 0
   netXRotation:
     m_InternalValue: 0
+  netEquippedWeapon:
+    m_InternalValue: 0
   punchRange: 2
   punchDamage: 20
   punchCooldown: 0.5
@@ -311,6 +313,17 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   uvLight: {fileID: 5857385229829442015}
+  netFlashlightEnabled:
+    m_InternalValue: 0
+  netIsMoving:
+    m_InternalValue: 0
+  netIsSprinting:
+    m_InternalValue: 0
+  netIsCrouching:
+    m_InternalValue: 0
+  footstepSource: {fileID: 0}
+  pickupClip: {fileID: 8300000, guid: 41951b8ff56bb8441b563585b5c99db5, type: 3}
+  pickupVolume: 1.2
   bobSpeed: 10
   bobAmount: 0.05
   tiltAmount: 2
@@ -344,9 +357,11 @@ MonoBehaviour:
   chemicals: 0
   plasticPipes: 0
   scrapBatteries: 0
+  maxSlots: 5
   credits: 0
   basicGasMasks: 0
   advancedGasMasks: 0
+  hasFlashlight: 0
   hasUVFlashlight: 0
   hasCrowbar: 0
   hasShovel: 0
@@ -358,6 +373,7 @@ MonoBehaviour:
   antidotes: 0
   hasEscapeKey: 0
   rareLootCount: 0
+  hasEscaped: 0
 --- !u!114 &1961056957831625758
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -371,21 +387,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerSurvival
   maxHealth: 100
-  currentHealth: 0
+  netHealth:
+    m_InternalValue: 0
   toxicDamagePerSecond: 5
+  netCurrentBPM:
+    m_InternalValue: 60
   isGhost:
     m_InternalValue: 0
   spawnPoint: {fileID: 0}
   maxOxygen: 100
-  currentOxygen: 0
+  netOxygen:
+    m_InternalValue: 0
   oxygenDepletionRate: 3
   oxygenRestoreRate: 10
   inSafeZone: 0
   maxStamina: 100
-  currentStamina: 0
+  netStamina:
+    m_InternalValue: 0
   staminaDepletionRate: 20
   staminaRestoreRate: 15
   activeMaskType: 0
+  netEquippedMask:
+    m_InternalValue: 0
   maskDurability: 0
   basicMaskProtection: 0.8
   advancedMaskProtection: 0.95
@@ -396,8 +419,10 @@ MonoBehaviour:
   headTransform: {fileID: 0}
   breathingSource: {fileID: 0}
   sfxSource: {fileID: 0}
+  heartbeatSource: {fileID: 0}
   heavyBreathingClip: {fileID: 8300000, guid: df69befefb6c37a43b2c57aabff89fdf, type: 3}
   damageHitClip: {fileID: 8300000, guid: 2a3795365dbc0844982e35f142f8c8ec, type: 3}
+  heartbeatClip: {fileID: 8300000, guid: c9bbdded5fae49844b1f26a2f68624b8, type: 3}
   lowOxygenThreshold: 30
 --- !u!114 &5352208273475910885
 MonoBehaviour:
@@ -507,6 +532,10 @@ MonoBehaviour:
   plasticSprite: {fileID: 21300000, guid: 37605ae5a9629264a905456bb402bf67, type: 3}
   batterySprite: {fileID: 21300000, guid: cb44366bbcffba949ba650fe34b6aa5f, type: 3}
   ironPlateSprite: {fileID: 21300000, guid: 2c7287db812deae46abbfe6268846b6c, type: 3}
+  axeSprite: {fileID: 0}
+  macheteSprite: {fileID: 0}
+  antidoteSprite: {fileID: 0}
+  flashlightSprite: {fileID: 0}
 --- !u!114 &2213295620602334515
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -558,7 +587,13 @@ MonoBehaviour:
   axePrefab: {fileID: 7974303609697247727, guid: 8d1b73d828f7f9945be2b2a4016da7f6, type: 3}
   batPrefab: {fileID: 830386771058642035, guid: 817f4c330d751784d8d0e2513450c81d, type: 3}
   flashlightPrefab: {fileID: 919132149155446097, guid: dee047d3aa6ab544191c6b5f2d1b0af1, type: 3}
-  gasMaskPrefab: {fileID: 919132149155446097, guid: 447a638761bfa644eb9bbb01c6d6e70d, type: 3}
+  gasMaskPrefab: {fileID: 4769227817814407697, guid: 003a51c5be47c3b4b881d6bc9b34441c, type: 3}
+  antidotePrefab: {fileID: 3639701811888742454, guid: 298e0c3146a402d44b4b2e7a848163cf, type: 3}
+  itemOffsets:
+  - itemName: 
+    localPos: {x: 0, y: 0, z: 0}
+    localRotEuler: {x: 0, y: 0, z: 0}
+    localScale: 0
 --- !u!114 &4813576773242687807
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -641,23 +676,37 @@ MonoBehaviour:
     Layer: 0
     OriginatingState: -2089788878
     DestinationState: -431958271
-    TransitionDuration: 0.25
+    TransitionDuration: 0.15
     TriggerNameHash: -504573385
     TransitionIndex: 1
   - IsCrossFadeExit: 0
     Layer: 0
+    OriginatingState: -2089788878
+    DestinationState: -2101492
+    TransitionDuration: 0.1
+    TriggerNameHash: -2101492
+    TransitionIndex: 2
+  - IsCrossFadeExit: 0
+    Layer: 0
     OriginatingState: -431958271
     DestinationState: 2135525051
-    TransitionDuration: 0.25
+    TransitionDuration: 0.1
     TriggerNameHash: 2028307341
     TransitionIndex: 0
   - IsCrossFadeExit: 0
     Layer: 0
     OriginatingState: 2135525051
     DestinationState: -431958271
-    TransitionDuration: 0.25
+    TransitionDuration: 0.1
     TriggerNameHash: -504573385
     TransitionIndex: 0
+  - IsCrossFadeExit: 0
+    Layer: 0
+    OriginatingState: -2101492
+    DestinationState: -2101492
+    TransitionDuration: 0.1
+    TriggerNameHash: -2101492
+    TransitionIndex: 1
   m_Animator: {fileID: 5072377951627017906}
 --- !u!1 &4181633472087541533
 GameObject:
@@ -718,7 +767,7 @@ Transform:
   m_GameObject: {fileID: 4611454920195319944}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.6, z: 0}
+  m_LocalPosition: {x: 0.0698, y: 1.4181, z: 0.1364}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -756,9 +805,9 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.3
+  near clip plane: 0.01
   far clip plane: 1000
-  field of view: 60
+  field of view: 75
   orthographic: 0
   orthographic size: 5
   m_Depth: 0
@@ -976,13 +1025,7 @@ Animator:
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
-  m_WarningMessage: "\nBinding warning: Some generic clip(s) animate transforms that
-    are already bound by a Humanoid avatar. These transforms can only be changed
-    by Humanoid clips.\n\tTransform 'mixamorig:Hips'\n\tTransform 'mixamorig:LeftFoot'\n\tTransform
-    'mixamorig:Spine1'\n\tTransform 'mixamorig:LeftToeBase'\n\tTransform 'mixamorig:RightArm'\n\tTransform
-    'mixamorig:LeftLeg'\n\tTransform 'mixamorig:LeftShoulder'\n\tTransform 'mixamorig:RightFoot'\n\tTransform
-    'mixamorig:Head'\n\tTransform 'mixamorig:LeftUpLeg'\n\tand more ...\n\tFrom animation
-    clip 'Fast Run'"
+  m_WarningMessage: 
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0

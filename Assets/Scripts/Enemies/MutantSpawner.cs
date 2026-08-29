@@ -166,8 +166,18 @@ public class MutantSpawner : NetworkBehaviour
 
         while (spawned < mutantsToSpawn && usedIndices.Count < eligible.Count)
         {
-            // Weighted random selection
-            float roll = Random.Range(0f, totalWeight);
+            // Calculate actual total weight of remaining unused points to avoid float precision issues
+            float actualRemainingWeight = 0f;
+            for (int i = 0; i < eligible.Count; i++)
+            {
+                if (!usedIndices.Contains(i))
+                    actualRemainingWeight += eligible[i].weight;
+            }
+
+            if (actualRemainingWeight <= 0f) 
+                break; // No valid weighted points left
+
+            float roll = Random.Range(0f, actualRemainingWeight);
             float cumulative = 0f;
             int selectedIndex = -1;
 
@@ -184,12 +194,21 @@ public class MutantSpawner : NetworkBehaviour
 
             if (selectedIndex == -1)
             {
-                selectedIndex = eligible.Count - 1;
+                // Fallback to the first unused index just in case float math is weird
+                for (int i = 0; i < eligible.Count; i++)
+                {
+                    if (!usedIndices.Contains(i))
+                    {
+                        selectedIndex = i;
+                        break;
+                    }
+                }
             }
+
+            if (selectedIndex == -1) break; // Should not happen, but safe break
 
             usedIndices.Add(selectedIndex);
             MutantSpawnPoint chosenPoint = eligible[selectedIndex];
-            totalWeight -= chosenPoint.weight;
 
             // Validate on NavMesh
             if (NavMesh.SamplePosition(chosenPoint.transform.position, out NavMeshHit navHit, navMeshSampleRadius, NavMesh.AllAreas))
@@ -214,8 +233,12 @@ public class MutantSpawner : NetworkBehaviour
                 }
 
                 _spawnedMutants.Add(mutant);
-                Debug.Log($"[MutantSpawner] Spawned '{mutant.name}' at SpawnPoint '{chosenPoint.name}' (weight={chosenPoint.weight})");
+                Debug.Log($"[MutantSpawner] Spawned '{mutant.name}' at SpawnPoint '{chosenPoint.name}'");
                 spawned++;
+            }
+            else
+            {
+                Debug.LogWarning($"[MutantSpawner] SpawnPoint '{chosenPoint.name}' failed NavMesh validation and was skipped.");
             }
         }
 
