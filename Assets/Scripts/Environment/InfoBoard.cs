@@ -10,6 +10,13 @@ public class InfoBoard : MonoBehaviour, IInteractable
     [SerializeField] private bool showGuideOnFirstWaitingVisit = true;
     [SerializeField] private string guidePlayerPrefsKey = "Mimeto_WaitingGuideShown";
 
+    [Header("Interaction hint")]
+    [SerializeField] private GameObject interactionHintPrefab;
+    [SerializeField] private bool showInteractionHint = true;
+    [SerializeField] private Vector3 interactionHintLocalOffset = new Vector3(0f, 0.9f, 0f);
+    [SerializeField] private float hintBobAmplitude = 0.05f;
+    [SerializeField] private float hintBobSpeed = 1.5f;
+
     public bool isOpen = false;
 
     private static readonly GuidePage[] GUIDE_PAGES =
@@ -37,6 +44,8 @@ public class InfoBoard : MonoBehaviour, IInteractable
     private Button _closeButton;
     private Button _nextButton;
     private Button _backButton;
+    private Transform _interactionHintTransform;
+    private Vector3 _interactionHintBasePosition;
     private int _pageIndex;
 
     private struct GuidePage
@@ -54,6 +63,7 @@ public class InfoBoard : MonoBehaviour, IInteractable
     private void Awake()
     {
         EnsureGuidePanel();
+        EnsureInteractionHint();
     }
 
     private void Start()
@@ -119,6 +129,25 @@ public class InfoBoard : MonoBehaviour, IInteractable
             CloseGuide();
     }
 
+    private void LateUpdate()
+    {
+        if (_interactionHintTransform == null)
+            return;
+
+        float bob = Mathf.Sin(Time.unscaledTime * hintBobSpeed) * hintBobAmplitude;
+        _interactionHintTransform.localPosition = _interactionHintBasePosition + Vector3.up * bob;
+
+        Camera viewer = Camera.main;
+        if (viewer == null)
+            return;
+
+        // World-space UI faces its local -Z side. Look away from the camera so
+        // the readable front of the panel is shown instead of mirrored text.
+        Vector3 awayFromViewer = _interactionHintTransform.position - viewer.transform.position;
+        if (awayFromViewer.sqrMagnitude > 0.0001f)
+            _interactionHintTransform.rotation = Quaternion.LookRotation(awayFromViewer, Vector3.up);
+    }
+
     private bool EnsureGuidePanel()
     {
         if (_guidePanel != null)
@@ -170,6 +199,29 @@ public class InfoBoard : MonoBehaviour, IInteractable
             Debug.LogWarning("[InfoBoard] Prefab HuongDan cần có context, close, next và back.");
         }
 
+        return true;
+    }
+
+    private bool EnsureInteractionHint()
+    {
+        if (_interactionHintTransform != null)
+            return true;
+
+        if (!showInteractionHint)
+            return false;
+
+        if (interactionHintPrefab == null)
+        {
+            Debug.LogWarning("[InfoBoard] Chưa gán prefab nhắc bấm E trong scene Waiting.");
+            return false;
+        }
+
+        GameObject hint = Instantiate(interactionHintPrefab, transform);
+        hint.name = interactionHintPrefab.name + "_Instance";
+        _interactionHintTransform = hint.transform;
+        _interactionHintBasePosition = interactionHintLocalOffset;
+        _interactionHintTransform.localPosition = _interactionHintBasePosition;
+        _interactionHintTransform.localRotation = Quaternion.identity;
         return true;
     }
 
