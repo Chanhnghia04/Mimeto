@@ -1,151 +1,306 @@
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(BoxCollider))]
 public class InfoBoard : MonoBehaviour, IInteractable
 {
+    [Header("Guide panel")]
+    [SerializeField] private GameObject guidePanelPrefab;
+    [SerializeField] private bool showGuideOnFirstWaitingVisit = true;
+    [SerializeField] private string guidePlayerPrefsKey = "Mimeto_WaitingGuideShown";
+
+    [Header("Interaction hint")]
+    [SerializeField] private GameObject interactionHintPrefab;
+    [SerializeField] private bool showInteractionHint = true;
+    [SerializeField] private Vector3 interactionHintLocalOffset = new Vector3(0f, 0.9f, 0f);
+    [SerializeField] private float hintBobAmplitude = 0.05f;
+    [SerializeField] private float hintBobSpeed = 1.5f;
+
     public bool isOpen = false;
 
-    // ── COLORS ────────────────────────────────────────────────────────
-    private static readonly Color BG_COLOR    = new Color(0.02f, 0.05f, 0.08f, 0.95f);
-    private static readonly Color BORDER_CYAN = new Color(0.1f, 0.8f, 1.0f, 1f);
-    private static readonly Color TEXT_CYAN   = new Color(0.4f, 0.9f, 1.0f, 1f);
-    private static readonly Color TEXT_DIM    = new Color(0.2f, 0.6f, 0.7f, 0.6f);
-    private static readonly Color WARNING_RED = new Color(1.0f, 0.2f, 0.2f, 1f);
-    private static readonly Color TITLE_BG    = new Color(0.05f, 0.2f, 0.3f, 0.8f);
-
-    private Texture2D _wh;
-    private float _alpha = 0f;
-    private float _scanlineY = 0f;
-
-    void Awake()
+    private static readonly GuidePage[] GUIDE_PAGES =
     {
-        _wh = new Texture2D(1, 1);
-        _wh.SetPixel(0, 0, Color.white);
-        _wh.Apply();
+        new GuidePage(
+            "DI CHUYỂN & TƯƠNG TÁC",
+            "WASD: di chuyển   |   Chuột: nhìn\n" +
+            "Shift: chạy   |   Ctrl: cúi người   |   Space: nhảy\n" +
+            "E: tương tác với bảng, trạm và vật phẩm.\n" +
+            "1 / 2 / 3: chọn ô trang bị trên hotbar."),
+        new GuidePage(
+            "SINH TỒN",
+            "Theo dõi OXY liên tục; vào vùng an toàn hoặc mua bình O2 để nạp.\n" +
+            "Đặt đèn pin vào hotbar rồi nhấn F để bật/tắt.\n" +
+            "Mặt nạ giúp giảm ảnh hưởng của vùng khí độc."),
+        new GuidePage(
+            "MỤC TIÊU & THOÁT",
+            "Khám phá khu vực, nhặt Scrap và vật phẩm cần thiết.\n" +
+            "Mang Scrap về Reclaimer để đổi EC, rồi mua trang bị tại Shop.\n" +
+            "Hoàn thành mục tiêu, tập hợp đủ đội và dùng cửa thoát để trở về Waiting.")
+    };
+
+    private GameObject _guidePanel;
+    private TMP_Text _contextText;
+    private Button _closeButton;
+    private Button _nextButton;
+    private Button _backButton;
+    private Transform _interactionHintTransform;
+    private Vector3 _interactionHintBasePosition;
+    private int _pageIndex;
+
+    private struct GuidePage
+    {
+        public readonly string Heading;
+        public readonly string Body;
+
+        public GuidePage(string heading, string body)
+        {
+            Heading = heading;
+            Body = body;
+        }
     }
 
-    void OnDisable()
+    private void Awake()
     {
-        if (isOpen) { isOpen = false; PlayerController.OpenMinigameCount--; }
+        EnsureGuidePanel();
+        EnsureInteractionHint();
+    }
+
+    private void Start()
+    {
+        if (!showGuideOnFirstWaitingVisit || PlayerPrefs.GetInt(guidePlayerPrefsKey, 0) != 0)
+            return;
+
+        if (!EnsureGuidePanel())
+            return;
+
+        PlayerPrefs.SetInt(guidePlayerPrefsKey, 1);
+        PlayerPrefs.Save();
+        OpenGuide();
+    }
+
+    private void OnDisable()
+    {
+        CloseGuide();
     }
 
     public void Interact(GameObject interactor)
     {
-        if (isOpen) return;
+        OpenGuide();
+    }
+
+    private void OpenGuide()
+    {
+        if (isOpen || !EnsureGuidePanel())
+            return;
+
+        _pageIndex = 0;
+        RefreshPage();
+        _guidePanel.SetActive(true);
         isOpen = true;
         PlayerController.OpenMinigameCount++;
-        _alpha = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
 
-    void CloseBoard()
+    private void CloseGuide()
     {
-        if (isOpen) { isOpen = false; PlayerController.OpenMinigameCount--; }
+        if (_guidePanel != null)
+            _guidePanel.SetActive(false);
+
+        if (!isOpen)
+            return;
+
+        isOpen = false;
+        PlayerController.OpenMinigameCount = Mathf.Max(0, PlayerController.OpenMinigameCount - 1);
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
 
-    void Update()
+    private void Update()
     {
-        if (!isOpen) return;
+        if (!isOpen)
+            return;
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
-        float dt = Time.unscaledDeltaTime;
-        _alpha = Mathf.Lerp(_alpha, 1f, dt * 10f);
-        _scanlineY = (_scanlineY + dt * 200f) % 600f;
-
-        if (Input.GetKeyDown(KeyCode.Escape)) CloseBoard();
+        if (Input.GetKeyDown(KeyCode.Escape))
+            CloseGuide();
     }
 
-    void OnGUI()
+    private void LateUpdate()
     {
-        if (!isOpen) return;
-        GUI.depth = -10;
+        if (_interactionHintTransform == null)
+            return;
 
-        float sw = Screen.width, sh = Screen.height;
+        float bob = Mathf.Sin(Time.unscaledTime * hintBobSpeed) * hintBobAmplitude;
+        _interactionHintTransform.localPosition = _interactionHintBasePosition + Vector3.up * bob;
 
-        // Dark overlay
-        GUI.color = new Color(0, 0, 0, 0.8f * _alpha);
-        GUI.DrawTexture(new Rect(0, 0, sw, sh), _wh);
+        Camera viewer = Camera.main;
+        if (viewer == null)
+            return;
 
-        // Panel size
-        float pw = Mathf.Min(sw * 0.5f, 800f);
-        float ph = Mathf.Min(sh * 0.7f, 600f);
-        float px = (sw - pw) * 0.5f;
-        float py = (sh - ph) * 0.5f;
-
-        // Glitch offset
-        float ox = (Random.value > 0.98f) ? Random.Range(-5f, 5f) : 0f;
-
-        GUI.BeginGroup(new Rect(px + ox, py, pw, ph));
-
-        // Main BG
-        GUI.color = new Color(BG_COLOR.r, BG_COLOR.g, BG_COLOR.b, BG_COLOR.a * _alpha);
-        GUI.DrawTexture(new Rect(0, 0, pw, ph), _wh);
-
-        // Grid lines (subtle)
-        GUI.color = new Color(BORDER_CYAN.r, BORDER_CYAN.g, BORDER_CYAN.b, 0.05f * _alpha);
-        for (float x = 0; x < pw; x += 40f) GUI.DrawTexture(new Rect(x, 0, 1, ph), _wh);
-        for (float y = 0; y < ph; y += 40f) GUI.DrawTexture(new Rect(0, y, pw, 1), _wh);
-
-        // Borders
-        GUI.color = new Color(BORDER_CYAN.r, BORDER_CYAN.g, BORDER_CYAN.b, 0.8f * _alpha);
-        GUI.DrawTexture(new Rect(0, 0, pw, 2), _wh); // Top
-        GUI.DrawTexture(new Rect(0, ph - 2, pw, 2), _wh); // Bottom
-        GUI.DrawTexture(new Rect(0, 0, 2, ph), _wh); // Left
-        GUI.DrawTexture(new Rect(pw - 2, 0, 2, ph), _wh); // Right
-
-        // Header
-        GUI.color = new Color(TITLE_BG.r, TITLE_BG.g, TITLE_BG.b, TITLE_BG.a * _alpha);
-        GUI.DrawTexture(new Rect(0, 0, pw, 60), _wh);
-        
-        GUI.color = new Color(1, 1, 1, _alpha);
-        var titleStyle = Sty(28, FontStyle.Bold, TEXT_CYAN, TextAnchor.MiddleLeft);
-        GUI.Label(new Rect(20, 0, pw, 60), "TERMINAL // SYSTEM_RULES", titleStyle);
-
-        // Close Button
-        var btnStyle = Sty(20, FontStyle.Bold, TEXT_CYAN, TextAnchor.MiddleCenter);
-        if (GUI.Button(new Rect(pw - 60, 10, 40, 40), "X", btnStyle)) CloseBoard();
-
-        // Content
-        float contentY = 80f;
-        DrawSection(">>> SURVIVAL TIPS", "• Keep an eye on your Oxygen levels.\n• Refill O2 at Safe Zones or by purchasing Oxygen Tanks.\n• Gas masks slow down Oxygen depletion in toxic areas.", pw, ref contentY);
-        DrawSection(">>> DANGER ZONES", "• RED ZONES: Highly toxic, fast O2 drain.\n• ABANDONED SECTORS: Mutants and traps ahead. Bring weapons.\n• DARK AREAS: Flashlight required.", pw, ref contentY);
-        DrawSection(">>> ECONOMY", "• Collect Scrap from crates and enemies.\n• Sell Scrap at the Reclaimer Station for EC (Energy Credits).\n• Use EC at the Shop or try your luck at the Mini-Games.", pw, ref contentY, WARNING_RED);
-
-        // Scanline effect
-        GUI.color = new Color(BORDER_CYAN.r, BORDER_CYAN.g, BORDER_CYAN.b, 0.1f * _alpha);
-        GUI.DrawTexture(new Rect(0, _scanlineY, pw, 4), _wh);
-
-        GUI.EndGroup();
+        // World-space UI faces its local -Z side. Look away from the camera so
+        // the readable front of the panel is shown instead of mirrored text.
+        Vector3 awayFromViewer = _interactionHintTransform.position - viewer.transform.position;
+        if (awayFromViewer.sqrMagnitude > 0.0001f)
+            _interactionHintTransform.rotation = Quaternion.LookRotation(awayFromViewer, Vector3.up);
     }
 
-    void DrawSection(string title, string body, float pw, ref float yPos, Color? titleColor = null)
+    private bool EnsureGuidePanel()
     {
-        Color tc = titleColor ?? TEXT_CYAN;
-        var hStyle = Sty(18, FontStyle.Bold, new Color(tc.r, tc.g, tc.b, _alpha), TextAnchor.MiddleLeft);
-        var bStyle = Sty(14, FontStyle.Normal, new Color(TEXT_DIM.r, TEXT_DIM.g, TEXT_DIM.b, _alpha), TextAnchor.UpperLeft);
+        if (_guidePanel != null)
+            return true;
 
-        GUI.Label(new Rect(30, yPos, pw - 60, 24), title, hStyle);
-        yPos += 30;
-        
-        float bodyHeight = bStyle.CalcHeight(new GUIContent(body), pw - 60);
-        GUI.Label(new Rect(30, yPos, pw - 60, bodyHeight), body, bStyle);
-        yPos += bodyHeight + 20;
+        if (guidePanelPrefab == null)
+        {
+            Debug.LogWarning("[InfoBoard] Chưa gán prefab HuongDan trong scene Waiting.");
+            return false;
+        }
+
+        // Instantiate as its own screen-space Canvas so the prefab keeps the exact
+        // RectTransform coordinates authored by the designer, independent of any
+        // Waiting HUD canvas (which may be scaled/disabled).
+        _guidePanel = Instantiate(guidePanelPrefab);
+        _guidePanel.name = guidePanelPrefab.name + "_Instance";
+        ConfigureGuideCanvas(_guidePanel);
+        _guidePanel.SetActive(false);
+
+        // Keep the prefab's own title and button labels. Only Context is
+        // updated by the guide pages; support the current lowercase names and
+        // the previous capitalization for backward compatibility.
+        _contextText = FindText("context", "Context");
+        _closeButton = FindButton("close", "Close");
+        _nextButton = FindButton("next", "Next");
+        _backButton = FindButton("back", "Back");
+
+        if (_closeButton != null)
+        {
+            _closeButton.onClick.RemoveAllListeners();
+            _closeButton.onClick.AddListener(CloseGuide);
+        }
+
+        if (_nextButton != null)
+        {
+            _nextButton.onClick.RemoveAllListeners();
+            _nextButton.onClick.AddListener(NextPage);
+        }
+
+        if (_backButton != null)
+        {
+            _backButton.onClick.RemoveAllListeners();
+            _backButton.onClick.AddListener(PreviousPage);
+        }
+
+        if (_contextText == null || _closeButton == null ||
+            _nextButton == null || _backButton == null)
+        {
+            Debug.LogWarning("[InfoBoard] Prefab HuongDan cần có context, close, next và back.");
+        }
+
+        return true;
     }
 
-    GUIStyle Sty(int sz, FontStyle fs, Color col, TextAnchor a)
+    private bool EnsureInteractionHint()
     {
-        var s = new GUIStyle();
-        s.fontSize = sz;
-        s.fontStyle = fs;
-        s.normal.textColor = col;
-        s.alignment = a;
-        s.richText = true;
-        s.wordWrap = true;
-        return s;
+        if (_interactionHintTransform != null)
+            return true;
+
+        if (!showInteractionHint)
+            return false;
+
+        if (interactionHintPrefab == null)
+        {
+            Debug.LogWarning("[InfoBoard] Chưa gán prefab nhắc bấm E trong scene Waiting.");
+            return false;
+        }
+
+        GameObject hint = Instantiate(interactionHintPrefab, transform);
+        hint.name = interactionHintPrefab.name + "_Instance";
+        _interactionHintTransform = hint.transform;
+        _interactionHintBasePosition = interactionHintLocalOffset;
+        _interactionHintTransform.localPosition = _interactionHintBasePosition;
+        _interactionHintTransform.localRotation = Quaternion.identity;
+        return true;
+    }
+
+    private void ConfigureGuideCanvas(GameObject panel)
+    {
+        Canvas canvas = panel.GetComponent<Canvas>();
+        if (canvas == null)
+            canvas = panel.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 1000;
+
+        CanvasScaler scaler = panel.GetComponent<CanvasScaler>();
+        if (scaler == null)
+            scaler = panel.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        scaler.matchWidthOrHeight = 0.5f;
+
+        if (panel.GetComponent<GraphicRaycaster>() == null)
+            panel.AddComponent<GraphicRaycaster>();
+
+        // The prefab is already authored as a full-screen root. Do not rewrite
+        // its RectTransform here; doing so would undo the designer's placement.
+    }
+
+    private TMP_Text FindText(params string[] childNames)
+    {
+        foreach (string childName in childNames)
+        {
+            Transform child = _guidePanel.transform.Find(childName);
+            TMP_Text text = child != null ? child.GetComponent<TMP_Text>() : null;
+            if (text != null)
+                return text;
+        }
+
+        return null;
+    }
+
+    private Button FindButton(params string[] childNames)
+    {
+        foreach (string childName in childNames)
+        {
+            Transform child = _guidePanel.transform.Find(childName);
+            Button button = child != null ? child.GetComponent<Button>() : null;
+            if (button != null)
+                return button;
+        }
+
+        return null;
+    }
+
+    private void RefreshPage()
+    {
+        GuidePage page = GUIDE_PAGES[Mathf.Clamp(_pageIndex, 0, GUIDE_PAGES.Length - 1)];
+        if (_contextText != null)
+            _contextText.text = page.Heading + "\n\n" + page.Body;
+
+        if (_backButton != null)
+            _backButton.interactable = _pageIndex > 0;
+        if (_nextButton != null)
+            _nextButton.interactable = _pageIndex < GUIDE_PAGES.Length - 1;
+    }
+
+    private void NextPage()
+    {
+        if (_pageIndex >= GUIDE_PAGES.Length - 1)
+            return;
+
+        _pageIndex++;
+        RefreshPage();
+    }
+
+    private void PreviousPage()
+    {
+        if (_pageIndex <= 0)
+            return;
+
+        _pageIndex--;
+        RefreshPage();
     }
 }

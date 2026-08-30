@@ -11130,6 +11130,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bb52f90e9fce180438fd4710785e5bc5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InfoBoard
+  guidePanelPrefab: {fileID: 3035312095355863413, guid: 6ddfe1e652e2f7f40a6989b23b2e6011, type: 3}
+  showGuideOnFirstWaitingVisit: 1
+  guidePlayerPrefsKey: Mimeto_WaitingGuideShown
+  interactionHintPrefab: {fileID: 1000000000000000000, guid: 4f4b6f07cb6d4b8ea80c6d9f6b152d22, type: 3}
+  showInteractionHint: 1
+  interactionHintLocalOffset: {x: 0, y: 0.9, z: 0}
+  hintBobAmplitude: 0.05
+  hintBobSpeed: 1.5
   isOpen: 0
 --- !u!23 &1172398486
 MeshRenderer:

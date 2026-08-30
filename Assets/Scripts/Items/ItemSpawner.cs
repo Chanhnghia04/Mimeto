@@ -83,13 +83,27 @@ public class ItemSpawner : MonoBehaviour
             Quaternion rot = prefab.transform.rotation * randomYRot;
 
             GameObject spawned = Instantiate(prefab, hit.point, rot);
-            spawned.transform.SetParent(transform);
+            // NetworkObject listens to Transform.parent changes.  A dynamically
+            // instantiated NetworkObject is not spawned yet at this point, so
+            // parenting it under this (non-NetworkObject) spawner would trigger
+            // SpawnStateException from Netcode.  Networked items must remain
+            // root objects; only ordinary local prefabs can be grouped here.
+            Unity.Netcode.NetworkObject networkObject =
+                spawned.GetComponent<Unity.Netcode.NetworkObject>();
+            if (networkObject == null)
+                spawned.transform.SetParent(transform, true);
 
             SpawnUtils.FitColliders(spawned);
             SpawnUtils.SnapToGround(spawned, hit.point);
-            if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.IsServer)
+            if (networkObject != null &&
+                Unity.Netcode.NetworkManager.Singleton != null &&
+                Unity.Netcode.NetworkManager.Singleton.IsServer)
             {
-                spawned.GetComponent<Unity.Netcode.NetworkObject>()?.Spawn();
+                // Spawn only after the final position/collider setup.  Do not
+                // reparent afterwards: ItemSpawner is not a NetworkObject and
+                // Netcode only supports synchronized parenting between spawned
+                // NetworkObjects.
+                networkObject.Spawn();
             }
 
             actuallySpawned++;
