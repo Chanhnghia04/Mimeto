@@ -102,6 +102,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: d91b941523c398149a0c47fafef06023, type: 3}
       insertIndex: -1
       addedObject: {fileID: -3577052034670093044}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: d91b941523c398149a0c47fafef06023, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 9129776726432897481}
   m_SourcePrefab: {fileID: 100100000, guid: d91b941523c398149a0c47fafef06023, type: 3}
 --- !u!1 &2543562900075158244 stripped
 GameObject:
@@ -142,7 +145,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 1506925401
+  GlobalObjectIdHash: 4211567917
   InScenePlacedSourceGlobalObjectIdHash: 0
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
@@ -173,12 +176,11 @@ MonoBehaviour:
   attackDamage: 15
   attackCooldown: 0.5
   attackDelay: 0.5
-  sightRadius: 20
   hearRadius: 30
-  viewAngle: 120
-  obstacleMask:
+  crouchDetectable: 0
+  playerLayer:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 4294967295
   agent: {fileID: 0}
   animator: {fileID: 0}
   eyes: {fileID: 0}
@@ -264,6 +266,44 @@ MonoBehaviour:
     TriggerNameHash: -700683835
     TransitionIndex: 1
   m_Animator: {fileID: 9144401277098793508}
+--- !u!114 &9129776726432897481
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2543562900075158244}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00a68c44b45b39b40baf1f9043f71f63, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Mimeto.Audio.MonsterAudioEmitter
+  footstepClips:
+  - {fileID: 8300000, guid: 4a2e71bcf70cb2241b36386e58f5547e, type: 3}
+  - {fileID: 8300000, guid: 50d6548883448c440b5c346e8f9a5a3d, type: 3}
+  - {fileID: 8300000, guid: 61825cc55cb86e4409f656462b1b1a6f, type: 3}
+  baseFootstepInterval: 0.5
+  minFootstepInterval: 0.25
+  maxFootstepInterval: 0.8
+  footstepMinDistance: 1
+  footstepMaxDistance: 25
+  idleGrowlClips:
+  - {fileID: 8300000, guid: 586a1528959366241a65ef2a059651f3, type: 3}
+  minGrowlInterval: 8
+  maxGrowlInterval: 20
+  growlMinDistance: 2
+  growlMaxDistance: 35
+  attackClips:
+  - {fileID: 8300000, guid: 2a3795365dbc0844982e35f142f8c8ec, type: 3}
+  attackMaxDistance: 30
+  chaseBreatheClip: {fileID: 8300000, guid: c36fd782cd72aba48a9000d59061683e, type: 3}
+  breatheFadeSpeed: 2
+  chaseVolume: 0.8
+  deathClips:
+  - {fileID: 8300000, guid: 586a1528959366241a65ef2a059651f3, type: 3}
+  deathMaxDistance: 40
+  isChasing:
+    m_InternalValue: 0
 --- !u!95 &9144401277098793508 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: d91b941523c398149a0c47fafef06023, type: 3}

@@ -108,19 +108,31 @@ namespace Mimeto.Audio
             return source;
         }
 
+        private Vector3 lastPosition;
+
         private void HandleFootsteps()
         {
             if (footstepClips == null || footstepClips.Length == 0) return;
 
+            float currentSpeed = 0f;
+            if (agent != null && agent.enabled)
+            {
+                currentSpeed = agent.velocity.magnitude;
+            }
+            else
+            {
+                currentSpeed = (transform.position - lastPosition).magnitude / Mathf.Max(Time.deltaTime, 0.0001f);
+            }
+            lastPosition = transform.position;
+
             // Check if agent is moving
-            if (agent.velocity.sqrMagnitude > 0.1f)
+            if (currentSpeed > 0.1f)
             {
                 if (Time.time >= nextFootstepTime)
                 {
                     PlayRandomClip(footstepSource, footstepClips, 0.85f, 1.15f);
 
                     // Calculate next footstep interval based on velocity
-                    float currentSpeed = agent.velocity.magnitude;
                     float interval = baseFootstepInterval / (currentSpeed * 0.3f);
                     interval = Mathf.Clamp(interval, minFootstepInterval, maxFootstepInterval);
 

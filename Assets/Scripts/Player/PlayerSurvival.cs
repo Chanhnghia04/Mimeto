@@ -11,8 +11,7 @@ public class PlayerSurvival : NetworkBehaviour
     public NetworkVariable<float> netHealth = new NetworkVariable<float>();
     public float currentHealth { get { return netHealth.Value; } set { if (IsServer) netHealth.Value = value; } }
     public float toxicDamagePerSecond = 5f;
-    public float currentBPM { get; private set; } = 60f;
-    public NetworkVariable<float> netCurrentBPM = new NetworkVariable<float>(60f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
 
     public NetworkVariable<bool> isGhost = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
@@ -20,7 +19,7 @@ public class PlayerSurvival : NetworkBehaviour
     private static bool showGameOver = false;
     private static bool isWinResult = false;
     private static bool pendingSceneLoad = false;
-    private float _cachedNearbyPanic = 0f;
+
 
     public static bool IsGameOverUIOpen()
     {
@@ -189,10 +188,8 @@ public class PlayerSurvival : NetworkBehaviour
     [Header("Audio")]
     public AudioSource breathingSource;
     public AudioSource sfxSource;
-    public AudioSource heartbeatSource;
     public AudioClip heavyBreathingClip;
     public AudioClip damageHitClip;
-    public AudioClip heartbeatClip;
     public float lowOxygenThreshold = 30f;
 
     void Start()
@@ -211,10 +208,7 @@ public class PlayerSurvival : NetworkBehaviour
         // Setup AudioSources if missing
         if (breathingSource == null) breathingSource = gameObject.AddComponent<AudioSource>();
         if (sfxSource == null) sfxSource = gameObject.AddComponent<AudioSource>();
-        if (heartbeatSource == null) heartbeatSource = gameObject.AddComponent<AudioSource>();
         
-        if (heartbeatClip == null) heartbeatClip = Resources.Load<AudioClip>("Audio/Heartbeat");
-        if (heartbeatClip != null) heartbeatSource.clip = heartbeatClip;
         
         breathingSource.loop = true;
         breathingSource.playOnAwake = false;
@@ -222,10 +216,6 @@ public class PlayerSurvival : NetworkBehaviour
         
         sfxSource.playOnAwake = false;
         sfxSource.spatialBlend = 0f;
-        
-        heartbeatSource.loop = true;
-        heartbeatSource.playOnAwake = false;
-        heartbeatSource.spatialBlend = 0f;
 
         // Move player to spawn point at the start of the game
         if (spawnPoint != null)
@@ -345,7 +335,7 @@ public class PlayerSurvival : NetworkBehaviour
         
         if (staminaSys != null)
         {
-            if (pc != null && pc.isSprinting) staminaSys.DepleteStamina(Time.deltaTime);
+            if (pc != null && (pc.isSprinting || pc.netIsSprinting.Value)) staminaSys.DepleteStamina(Time.deltaTime);
             else staminaSys.RestoreStamina(Time.deltaTime);
             
             // Đồng bộ ngược lại biến cũ để UI hiện tại không bị vỡ (Step 3)
@@ -360,7 +350,7 @@ public class PlayerSurvival : NetworkBehaviour
         else
         {
             // Fallback: Logic cũ phòng trường hợp bạn chưa kéo component vào Prefab
-            if (pc != null && pc.isSprinting)
+            if (pc != null && (pc.isSprinting || pc.netIsSprinting.Value))
             {
                 if (IsServer)
                 {
@@ -433,63 +423,14 @@ public class PlayerSurvival : NetworkBehaviour
                 }
             }
     
-            // Handle Heartbeat Audio
-            float panicLevel = 0f;
-            
-            // Panic from nearby monsters
-            if (Time.frameCount % 30 == 0)
-            {
-                _cachedNearbyPanic = 0f;
-                Collider[] hitColliders = Physics.OverlapSphere(transform.position, 15f);
-                foreach (var hitCollider in hitColliders)
-                {
-                    if (hitCollider.GetComponent<MutantAI>() != null || hitCollider.GetComponent<ExilerAI>() != null)
-                    {
-                        _cachedNearbyPanic = 40f; // Tim đập rất nhanh khi gặp quái
-                        break;
-                    }
-                }
-            }
-            panicLevel += _cachedNearbyPanic;
-    
-            float calculatedBPM = ((maxHealth - currentHealth) / maxHealth) * 40f + 60f + panicLevel;
-            if (pc != null)
-            {
-                if (pc.netIsSprinting.Value) calculatedBPM += 30f;
-                else if (pc.netIsMoving.Value) calculatedBPM += 10f;
-            }
-            
-            currentBPM = calculatedBPM;
-            netCurrentBPM.Value = currentBPM;
-            if (currentOxygen < lowOxygenThreshold) calculatedBPM += 30f;
-            
-            if (calculatedBPM >= 70f && !isDead)
-            {
-                if (heartbeatSource != null && heartbeatClip != null && !heartbeatSource.isPlaying)
-                {
-                    heartbeatSource.Play();
-                }
-                if (heartbeatSource != null)
-                {
-                    heartbeatSource.volume = Mathf.Clamp01((calculatedBPM - 65f) / 60f); // Max volume at 125 BPM
-                    heartbeatSource.pitch = Mathf.Clamp(calculatedBPM / 80f, 0.8f, 1.5f);
-                }
-            }
-            else
-            {
-                if (heartbeatSource != null && heartbeatSource.isPlaying)
-                {
-                    heartbeatSource.Stop();
-                }
-            }
     
             // Feed stats to Horror Audio Director for adaptive music
             if (HorrorAudioDirector.Instance != null)
             {
                 HorrorAudioDirector.Instance.SetPlayerStats(currentHealth, currentOxygen, currentStamina, IsBleeding);
             }
-    
-            UpdateEKG(); // Update EKG every frame
+
+
         }
     }
 
@@ -950,9 +891,8 @@ public class PlayerSurvival : NetworkBehaviour
     private Texture2D _scanlineTex;
     private float _noiseOffset = 0f;
 
-    // EKG Data
-    private float[] _ekgHistory = new float[120];
-    private float _ekgTimer = 0f;
+
+
 
     private void InitHUD()
     {
@@ -979,34 +919,8 @@ public class PlayerSurvival : NetworkBehaviour
         return t;
     }
 
-    void UpdateEKG()
-    {
-        // Shift history left
-        for (int i = 0; i < _ekgHistory.Length - 1; i++) _ekgHistory[i] = _ekgHistory[i+1];
 
-        // Simulate BPM based on health and running state
-        float bpm = (currentHealth / maxHealth) * 50f + 40f; // 40 - 90 BPM
-        if (currentOxygen < lowOxygenThreshold) bpm += 40f; // Panic heart rate
-        
-        float speed = bpm / 60f * 1.5f; 
-        _ekgTimer += Time.deltaTime * speed;
-        
-        float val = 0f;
-        float beatPhase = _ekgTimer % 1f;
-        
-        // Synthesize ECG waveform (P, Q, R, S, T waves)
-        if (beatPhase < 0.1f) val = Mathf.Sin(beatPhase * 10f * Mathf.PI) * 0.2f; 
-        else if (beatPhase < 0.12f) val = -0.3f; 
-        else if (beatPhase < 0.16f) val = 1f; // Massive R spike
-        else if (beatPhase < 0.20f) val = -0.4f; 
-        else if (beatPhase < 0.35f) val = Mathf.Sin((beatPhase-0.20f) * 6.6f * Mathf.PI) * 0.25f; 
-        
-        // Micro noise
-        val += Random.Range(-0.02f, 0.02f);
-        if (isDead) val = Random.Range(-0.01f, 0.01f); // Flatline
 
-        _ekgHistory[_ekgHistory.Length - 1] = val;
-    }
 
     void OnGUI()
     {
@@ -1121,7 +1035,7 @@ public class PlayerSurvival : NetworkBehaviour
         // Tech Corners
         DrawTechCorners(panelX, panelY, panelW, panelH, new Color(0.2f, 0.8f, 1f, 0.8f));
 
-        // 1. HUGE HP NUMBER & BPM
+        // 1. HUGE HP NUMBER
         Color hpColor = GetHealthColor();
         GUIStyle hugeNum = new GUIStyle();
         hugeNum.fontSize = 54;
@@ -1132,15 +1046,6 @@ public class PlayerSurvival : NetworkBehaviour
         float hpBoxW = 100f;
         GUI.Label(new Rect(panelX + 15f, panelY + 25f, hpBoxW, 60f), Mathf.CeilToInt(currentHealth).ToString("000"), hugeNum);
         
-        GUIStyle bpmStyle = new GUIStyle();
-        bpmStyle.fontSize = 12;
-        bpmStyle.fontStyle = FontStyle.Bold;
-        bpmStyle.normal.textColor = new Color(0.6f, 0.8f, 1f);
-        bpmStyle.alignment = TextAnchor.MiddleCenter;
-        
-        float currentBpm = (currentHealth / maxHealth) * 50f + 40f + (currentOxygen < lowOxygenThreshold ? 40f : 0f);
-        GUI.Label(new Rect(panelX + 15f, panelY + 90f, hpBoxW, 20f), $"BPM: {currentBpm:F1}", bpmStyle);
-
         // 2. SEGMENTED BARS (MÁU, OXY, STAMINA)
         float barStartX = panelX + 120f;
         float barWidth = panelW - 140f;
@@ -1148,9 +1053,6 @@ public class PlayerSurvival : NetworkBehaviour
         DrawSciFiBar(barStartX, panelY + 20f, barWidth, 14f, "INTEGRITY", currentHealth, maxHealth, GetHealthTex(), currentHealth <= 25f, 30);
         DrawSciFiBar(barStartX, panelY + 60f, barWidth, 14f, "OXYGEN", currentOxygen, maxOxygen, _oxyTex, currentOxygen < lowOxygenThreshold, 30);
         DrawSciFiBar(barStartX, panelY + 100f, barWidth, 14f, "STAMINA", currentStamina, maxStamina, _stamTex, currentStamina <= 15f, 30);
-
-        // 3. REAL-TIME EKG GRAPH (ĐỒ THỊ NHỊP TIM)
-        DrawEKG(panelX + 15f, panelY + 145f, 180f, 45f);
 
         // 4. GPS & STATUS INFO
         float infoX = panelX + 210f;
@@ -1194,41 +1096,6 @@ public class PlayerSurvival : NetworkBehaviour
         return _hpTexRed;
     }
 
-    void DrawEKG(float x, float y, float w, float h)
-    {
-        // Draw grid
-        GUI.color = new Color(0.1f, 0.5f, 0.8f, 0.15f);
-        for(int i = 0; i <= 5; i++) {
-            GUI.DrawTexture(new Rect(x, y + (h/5)*i, w, 1f), Texture2D.whiteTexture);
-        }
-        for(int i = 0; i <= 10; i++) {
-            GUI.DrawTexture(new Rect(x + (w/10)*i, y, 1f, h), Texture2D.whiteTexture);
-        }
-
-        GUI.color = GetHealthColor();
-        float stepX = w / (_ekgHistory.Length - 1);
-        
-        for(int i = 0; i < _ekgHistory.Length - 1; i++)
-        {
-            float y1 = y + (h / 2f) - (_ekgHistory[i] * h * 0.4f);
-            float y2 = y + (h / 2f) - (_ekgHistory[i+1] * h * 0.4f);
-            
-            float minY = Mathf.Min(y1, y2);
-            float maxY = Mathf.Max(y1, y2);
-            float thick = Mathf.Max(1.5f, maxY - minY);
-            
-            // Fading trail effect
-            GUI.color = new Color(GUI.color.r, GUI.color.g, GUI.color.b, (float)i / _ekgHistory.Length);
-            GUI.DrawTexture(new Rect(x + i*stepX, minY, stepX * 1.5f, thick), Texture2D.whiteTexture);
-        }
-        GUI.color = Color.white;
-        
-        // Scanline passing over EKG
-        float sweep = (Time.time * 100f) % w;
-        GUI.color = new Color(1f, 1f, 1f, 0.5f);
-        GUI.DrawTexture(new Rect(x + sweep, y, 2f, h), Texture2D.whiteTexture);
-        GUI.color = Color.white;
-    }
 
     void DrawSciFiBar(float x, float y, float width, float height, string label, float current, float max, Texture2D fillTex, bool alert, int totalSegments)
     {

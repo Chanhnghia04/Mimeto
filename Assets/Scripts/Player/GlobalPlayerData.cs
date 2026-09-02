@@ -4,6 +4,8 @@ public static class GlobalPlayerData
 {
     public static bool hasSavedData = false;
 
+    public static string lastRoomName = "";
+
     public static int circuits = 0;
     public static int metalPipes = 0;
     public static int ironPlates = 0;
@@ -42,6 +44,7 @@ public static class GlobalPlayerData
     {
         PlayerDataSave data = new PlayerDataSave
         {
+            lastRoomName = lastRoomName,
             circuits = circuits,
             metalPipes = metalPipes,
             ironPlates = ironPlates,
@@ -66,7 +69,7 @@ public static class GlobalPlayerData
         };
 
         string json = JsonUtility.ToJson(data);
-        string key = "Mimeto_SaveData" + Application.dataPath.GetHashCode();
+        string key = "Mimeto_SaveData";
         PlayerPrefs.SetString(key, json);
         PlayerPrefs.Save();
         hasSavedData = true;
@@ -75,12 +78,13 @@ public static class GlobalPlayerData
 
     public static void Load()
     {
-        string key = "Mimeto_SaveData" + Application.dataPath.GetHashCode();
+        string key = "Mimeto_SaveData";
         if (PlayerPrefs.HasKey(key))
         {
             string json = PlayerPrefs.GetString(key);
             PlayerDataSave data = JsonUtility.FromJson<PlayerDataSave>(json);
 
+            lastRoomName = data.lastRoomName;
             circuits = data.circuits;
             metalPipes = data.metalPipes;
             ironPlates = data.ironPlates;
@@ -117,11 +121,12 @@ public static class GlobalPlayerData
 
     public static void ClearData()
     {
-        string key = "Mimeto_SaveData" + Application.dataPath.GetHashCode();
+        string key = "Mimeto_SaveData";
         PlayerPrefs.DeleteKey(key);
         PlayerPrefs.Save();
         hasSavedData = false;
         
+        lastRoomName = "";
         circuits = 0;
         metalPipes = 0;
         ironPlates = 0;
@@ -151,6 +156,7 @@ public static class GlobalPlayerData
 [System.Serializable]
 public class PlayerDataSave
 {
+    public string lastRoomName;
     public int circuits;
     public int metalPipes;
     public int ironPlates;

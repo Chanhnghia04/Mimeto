@@ -442,7 +442,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: CRAFT
+  m_text: "CH\u1EBE T\u1EA0O"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -579,7 +579,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: COMPANY STORE
+  m_text: "C\u1EECA H\xC0NG C\xD4NG TY"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -2591,7 +2591,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Adv. Mask
+  m_text: "M\u1EB7t n\u1EA1 C.C\u1EA5p"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -3045,7 +3045,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: CRAFT
+  m_text: "CH\u1EBE T\u1EA0O"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -3284,7 +3284,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: CRAFTING STATION
+  m_text: "CH\u1EBE T\u1EA0OING STATION"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -5247,6 +5247,27 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.1353859, y: 0.7806679, z: 1.9999996}
   m_Center: {x: -0.0000009536743, y: -0.00000023841858, z: -0.00000023841858}
+--- !u!114 &519414948
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 519414944}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 1777636671
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
 --- !u!1 &526524905
 GameObject:
   m_ObjectHideFlags: 0
@@ -5454,7 +5475,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Adv Mask
+  m_text: "M\u1EB7t n\u1EA1 C.C\u1EA5p"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -5954,7 +5975,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: UV Flashlight
+  m_text: "\u0110\xE8n UV"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -6563,11 +6584,48 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlackjackStation
   isOpen: 0
---- !u!4 &630136116 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 2950747028065300900, guid: a7385c6c898adc041a1877d573090eee, type: 3}
-  m_PrefabInstance: {fileID: 1514141449}
+--- !u!114 &630136117
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 630136112}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 3521042361
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+--- !u!65 &630136118
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 630136112}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.8180651, y: 0.92509604, z: 1.9040099}
+  m_Center: {x: 0.000014737216, y: 0.0011299996, z: -0.000025898249}
 --- !u!1 &647260643
 GameObject:
   m_ObjectHideFlags: 0
@@ -7518,6 +7576,27 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 3.5670526, y: 2.2087889, z: 2.2660084}
   m_Center: {x: 0.17418402, y: 0.2534765, z: 1.0515901}
+--- !u!114 &745228732
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 745228728}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 1161585146
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
 --- !u!1 &752118673 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -8153468022190502949, guid: a7385c6c898adc041a1877d573090eee, type: 3}
@@ -7875,21 +7954,14 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
-    - target: {fileID: 4116041213883117396, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_fontColor32.rgba
-      value: 4291611852
-      objectReference: {fileID: 0}
-    - target: {fileID: 4116041213883117396, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_TextStyleHashCode
-      value: -1183493901
-      objectReference: {fileID: 0}
+
     - target: {fileID: 4285314268519058183, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMax.x
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4285314268519058183, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+
       objectReference: {fileID: 0}
     - target: {fileID: 4285314268519058183, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMin.x
@@ -7897,27 +7969,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4285314268519058183, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4285314268519058183, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4285314268519058183, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4801016366561695846, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_TextStyleHashCode
-      value: -1183493901
-      objectReference: {fileID: 0}
-    - target: {fileID: 4813972795455560939, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_fontColor32.rgba
-      value: 4291611852
-      objectReference: {fileID: 0}
-    - target: {fileID: 4813972795455560939, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_TextStyleHashCode
-      value: -1183493901
+
       objectReference: {fileID: 0}
     - target: {fileID: 5777091791464388444, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AdditionalShaderChannelsFlag
@@ -7931,13 +7983,14 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+
     - target: {fileID: 6179304231896997940, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMax.x
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6179304231896997940, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+
       objectReference: {fileID: 0}
     - target: {fileID: 6179304231896997940, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMin.x
@@ -7945,15 +7998,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6179304231896997940, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 6179304231896997940, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 6179304231896997940, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 0
+
       objectReference: {fileID: 0}
     - target: {fileID: 6518921322680733238, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_fontColor32.rgba
@@ -7963,10 +8008,7 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
-    - target: {fileID: 6769243441799555743, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_TextStyleHashCode
-      value: -1183493901
-      objectReference: {fileID: 0}
+
     - target: {fileID: 7049079359082779008, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
@@ -7977,7 +8019,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7293912561632051145, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+
       objectReference: {fileID: 0}
     - target: {fileID: 7293912561632051145, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMin.x
@@ -7985,19 +8027,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7293912561632051145, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7293912561632051145, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7293912561632051145, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7358754885329679249, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_TextStyleHashCode
-      value: -1183493901
+
       objectReference: {fileID: 0}
     - target: {fileID: 7486151555932195086, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_fontColor32.rgba
@@ -8013,7 +8043,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7675525448263905403, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+
       objectReference: {fileID: 0}
     - target: {fileID: 7675525448263905403, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMin.x
@@ -8021,23 +8051,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7675525448263905403, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7675525448263905403, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7675525448263905403, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8129289025295207540, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_fontColor32.rgba
-      value: 4291611852
-      objectReference: {fileID: 0}
-    - target: {fileID: 8129289025295207540, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
-      propertyPath: m_TextStyleHashCode
-      value: -1183493901
+
       objectReference: {fileID: 0}
     - target: {fileID: 8347618843940329212, guid: cf1838341c405e54f8ed6d965d59a7d4, type: 3}
       propertyPath: m_AnchorMax.x
@@ -8643,7 +8657,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Crowbar
+  m_text: "X\xE0 beng"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -8780,7 +8794,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Shovel
+  m_text: "X\u1EBBng"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -9557,7 +9571,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Basic Mask
+  m_text: "M\u1EB7t n\u1EA1 T.Th\u01B0\u1EDDng"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -10028,7 +10042,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: CRAFT
+  m_text: "CH\u1EBE T\u1EA0O"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -10540,7 +10554,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: CRAFT
+  m_text: "CH\u1EBE T\u1EA0O"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -11484,113 +11498,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1208181365}
   m_CullTransparentMesh: 1
---- !u!1 &1211959773
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1211959774}
-  - component: {fileID: 1211959775}
-  - component: {fileID: 1211959776}
-  - component: {fileID: 1211959777}
-  m_Layer: 0
-  m_Name: BoxColliderFix
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1211959774
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1211959773}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.4285715, y: 1.4285715, z: 1.4285715}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 630136116}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!65 &1211959775
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1211959773}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1.804546, y: 2.0406425, z: 4.2}
-  m_Center: {x: -0.000032639873, y: -0.002488426, z: 0.000057128185}
---- !u!114 &1211959776
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1211959773}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 2588350450
-  InScenePlacedSourceGlobalObjectIdHash: 0
-  AlwaysReplicateAsRoot: 0
-  SynchronizeTransform: 1
-  ActiveSceneSynchronization: 0
-  SceneMigrationSynchronization: 1
-  SpawnWithObservers: 1
-  DontDestroyWithOwner: 0
-  AutoObjectParentSync: 1
---- !u!114 &1211959777
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1211959773}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.Netcode.Components::Unity.Netcode.Components.NetworkTransform
-  UseUnreliableDeltas: 0
-  SyncPositionX: 1
-  SyncPositionY: 1
-  SyncPositionZ: 1
-  SyncRotAngleX: 1
-  SyncRotAngleY: 1
-  SyncRotAngleZ: 1
-  SyncScaleX: 1
-  SyncScaleY: 1
-  SyncScaleZ: 1
-  PositionThreshold: 0.001
-  RotAngleThreshold: 0.01
-  ScaleThreshold: 0.01
-  UseQuaternionSynchronization: 0
-  UseQuaternionCompression: 0
-  UseHalfFloatPrecision: 0
-  InLocalSpace: 0
-  Interpolate: 1
-  SlerpPosition: 0
 --- !u!1 &1246108101
 GameObject:
   m_ObjectHideFlags: 0
@@ -12120,7 +12027,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: LEAVE STORE
+  m_text: "R\u1EDCI C\u1EECA H\xC0NG"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -12200,113 +12107,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1291277606}
   m_CullTransparentMesh: 1
---- !u!1 &1307326859
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1307326860}
-  - component: {fileID: 1307326861}
-  - component: {fileID: 1307326862}
-  - component: {fileID: 1307326863}
-  m_Layer: 0
-  m_Name: BoxColliderFix
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1307326860
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1307326859}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.4285715, y: 1.4285715, z: 1.4285715}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 630136116}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!65 &1307326861
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1307326859}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1.804546, y: 2.0406425, z: 4.2}
-  m_Center: {x: -0.000032639873, y: -0.002488426, z: 0.000057128185}
---- !u!114 &1307326862
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1307326859}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 2061779341
-  InScenePlacedSourceGlobalObjectIdHash: 0
-  AlwaysReplicateAsRoot: 0
-  SynchronizeTransform: 1
-  ActiveSceneSynchronization: 0
-  SceneMigrationSynchronization: 1
-  SpawnWithObservers: 1
-  DontDestroyWithOwner: 0
-  AutoObjectParentSync: 1
---- !u!114 &1307326863
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1307326859}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.Netcode.Components::Unity.Netcode.Components.NetworkTransform
-  UseUnreliableDeltas: 0
-  SyncPositionX: 1
-  SyncPositionY: 1
-  SyncPositionZ: 1
-  SyncRotAngleX: 1
-  SyncRotAngleY: 1
-  SyncRotAngleZ: 1
-  SyncScaleX: 1
-  SyncScaleY: 1
-  SyncScaleZ: 1
-  PositionThreshold: 0.001
-  RotAngleThreshold: 0.01
-  ScaleThreshold: 0.01
-  UseQuaternionSynchronization: 0
-  UseQuaternionCompression: 0
-  UseHalfFloatPrecision: 0
-  InLocalSpace: 0
-  Interpolate: 1
-  SlerpPosition: 0
 --- !u!1 &1308642028
 GameObject:
   m_ObjectHideFlags: 0
@@ -14319,13 +14119,7 @@ PrefabInstance:
       objectReference: {fileID: -315203667685580475, guid: a4109f90de414dd4c927e94949bf4716, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects:
-    - targetCorrespondingSourceObject: {fileID: 2950747028065300900, guid: a7385c6c898adc041a1877d573090eee, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1307326860}
-    - targetCorrespondingSourceObject: {fileID: 2950747028065300900, guid: a7385c6c898adc041a1877d573090eee, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1211959774}
+    m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: a7385c6c898adc041a1877d573090eee, type: 3}
       insertIndex: -1
@@ -14336,18 +14130,30 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -1111240158522852777, guid: a7385c6c898adc041a1877d573090eee, type: 3}
       insertIndex: -1
       addedObject: {fileID: 630136114}
+    - targetCorrespondingSourceObject: {fileID: -1111240158522852777, guid: a7385c6c898adc041a1877d573090eee, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 630136117}
+    - targetCorrespondingSourceObject: {fileID: -1111240158522852777, guid: a7385c6c898adc041a1877d573090eee, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 630136118}
     - targetCorrespondingSourceObject: {fileID: -5627987771513562963, guid: a7385c6c898adc041a1877d573090eee, type: 3}
       insertIndex: -1
       addedObject: {fileID: 745228731}
     - targetCorrespondingSourceObject: {fileID: -5627987771513562963, guid: a7385c6c898adc041a1877d573090eee, type: 3}
       insertIndex: -1
       addedObject: {fileID: 745228730}
+    - targetCorrespondingSourceObject: {fileID: -5627987771513562963, guid: a7385c6c898adc041a1877d573090eee, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 745228732}
     - targetCorrespondingSourceObject: {fileID: -9222530194949352161, guid: a7385c6c898adc041a1877d573090eee, type: 3}
       insertIndex: -1
       addedObject: {fileID: 519414947}
     - targetCorrespondingSourceObject: {fileID: -9222530194949352161, guid: a7385c6c898adc041a1877d573090eee, type: 3}
       insertIndex: -1
       addedObject: {fileID: 519414946}
+    - targetCorrespondingSourceObject: {fileID: -9222530194949352161, guid: a7385c6c898adc041a1877d573090eee, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 519414948}
     - targetCorrespondingSourceObject: {fileID: 5642091794261860395, guid: a7385c6c898adc041a1877d573090eee, type: 3}
       insertIndex: -1
       addedObject: {fileID: 672700810}
@@ -14644,7 +14450,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: CRAFT
+  m_text: "CH\u1EBE T\u1EA0O"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -14995,7 +14801,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Machete
+  m_text: "Dao r\u1EF1a"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -15207,7 +15013,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: UV Light
+  m_text: "\u0110\xE8n UV"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -16718,7 +16524,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: CRAFT
+  m_text: "CH\u1EBE T\u1EA0O"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -17699,7 +17505,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Fire Axe
+  m_text: "R\xECu c\u1EE9u h\u1ECFa"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -18716,7 +18522,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: CRAFT
+  m_text: "CH\u1EBE T\u1EA0O"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -19142,7 +18948,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: CRAFT
+  m_text: "CH\u1EBE T\u1EA0O"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -19260,7 +19066,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'YOUR CREDITS: 0 $'
+  m_text: "TI\u1EC0N C\u1EE6A B\u1EA0N: 0 $"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -19498,7 +19304,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Spiked Bat
+  m_text: "G\u1EADy b\xF3ng ch\xE0y gai"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 0}
   m_sharedMaterial: {fileID: 0}
@@ -19710,7 +19516,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Basic Mask
+  m_text: "M\u1EB7t n\u1EA1 T.Th\u01B0\u1EDDng"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -20502,6 +20308,51 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2068659746}
   m_CullTransparentMesh: 1
+--- !u!1 &2090414503
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2090414505}
+  - component: {fileID: 2090414504}
+  m_Layer: 0
+  m_Name: WaitingRoomPlayerSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2090414504
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2090414503}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5162964dd89a0142af4a7ee4345022d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WaitingRoomPlayerSpawner
+  spawnPoint: {fileID: 0}
+--- !u!4 &2090414505
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2090414503}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2097335883
 GameObject:
   m_ObjectHideFlags: 0
@@ -20983,3 +20834,4 @@ SceneRoots:
   - {fileID: 1514141449}
   - {fileID: 32148223}
   - {fileID: 780365308}
+  - {fileID: 2090414505}

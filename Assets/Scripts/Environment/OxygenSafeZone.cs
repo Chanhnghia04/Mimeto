@@ -39,8 +39,22 @@ public class OxygenSafeZone : MonoBehaviour
 
             if (survival != null)
             {
-                survival.inSafeZone = false;
-                Debug.Log("Player left Oxygen Safe Zone. Oxygen will deplete.");
+                bool stillInZone = false;
+                Collider[] hitColliders = Physics.OverlapSphere(other.transform.position, 0.5f);
+                foreach (var hit in hitColliders)
+                {
+                    if (hit.gameObject != this.gameObject && hit.GetComponent<OxygenSafeZone>() != null)
+                    {
+                        stillInZone = true;
+                        break;
+                    }
+                }
+
+                if (!stillInZone)
+                {
+                    survival.inSafeZone = false;
+                    Debug.Log("Player left Oxygen Safe Zone. Oxygen will deplete.");
+                }
             }
         }
     }

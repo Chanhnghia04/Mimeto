@@ -98,19 +98,22 @@ public class LobbyManager : MonoBehaviour
         {
             var options = new CreateLobbyOptions
             {
-                IsPrivate = isPrivate,
+                // LUÔN LUÔN set IsPrivate = false để nó hiện lên danh sách QueryLobbies.
+                // Trạng thái Private thực sự sẽ được lưu trong Data để UI xử lý hiển thị.
+                IsPrivate = false,
                 Player = GetPlayer(),
                 Data = new Dictionary<string, DataObject>
                 {
                     { KEY_RELAY_CODE, new DataObject(DataObject.VisibilityOptions.Member, relayJoinCode) },
-                    { KEY_GAME_STARTED, new DataObject(DataObject.VisibilityOptions.Public, "false", DataObject.IndexOptions.S1) }
+                    { KEY_GAME_STARTED, new DataObject(DataObject.VisibilityOptions.Public, "false", DataObject.IndexOptions.S1) },
+                    { "IsPrivateMode", new DataObject(DataObject.VisibilityOptions.Public, isPrivate ? "true" : "false", DataObject.IndexOptions.S2) }
                 }
             };
 
             CurrentLobby = await Lobbies.Instance.CreateLobbyAsync(lobbyName, maxPlayers, options);
             IsLobbyHost = true;
 
-            Debug.Log($"[LobbyManager] Lobby created: {CurrentLobby.Name} | ID: {CurrentLobby.Id} | Code: {CurrentLobby.LobbyCode} | Private: {isPrivate}");
+            Debug.Log($"[LobbyManager] Lobby created: {CurrentLobby.Name} | ID: {CurrentLobby.Id} | IsPrivate: {isPrivate}");
             return CurrentLobby;
         }
         catch (LobbyServiceException e)
@@ -176,6 +179,21 @@ public class LobbyManager : MonoBehaviour
         {
             Debug.LogError($"[LobbyManager] Join by code failed: {e.Message}");
             throw;
+        }
+    }
+
+    public async Task UpdateLobbyName(string newName)
+    {
+        if (CurrentLobby == null) return;
+        try
+        {
+            UpdateLobbyOptions options = new UpdateLobbyOptions { Name = newName };
+            CurrentLobby = await Lobbies.Instance.UpdateLobbyAsync(CurrentLobby.Id, options);
+            OnLobbyUpdated?.Invoke(CurrentLobby);
+        }
+        catch (LobbyServiceException e)
+        {
+            Debug.LogError($"[LobbyManager] Failed to update lobby name: {e}");
         }
     }
 

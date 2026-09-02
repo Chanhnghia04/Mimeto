@@ -59,7 +59,12 @@ public class ChestUI : MonoBehaviour
         if (closeButton != null) closeButton.onClick.AddListener(Close);
 
         // Tìm action Interact (phím E) từ InputSystem để đóng rương
-        var playerInput = FindAnyObjectByType<PlayerInput>();
+        PlayerInput playerInput = null;
+        if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.LocalClient != null && Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject != null)
+            playerInput = Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<PlayerInput>();
+        else
+            playerInput = FindAnyObjectByType<PlayerInput>();
+
         if (playerInput != null)
             _interactAction = playerInput.actions.FindAction("Interact");
         else

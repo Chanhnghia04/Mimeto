@@ -841,6 +841,8 @@ UnityEngine.Component[] mimics = new UnityEngine.Component[0];
             // Đợi ngẫu nhiên 20 - 30 giây
             yield return new WaitForSeconds(Random.Range(20f, 30f));
             
+            if (currentEvent != GameEvent.Infection || infectedClientId == 9999) yield break;
+            
             // Tìm tất cả client TRỪ người bị nhiễm
             List<ulong> targetIds = new List<ulong>();
             foreach (ulong id in NetworkManager.Singleton.ConnectedClientsIds)

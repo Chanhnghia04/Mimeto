@@ -4,6 +4,7 @@ using UnityEngine.SceneManagement;
 using TMPro;
 using Unity.Netcode;
 
+[DefaultExecutionOrder(-100)]
 public class PauseMenuUI : MonoBehaviour
 {
     public static PauseMenuUI Instance { get; private set; }
@@ -35,6 +36,24 @@ public class PauseMenuUI : MonoBehaviour
 
         CreateUI();
         _uiContainer.SetActive(false);
+        _isOpen = false;
+        
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // Reset state mỗi khi load scene mới
+        _isOpen = false;
+        if (_uiContainer != null)
+        {
+            _uiContainer.SetActive(false);
+        }
     }
 
     private void CreateUI()
@@ -46,7 +65,12 @@ public class PauseMenuUI : MonoBehaviour
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 100;
 
-        canvasObj.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        scaler.matchWidthOrHeight = 0.5f;
+
         canvasObj.AddComponent<GraphicRaycaster>();
 
         // 2. Main Container
@@ -147,36 +171,63 @@ public class PauseMenuUI : MonoBehaviour
         tmpText.fontStyle = FontStyles.Bold;
     }
 
+    private PlayerController _cachedLocalPlayer;
+
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.escapeKey.wasPressedThisFrame)
         {
-            // Only works during gameplay (not StartGame scene)
-            if (SceneManager.GetActiveScene().name == "StartGame")
-                return;
-
-            // Respect PlayerController minigame state
-            if (PlayerController.OpenMinigameCount > 0)
-                return;
-
-            // If Settings is open when ESC is pressed, close Settings first
+            // 1. Ưu tiên đóng SettingsUI nếu đang mở
             if (SettingsUI.Instance != null && SettingsUI.Instance.IsOpen)
             {
                 SettingsUI.Instance.CloseSettings();
                 return;
             }
 
+            // 2. Không mở Pause Menu trong main menu
+            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            if (sceneName == "StartGame")
+            {
+                return;
+            }
+
+            // 3. Đang mở thì đóng
             if (_isOpen)
             {
                 CloseMenu();
                 return;
             }
 
-            // Ngăn chặn PauseMenu tự động mở nếu người chơi đang bấm ESC để thoát khỏi một UI khác (Shop, Chest, Inventory...)
-            PlayerController pc = Object.FindAnyObjectByType<PlayerController>();
-            if (pc != null && pc.IsUIOpen())
+            // 4. Kiểm tra xem có UI nào khác đang mở không. 
+            // Nếu có, ta bỏ qua không mở PauseMenu để nhường phím ESC cho UI đó tự đóng.
+            if (_cachedLocalPlayer == null)
             {
-                return;
+                if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.IsListening && Unity.Netcode.NetworkManager.Singleton.LocalClient != null && Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject != null)
+                {
+                    _cachedLocalPlayer = Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<PlayerController>();
+                }
+                
+                if (_cachedLocalPlayer == null) 
+                {
+                    PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+                    foreach (var p in allPlayers)
+                    {
+                        if (p.IsOwner)
+                        {
+                            _cachedLocalPlayer = p;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (_cachedLocalPlayer != null)
+            {
+                // Nếu bất kì UI nào khác (ngoài PauseMenu) đang mở, nhường quyền phím ESC
+                if (_cachedLocalPlayer.IsUIOpen())
+                {
+                    return;
+                }
             }
 
             OpenMenu();
@@ -185,10 +236,39 @@ public class PauseMenuUI : MonoBehaviour
 
     public void OpenMenu()
     {
+        // Phá hủy toàn bộ Canvas cũ để tạo lại mới 100%, đảm bảo không bị lỗi tàng hình
+        foreach (Transform child in transform)
+        {
+            Destroy(child.gameObject);
+        }
+        
+        CreateUI();
         _isOpen = true;
-        _uiContainer.SetActive(true);
+        
+        // Ép sorting order cao nhất
+        Canvas[] canvases = GetComponentsInChildren<Canvas>(true);
+        foreach (Canvas c in canvases)
+        {
+            c.renderMode = RenderMode.ScreenSpaceOverlay;
+            c.sortingOrder = 32767;
+            c.enabled = true;
+            c.gameObject.SetActive(true);
+        }
+
+        if (_uiContainer != null)
+        {
+            _uiContainer.SetActive(true);
+        }
+
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        if (UnityEngine.EventSystems.EventSystem.current == null)
+        {
+            GameObject es = new GameObject("EventSystem_Auto");
+            es.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+        }
     }
 
     public void CloseMenu()
@@ -219,7 +299,11 @@ public class PauseMenuUI : MonoBehaviour
         {
             NetworkManager.Singleton.Shutdown();
         }
-        CloseMenu();
+        
+        // Không gọi CloseMenu() ở đây vì nó sẽ khóa chuột khi về StartGame
+        _isOpen = false;
+        _uiContainer.SetActive(false);
+        
         SceneManager.LoadScene("StartGame");
     }
 

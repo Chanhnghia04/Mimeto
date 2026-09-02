@@ -1264,6 +1264,7 @@ GameObject:
   - component: {fileID: 8716381778583177128}
   - component: {fileID: 3930109658250532589}
   - component: {fileID: -1345208476036520223}
+  - component: {fileID: 3070827733924659992}
   m_Layer: 0
   m_Name: EnamiMutant
   m_TagString: Untagged
@@ -1374,12 +1375,15 @@ MonoBehaviour:
   attackDamage: 10
   attackRate: 1.2
   hearRadius: 20
+  playerLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
   agent: {fileID: 4011698687431645235}
   animator: {fileID: 2316759562707617832}
   audioSource: {fileID: 8716381778583177128}
-  chargeScreamClip: {fileID: 8300000, guid: f4dbab08c4b7c2c478afff2b0910615e, type: 3}
+  chargeScreamClip: {fileID: 8300000, guid: 586a1528959366241a65ef2a059651f3, type: 3}
   attackClip: {fileID: 8300000, guid: ed6ca9d6e44d59f4baacaea6670012f2, type: 3}
-  confusedClip: {fileID: 8300000, guid: df69befefb6c37a43b2c57aabff89fdf, type: 3}
+  confusedClip: {fileID: 8300000, guid: c36fd782cd72aba48a9000d59061683e, type: 3}
   viewRadius: 30
   viewAngle: 100
 --- !u!136 &8567532394923723376
@@ -1547,6 +1551,44 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.Netcode.Components::Unity.Netcode.Components.NetworkAnimator
   TransitionStateInfoList: []
   m_Animator: {fileID: 2316759562707617832}
+--- !u!114 &3070827733924659992
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9046945449887451368}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00a68c44b45b39b40baf1f9043f71f63, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Mimeto.Audio.MonsterAudioEmitter
+  footstepClips:
+  - {fileID: 8300000, guid: 4a2e71bcf70cb2241b36386e58f5547e, type: 3}
+  - {fileID: 8300000, guid: 50d6548883448c440b5c346e8f9a5a3d, type: 3}
+  - {fileID: 8300000, guid: 61825cc55cb86e4409f656462b1b1a6f, type: 3}
+  baseFootstepInterval: 0.5
+  minFootstepInterval: 0.25
+  maxFootstepInterval: 0.8
+  footstepMinDistance: 1
+  footstepMaxDistance: 25
+  idleGrowlClips:
+  - {fileID: 8300000, guid: 586a1528959366241a65ef2a059651f3, type: 3}
+  minGrowlInterval: 8
+  maxGrowlInterval: 20
+  growlMinDistance: 2
+  growlMaxDistance: 35
+  attackClips:
+  - {fileID: 8300000, guid: 2a3795365dbc0844982e35f142f8c8ec, type: 3}
+  attackMaxDistance: 30
+  chaseBreatheClip: {fileID: 8300000, guid: c36fd782cd72aba48a9000d59061683e, type: 3}
+  breatheFadeSpeed: 2
+  chaseVolume: 0.8
+  deathClips:
+  - {fileID: 8300000, guid: 586a1528959366241a65ef2a059651f3, type: 3}
+  deathMaxDistance: 40
+  isChasing:
+    m_InternalValue: 0
 --- !u!1 &9099907573083089843
 GameObject:
   m_ObjectHideFlags: 0

@@ -11,689 +11,564 @@ using Unity.Netcode.Transports.UTP;
 using Unity.Networking.Transport.Relay;
 using Unity.Services.Lobbies.Models;
 
-/// <summary>
-/// UI Controller cho StartGame scene.
-/// Host: tạo lobby (Public/Private) → Relay → hiện RoomInfo → Waiting scene
-/// Client: tìm lobby public HOẶC nhập lobby code (private) → join Relay → Waiting scene
-/// Chặn join khi Host đã vào Map.
-/// </summary>
 public class MultiplayerCenter : MonoBehaviour
 {
-    [Header("Main Buttons")]
-    public Button hostButton;
-    public Button clientButton;
-    public Button backButton;
+    private NetworkManager Net => Unity.Netcode.NetworkManager.Singleton ?? FindAnyObjectByType<NetworkManager>();
+    
+    [Header("Main Menu")]
+    public GameObject mainMenuPanel;
+    public Button playButton, continueButton, instructButton, exitButton;
 
-    [Header("Host Panel")]
-    public GameObject hostPanel;
-    public TMP_InputField lobbyNameInput;
-    public Button publicButton;
-    public Button privateButton;
-    public TextMeshProUGUI hostStatusText;
-
-    [Header("Client Panel")]
-    public GameObject clientPanel;
-    public TMP_InputField joinCodeInput;
-    public Button joinByCodeButton;
-    public Button refreshLobbiesButton;
+    [Header("Lobby List")]
+    public GameObject lobbyListPanel;
+    public Button openCreateRoomButton, refreshLobbiesButton, backToMenuButton;
     public Transform lobbyListContainer;
-    public GameObject lobbyItemPrefab; // Prefab với Button + TMP_Text
-    public TextMeshProUGUI clientStatusText;
+    public GameObject lobbyItemPrefab;
 
-    [Header("Room Info Panel")]
+    [Header("Create Room")]
+    public GameObject createRoomPanel;
+    public TMP_InputField roomNameInput;
+    public Button setPublicButton, setPrivateButton, confirmCreateRoomButton, cancelCreateRoomButton;
+    private bool isCreatingPrivateRoom = false;
+
+    [Header("Join Private Room")]
+    public GameObject joinPrivatePanel;
+    public TMP_InputField joinCodeInput;
+    public Button confirmJoinButton, cancelJoinButton;
+    private Lobby _selectedPrivateLobbyToJoin;
+
+    [Header("Room Info")]
     public GameObject roomInfoPanel;
-    public TextMeshProUGUI roomNameText;
-    public TextMeshProUGUI roomCodeText;
-    public TextMeshProUGUI roomTypeText;
-    public TextMeshProUGUI roomPlayersText;
-    public Button startWaitingButton;
-    public Button copyCodeButton;
-    public Button cancelRoomButton;
+    public TMP_InputField editRoomNameInput;
+    public TextMeshProUGUI roomTypeText, roomCodeText, roomPlayersText;
+    public Button startWaitingButton, copyCodeButton, cancelRoomButton;
 
-    [Header("Settings")]
-    public int maxPlayers = 4;
-    public string defaultLobbyName = "Mimeto Room";
-
-    [Header("Status")]
     public TextMeshProUGUI statusText;
+    private int maxPlayers = 4;
+    private Lobby _selectedLobbyToJoin;
+
+    // --- CỜ TRẠNG THÁI (TRÁNH LỖI UI RACE CONDITION) ---
+    private bool _isNetworkReady = false;
+    private bool _isLeaving = false; 
 
     private async void Start()
     {
         AutoAssignUI();
+        ShowPanel(mainMenuPanel);
+        SetButtonsInteractable(false); // Khóa nút cho đến khi khởi tạo xong dịch vụ mạng
 
-        // Ẩn panels
-        if (hostPanel != null) hostPanel.SetActive(false);
-        if (clientPanel != null) clientPanel.SetActive(false);
-        if (roomInfoPanel != null) roomInfoPanel.SetActive(false);
+        // "Chơi" = Tạo phòng mới, xóa save → bắt đầu với 0 EC
+        if (playButton) playButton.onClick.AddListener(() => OnPlayNewGame());
+        // "Tiếp tục" = Load save cũ, tạo phòng, vào thẳng roomInfoPanel
+        if (continueButton) continueButton.onClick.AddListener(() => OnContinueGame());
+        if (instructButton) instructButton.onClick.AddListener(() => UpdateStatus("Coming soon"));
+        if (exitButton) exitButton.onClick.AddListener(Application.Quit);
 
-        // Gán events
-        if (hostButton != null) hostButton.onClick.AddListener(OnHostClicked);
-        if (clientButton != null) clientButton.onClick.AddListener(OnClientClicked);
-        if (backButton != null) backButton.onClick.AddListener(OnBackClicked);
+        if (openCreateRoomButton) openCreateRoomButton.onClick.AddListener(() => { ShowPanel(createRoomPanel); SetCreateRoomMode(false); });
+        if (refreshLobbiesButton) refreshLobbiesButton.onClick.AddListener(OnRefreshLobbies);
+        if (backToMenuButton) backToMenuButton.onClick.AddListener(() => ShowPanel(mainMenuPanel));
 
-        if (publicButton != null) publicButton.onClick.AddListener(() => CreateLobby(false));
-        if (privateButton != null) privateButton.onClick.AddListener(() => CreateLobby(true));
+        if (setPublicButton) setPublicButton.onClick.AddListener(() => SetCreateRoomMode(false));
+        if (setPrivateButton) setPrivateButton.onClick.AddListener(() => SetCreateRoomMode(true));
+        if (confirmCreateRoomButton) confirmCreateRoomButton.onClick.AddListener(OnConfirmCreateRoom);
+        if (cancelCreateRoomButton) cancelCreateRoomButton.onClick.AddListener(() => ShowPanel(lobbyListPanel));
 
-        if (joinByCodeButton != null) joinByCodeButton.onClick.AddListener(OnJoinByCodeClicked);
-        if (refreshLobbiesButton != null) refreshLobbiesButton.onClick.AddListener(OnRefreshLobbies);
+        if (confirmJoinButton) confirmJoinButton.onClick.AddListener(OnConfirmJoinPrivateRoom);
+        if (cancelJoinButton) cancelJoinButton.onClick.AddListener(() => ShowPanel(lobbyListPanel));
 
-        if (startWaitingButton != null) startWaitingButton.onClick.AddListener(OnStartWaitingClicked);
-        if (copyCodeButton != null) copyCodeButton.onClick.AddListener(OnCopyCodeClicked);
-        if (cancelRoomButton != null) cancelRoomButton.onClick.AddListener(OnCancelRoomClicked);
+        if (startWaitingButton) startWaitingButton.onClick.AddListener(OnStartWaitingClicked);
+        if (copyCodeButton) copyCodeButton.onClick.AddListener(OnCopyCodeClicked);
+        if (cancelRoomButton) cancelRoomButton.onClick.AddListener(OnCancelRoomClicked);
+        if (editRoomNameInput) editRoomNameInput.onEndEdit.AddListener(OnEditRoomNameEnd);
 
-        // Callbacks
-        if (NetworkManager.Singleton != null)
+        var net = Net;
+        if (net != null)
         {
-            NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
-            NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+            net.OnClientConnectedCallback -= OnClientConnected;
+            net.OnClientConnectedCallback += OnClientConnected;
+            net.OnClientDisconnectCallback -= OnClientDisconnected;
+            net.OnClientDisconnectCallback += OnClientDisconnected;
         }
 
-        // Khởi tạo Services
         try
         {
-            UpdateStatus("Đang khởi tạo...");
+            UpdateStatus("Initializing Services...");
             await LobbyManager.Instance.InitializeAsync();
-            await VivoxManager.Instance.LoginAsync(); // <--- FIX: Đăng nhập Vivox
-            UpdateStatus("Sẵn sàng! Chọn Host hoặc Client.");
+            await VivoxManager.Instance.LoginAsync();
+            _isNetworkReady = true;
+            SetButtonsInteractable(true);
+            UpdateStatus("Ready!");
         }
         catch (Exception e)
         {
-            UpdateStatus("Lỗi khởi tạo: " + e.Message);
-            Debug.LogError(e);
+            UpdateStatus($"Init failed: {e.Message}");
         }
     }
 
     private void OnDestroy()
     {
-        if (NetworkManager.Singleton != null)
+        var net = Net;
+        if (net != null)
         {
-            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
-            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+            net.OnClientConnectedCallback -= OnClientConnected;
+            net.OnClientDisconnectCallback -= OnClientDisconnected;
         }
     }
 
-    #region === BUTTON HANDLERS ===
-
-    private void OnHostClicked()
+    private void SetButtonsInteractable(bool state)
     {
-        if (hostPanel != null)
-        {
-            hostPanel.SetActive(true);
-            if (clientPanel != null) clientPanel.SetActive(false);
-            if (roomInfoPanel != null) roomInfoPanel.SetActive(false);
-            UpdateHostStatus("Chọn chế độ lobby");
-        }
-        else
-        {
-            // Fallback: Nếu không có panel nâng cao, tự động tạo phòng Public luôn
-            CreateLobby(false);
-        }
+        if (playButton) playButton.interactable = state;
+        if (continueButton) continueButton.interactable = state;
+        if (openCreateRoomButton) openCreateRoomButton.interactable = state;
+        if (refreshLobbiesButton) refreshLobbiesButton.interactable = state;
     }
 
-    private void OnClientClicked()
+    private void UpdateStatus(string msg) { if (statusText) statusText.text = msg; Debug.Log($"[MultiplayerCenter] {msg}"); }
+
+    private void ShowPanel(GameObject p)
     {
-        if (clientPanel != null)
-        {
-            if (hostPanel != null) hostPanel.SetActive(false);
-            if (roomInfoPanel != null) roomInfoPanel.SetActive(false);
-            clientPanel.SetActive(true);
-            UpdateClientStatus("Tìm phòng hoặc nhập mã");
-            OnRefreshLobbies();
-        }
-        else
-        {
-            // Fallback: Nếu không có panel nâng cao, tự động tìm và vào phòng Public đầu tiên
-            if (joinCodeInput != null && !string.IsNullOrEmpty(joinCodeInput.text))
-                OnJoinByCodeClicked();
-            else
-                JoinFirstPublicLobby();
-        }
+        if (mainMenuPanel) mainMenuPanel.SetActive(false);
+        if (lobbyListPanel) lobbyListPanel.SetActive(false);
+        if (createRoomPanel) createRoomPanel.SetActive(false);
+        if (joinPrivatePanel) joinPrivatePanel.SetActive(false);
+        if (roomInfoPanel) roomInfoPanel.SetActive(false);
+        if (p) p.SetActive(true);
     }
 
-    private async void JoinFirstPublicLobby()
+    private void SetCreateRoomMode(bool isPrivate)
     {
-        UpdateStatus("Đang tìm phòng Public...");
-        try
-        {
-            var lobbies = await LobbyManager.Instance.FindPublicLobbies();
-            if (lobbies != null && lobbies.Count > 0)
-            {
-                UpdateStatus($"Đã thấy phòng: {lobbies[0].Name}. Đang join...");
-                JoinPublicLobby(lobbies[0].Id);
-            }
-            else
-            {
-                UpdateStatus("Không tìm thấy phòng Public nào.");
-            }
-        }
-        catch (Exception e)
-        {
-            UpdateStatus("Lỗi tìm phòng: " + e.Message);
-        }
+        isCreatingPrivateRoom = isPrivate;
+        if (setPublicButton) setPublicButton.GetComponent<Image>().color = isPrivate ? new Color(0.5f, 0.5f, 0.5f) : Color.white;
+        if (setPrivateButton) setPrivateButton.GetComponent<Image>().color = isPrivate ? Color.white : new Color(0.5f, 0.5f, 0.5f);
     }
 
-    private void OnBackClicked()
+    private void OnPlayNewGame()
     {
-        // Cleanup
-        if (NetworkManager.Singleton != null &&
-            (NetworkManager.Singleton.IsHost || NetworkManager.Singleton.IsClient))
-        {
-            NetworkManager.Singleton.Shutdown();
-        }
-        _ = VivoxManager.Instance.LeaveChannelAsync();
-        _ = LobbyManager.Instance.LeaveLobby();
-        UnityEngine.SceneManagement.SceneManager.LoadScene("StartGame");
+        if (!_isNetworkReady) return;
+        GlobalPlayerData.ClearData();
+        Debug.Log("[MultiplayerCenter] Chơi mới — đã xóa save, chuyển vào LobbyList");
+        ShowPanel(lobbyListPanel);
+        OnRefreshLobbies();
     }
 
-    #endregion
+    private async void OnContinueGame()
+    {
+        if (!_isNetworkReady) return;
+        GlobalPlayerData.Load();
+        Debug.Log($"[MultiplayerCenter] Tiếp tục — credits = {GlobalPlayerData.credits}");
+        
+        string rName = string.IsNullOrEmpty(GlobalPlayerData.lastRoomName) ? 
+            "Room_" + UnityEngine.Random.Range(1000, 9999) : GlobalPlayerData.lastRoomName;
+            
+        await CreateRoomAndShowInfo(rName, false);
+    }
 
-    #region === HOST: TẠO LOBBY ===
-
-    private async void CreateLobby(bool isPrivate)
+    private async Task CreateRoomAndShowInfo(string roomName, bool isPrivate)
     {
         try
         {
-            string lobbyName = lobbyNameInput != null && !string.IsNullOrEmpty(lobbyNameInput.text)
-                ? lobbyNameInput.text.Trim()
-                : defaultLobbyName;
+            SetButtonsInteractable(false);
+            UpdateStatus("Đang tạo phòng...");
 
-            string mode = isPrivate ? "Private" : "Public";
-            UpdateHostStatus($"Đang tạo phòng {mode}...");
-            SetHostInteractable(false);
+            Allocation alloc = await RelayService.Instance.CreateAllocationAsync(maxPlayers - 1);
+            string relayCode = await RelayService.Instance.GetJoinCodeAsync(alloc.AllocationId);
 
-            // 1. Tạo Relay trước để lấy Join Code ngay lập tức
-            Allocation allocation = await RelayService.Instance.CreateAllocationAsync(maxPlayers - 1);
-            string relayJoinCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
-
-            // 2. Tạo Lobby và lưu relay code ngay lúc tạo
-            var lobby = await LobbyManager.Instance.CreateLobby(lobbyName, maxPlayers, isPrivate, relayJoinCode);
-
-            // 3. Join Vivox Channel
+            var lobby = await LobbyManager.Instance.CreateLobby(roomName, maxPlayers, isPrivate, relayCode);
             await VivoxManager.Instance.JoinChannelAsync(lobby.Id);
 
-            // 4. Setup transport
-            var netManager = NetworkManager.Singleton;
-            if (netManager == null)
+            var net = Net;
+            if (net != null)
             {
-                netManager = FindAnyObjectByType<NetworkManager>();
-                if (netManager == null)
+                net.GetComponent<UnityTransport>().SetRelayServerData(new RelayServerData(alloc, "dtls"));
+                net.ConnectionApprovalCallback = ApprovalCheck;
+
+                if (net.StartHost())
                 {
-                    throw new Exception("Không tìm thấy NetworkManager trong scene. Hãy đảm bảo NetworkManager prefab được đặt vào scene StartGame.");
+                    UpdateStatus("Phòng đã tạo!");
+                    ShowRoomInfo(lobby);
+                    return; // Thành công thì thoát
                 }
             }
             
-            RelayServerData relayServerData = new RelayServerData(allocation, "dtls");
-            netManager.GetComponent<UnityTransport>().SetRelayServerData(relayServerData);
-
-            // 5. Bật kiểm duyệt kết nối để chặn người vào sau khi đã ở trong Map
-            netManager.ConnectionApprovalCallback = ApprovalCheck;
-
-            // 6. Start Host
-            if (netManager.StartHost())
-            {
-                UpdateStatus($"Host started! (1/{maxPlayers})");
-
-                // Hiện Room Info Panel thay vì chuyển scene ngay
-                ShowRoomInfo(lobby, isPrivate);
-            }
-            else
-            {
-                UpdateHostStatus("Lỗi khởi tạo Host!");
-                SetHostInteractable(true);
-                await LobbyManager.Instance.LeaveLobby();
-            }
+            // Nếu StartHost() trả về false hoặc Net null
+            UpdateStatus("Không thể tạo phòng.");
+            await SafeCleanupAndLeave();
+            ShowPanel(mainMenuPanel);
         }
         catch (Exception e)
         {
-            UpdateHostStatus($"Lỗi: {e.Message}");
-            SetHostInteractable(true);
-            Debug.LogError($"[MultiplayerCenter] CreateLobby error: {e}");
+            UpdateStatus($"Lỗi: {e.Message}");
+            await SafeCleanupAndLeave();
+            ShowPanel(mainMenuPanel);
+        }
+        finally
+        {
+            SetButtonsInteractable(true);
         }
     }
 
-    /// <summary>
-    /// Hiện panel thông tin phòng sau khi tạo lobby thành công
-    /// </summary>
-    private void ShowRoomInfo(Lobby lobby, bool isPrivate)
+    private async void OnConfirmCreateRoom()
     {
-        // Ẩn host panel, hiện room info panel
-        if (hostPanel != null) hostPanel.SetActive(false);
-        if (clientPanel != null) clientPanel.SetActive(false);
+        string rName = roomNameInput ? roomNameInput.text : "Room";
+        if (string.IsNullOrEmpty(rName)) rName = "Room";
+        bool isPrivate = isCreatingPrivateRoom;
 
-        if (roomInfoPanel != null)
+        try
         {
-            roomInfoPanel.SetActive(true);
+            if (confirmCreateRoomButton) confirmCreateRoomButton.interactable = false;
+            UpdateStatus("Creating room...");
 
-            if (roomNameText != null)
-                roomNameText.text = $"Tên phòng: {lobby.Name}";
+            Allocation alloc = await RelayService.Instance.CreateAllocationAsync(maxPlayers - 1);
+            string relayCode = await RelayService.Instance.GetJoinCodeAsync(alloc.AllocationId);
 
-            if (roomCodeText != null)
+            var lobby = await LobbyManager.Instance.CreateLobby(rName, maxPlayers, isPrivate, relayCode);
+            await VivoxManager.Instance.JoinChannelAsync(lobby.Id);
+
+            var net = Net;
+            if (net != null)
             {
-                roomCodeText.text = $"Mã phòng: {lobby.LobbyCode}";
-                roomCodeText.gameObject.SetActive(true); // Luôn hiện mã phòng
+                net.GetComponent<UnityTransport>().SetRelayServerData(new RelayServerData(alloc, "dtls"));
+                net.ConnectionApprovalCallback = ApprovalCheck;
+
+                if (net.StartHost())
+                {
+                    UpdateStatus("Room created!");
+                    
+                    // LƯU LẠI TÊN PHÒNG CHO LẦN "TIẾP TỤC" SAU NÀY
+                    GlobalPlayerData.lastRoomName = rName;
+                    GlobalPlayerData.Save();
+                    
+                    ShowRoomInfo(lobby);
+                    return;
+                }
             }
 
-            if (roomTypeText != null)
-                roomTypeText.text = isPrivate
-                    ? "Loại: PRIVATE (Cần mã để vào)"
-                    : "Loại: PUBLIC (Ai cũng vào được)";
-
-            if (roomPlayersText != null)
-                roomPlayersText.text = $"Người chơi: {lobby.Players.Count}/{lobby.MaxPlayers}";
-
-            // Hiện/ẩn nút copy code
-            if (copyCodeButton != null)
-                copyCodeButton.gameObject.SetActive(true);
-
-            bool isHost = NetworkManager.Singleton.IsHost;
-            if (startWaitingButton != null)
-                startWaitingButton.gameObject.SetActive(isHost);
-
-            if (cancelRoomButton != null)
-            {
-                cancelRoomButton.gameObject.SetActive(true);
-                var tmp = cancelRoomButton.GetComponentInChildren<TextMeshProUGUI>();
-                if (tmp != null) tmp.text = isHost ? "Hủy Phòng" : "Thoát Phòng";
-            }
+            UpdateStatus("Không thể tạo phòng.");
+            await SafeCleanupAndLeave();
+            ShowPanel(lobbyListPanel);
         }
-        else
+        catch (Exception e)
         {
-            // Fallback: không có panel → chuyển scene luôn (nếu là host)
-            if (NetworkManager.Singleton.IsHost)
-            {
-                NetworkManager.Singleton.SceneManager.LoadScene("Waiting", UnityEngine.SceneManagement.LoadSceneMode.Single);
-            }
+            UpdateStatus($"Error: {e.Message}");
+            await SafeCleanupAndLeave();
+            ShowPanel(lobbyListPanel);
+        }
+        finally
+        {
+            if (confirmCreateRoomButton) confirmCreateRoomButton.interactable = true;
         }
     }
 
-    /// <summary>
-    /// Cập nhật số người chơi trên Room Info Panel
-    /// </summary>
-    private void UpdateRoomInfoPlayers()
+    private async void OnRefreshLobbies()
     {
-        if (roomInfoPanel != null && roomInfoPanel.activeSelf && roomPlayersText != null)
+        try
         {
-            var lobby = LobbyManager.Instance.CurrentLobby;
-            if (lobby != null)
+            if (refreshLobbiesButton) refreshLobbiesButton.interactable = false;
+            UpdateStatus("Refreshing...");
+            var lobbies = await LobbyManager.Instance.FindPublicLobbies();
+            PopulateLobbyList(lobbies);
+            UpdateStatus("Đã làm mới danh sách.");
+        }
+        catch (Exception e) { UpdateStatus($"Error: {e.Message}"); }
+        finally { if (refreshLobbiesButton) refreshLobbiesButton.interactable = true; }
+    }
+
+    private void PopulateLobbyList(List<Lobby> lobbies)
+    {
+        if (lobbyListContainer == null || lobbyItemPrefab == null) return;
+        foreach (Transform child in lobbyListContainer) { Destroy(child.gameObject); }
+        foreach (var l in lobbies)
+        {
+            var item = Instantiate(lobbyItemPrefab, lobbyListContainer);
+            item.SetActive(true);
+            item.transform.localScale = Vector3.one;
+            var txt = item.GetComponentInChildren<TMP_Text>();
+            
+            bool isPrivate = l.Data != null && l.Data.ContainsKey("IsPrivateMode") && l.Data["IsPrivateMode"].Value == "true";
+            
+            if (txt) txt.text = $"{l.Name} ({l.Players.Count}/{l.MaxPlayers})" + (isPrivate ? " [PRIVATE]" : "");
+            
+            var btn = item.GetComponent<Button>();
+            if (btn) 
             {
-                roomPlayersText.text = $"Người chơi: {NetworkManager.Singleton.ConnectedClientsIds.Count}/{maxPlayers}";
+                btn.onClick.AddListener(() => 
+                {
+                    if (isPrivate)
+                    {
+                        _selectedPrivateLobbyToJoin = l;
+                        if (joinCodeInput) joinCodeInput.text = "";
+                        ShowPanel(joinPrivatePanel);
+                    }
+                    else
+                    {
+                        JoinLobby(l);
+                    }
+                });
             }
         }
     }
 
-    /// <summary>
-    /// Bấm "Bắt đầu" → chuyển sang Waiting scene
-    /// </summary>
+    private async void OnConfirmJoinPrivateRoom()
+    {
+        if (_selectedPrivateLobbyToJoin == null) return;
+        
+        string code = joinCodeInput != null ? joinCodeInput.text.Trim() : "";
+        if (string.IsNullOrEmpty(code))
+        {
+            UpdateStatus("Please enter room code.");
+            return;
+        }
+
+        try
+        {
+            if (confirmJoinButton) confirmJoinButton.interactable = false;
+            UpdateStatus("Verifying code...");
+            
+            var joined = await LobbyManager.Instance.JoinLobbyByCode(code);
+            
+            if (joined.Id != _selectedPrivateLobbyToJoin.Id)
+            {
+                await SafeCleanupAndLeave();
+                UpdateStatus("Invalid code for this room.");
+                return;
+            }
+            
+            UpdateStatus("Joining room...");
+            await VivoxManager.Instance.JoinChannelAsync(joined.Id);
+
+            string relayCode = LobbyManager.Instance.GetRelayCodeFromLobby();
+            var joinAlloc = await RelayService.Instance.JoinAllocationAsync(relayCode);
+
+            var net = Net;
+            if (net != null)
+            {
+                net.GetComponent<UnityTransport>().SetRelayServerData(new RelayServerData(joinAlloc, "dtls"));
+
+                if (net.StartClient()) { UpdateStatus("Connecting..."); return; }
+            }
+            
+            UpdateStatus("Connection failed"); 
+            await SafeCleanupAndLeave();
+        }
+        catch (Exception e) 
+        { 
+            UpdateStatus("Wrong code or room is full."); 
+            Debug.LogError($"Join Private Room Failed: {e.Message}");
+            await SafeCleanupAndLeave();
+        }
+        finally 
+        { 
+            if (confirmJoinButton) confirmJoinButton.interactable = true; 
+        }
+    }
+
+    private async void JoinLobby(Lobby lobby)
+    {
+        try
+        {
+            UpdateStatus("Joining room...");
+            var joined = await LobbyManager.Instance.JoinLobbyById(lobby.Id);
+            await VivoxManager.Instance.JoinChannelAsync(joined.Id);
+
+            string relayCode = LobbyManager.Instance.GetRelayCodeFromLobby();
+            var joinAlloc = await RelayService.Instance.JoinAllocationAsync(relayCode);
+
+            var net = Net;
+            if (net != null)
+            {
+                net.GetComponent<UnityTransport>().SetRelayServerData(new RelayServerData(joinAlloc, "dtls"));
+
+                if (net.StartClient()) { UpdateStatus("Connecting..."); return; }
+            }
+            
+            UpdateStatus("Connection failed"); 
+            await SafeCleanupAndLeave();
+        }
+        catch (Exception e) { 
+            UpdateStatus($"Error: {e.Message}"); 
+            await SafeCleanupAndLeave();
+        }
+    }
+
+    private void ShowRoomInfo(Lobby lobby)
+    {
+        ShowPanel(roomInfoPanel);
+        bool isHost = Net != null && Net.IsHost;
+
+        if (editRoomNameInput) { editRoomNameInput.text = lobby.Name; editRoomNameInput.interactable = isHost; }
+        if (roomCodeText) { roomCodeText.text = $"Room Code: {lobby.LobbyCode}"; roomCodeText.gameObject.SetActive(true); }
+        if (roomTypeText) roomTypeText.text = lobby.IsPrivate ? "Type: PRIVATE" : "Type: PUBLIC";
+        if (roomPlayersText) roomPlayersText.text = $"Players: {lobby.Players.Count}/{lobby.MaxPlayers}";
+        if (startWaitingButton) startWaitingButton.gameObject.SetActive(isHost);
+    }
+
+    private async void OnEditRoomNameEnd(string newName)
+    {
+        if (Net != null && Net.IsHost && LobbyManager.Instance.CurrentLobby != null && newName != LobbyManager.Instance.CurrentLobby.Name)
+        {
+            await LobbyManager.Instance.UpdateLobbyName(newName);
+            GlobalPlayerData.lastRoomName = newName;
+            GlobalPlayerData.Save();
+        }
+    }
+
     private void OnStartWaitingClicked()
     {
-        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsHost)
-        {
-            NetworkManager.Singleton.SceneManager.LoadScene("Waiting", UnityEngine.SceneManagement.LoadSceneMode.Single);
-        }
+        if (Net && Net.IsHost)
+            Net.SceneManager.LoadScene("Waiting", UnityEngine.SceneManagement.LoadSceneMode.Single);
     }
 
-    /// <summary>
-    /// Copy mã phòng vào clipboard
-    /// </summary>
     private void OnCopyCodeClicked()
     {
         var lobby = LobbyManager.Instance.CurrentLobby;
         if (lobby != null && !string.IsNullOrEmpty(lobby.LobbyCode))
         {
             GUIUtility.systemCopyBuffer = lobby.LobbyCode;
-            UpdateStatus("Đã copy mã phòng!");
-            Debug.Log($"[MultiplayerCenter] Copied lobby code: {lobby.LobbyCode}");
+            UpdateStatus("Room code copied!");
         }
     }
 
-    /// <summary>
-    /// Hủy phòng từ Room Info Panel
-    /// </summary>
+    // --- HÀM XỬ LÝ HỦY PHÒNG SẠCH SẼ (CHỐNG LỖI RACE CONDITION) ---
     private async void OnCancelRoomClicked()
     {
-        if (cancelRoomButton != null) cancelRoomButton.interactable = false;
+        if (cancelRoomButton) cancelRoomButton.interactable = false;
         
-        bool wasHost = NetworkManager.Singleton != null && NetworkManager.Singleton.IsHost;
+        var net = Net;
+        bool wasHost = net != null && net.IsServer;
+        
+        await SafeCleanupAndLeave();
 
-        if (NetworkManager.Singleton != null)
+        ShowPanel(wasHost ? mainMenuPanel : lobbyListPanel);
+        
+        if (cancelRoomButton) cancelRoomButton.interactable = true;
+    }
+
+    // Dùng chung cho tất cả các tình huống cần dọn dẹp Network + Lobby
+    private async Task SafeCleanupAndLeave()
+    {
+        _isLeaving = true; // Chặn OnClientDisconnected đổi UI lung tung
+        var net = Net;
+
+        if (net != null && (net.IsServer || net.IsClient))
         {
-            NetworkManager.Singleton.Shutdown();
+            net.Shutdown();
         }
 
-        _ = VivoxManager.Instance.LeaveChannelAsync();
         await LobbyManager.Instance.LeaveLobby();
-        await Task.Delay(500); // Đợi NetworkManager Shutdown hoàn tất
 
-        if (roomInfoPanel != null) roomInfoPanel.SetActive(false);
-        
-        if (wasHost)
+        if (net != null)
         {
-            if (hostPanel != null) hostPanel.SetActive(true);
-            SetHostInteractable(true);
-            UpdateHostStatus("Phòng đã hủy. Chọn lại chế độ.");
-        }
-        else
-        {
-            if (clientPanel != null) clientPanel.SetActive(true);
-            SetClientInteractable(true);
-            UpdateClientStatus("Đã thoát phòng.");
-        }
-        
-        if (cancelRoomButton != null) cancelRoomButton.interactable = true;
-        UpdateStatus("Sẵn sàng!");
-    }
-
-    #endregion
-
-    #region === CLIENT: TÌM & JOIN LOBBY ===
-
-    /// <summary>
-    /// Refresh danh sách lobby public
-    /// </summary>
-    private async void OnRefreshLobbies()
-    {
-        UpdateClientStatus("Đang tìm phòng...");
-
-        var lobbies = await LobbyManager.Instance.FindPublicLobbies();
-        PopulateLobbyList(lobbies);
-
-        UpdateClientStatus(lobbies.Count > 0
-            ? $"Tìm thấy {lobbies.Count} phòng"
-            : "Không tìm thấy phòng nào");
-    }
-
-    /// <summary>
-    /// Hiển thị danh sách lobby
-    /// </summary>
-    private void PopulateLobbyList(List<Lobby> lobbies)
-    {
-        if (lobbyListContainer == null) return;
-
-        // Clear cũ
-        foreach (Transform child in lobbyListContainer)
-        {
-            Destroy(child.gameObject);
-        }
-
-        foreach (var lobby in lobbies)
-        {
-            if (lobbyItemPrefab == null) continue;
-
-            var item = Instantiate(lobbyItemPrefab, lobbyListContainer);
-            var text = item.GetComponentInChildren<TMP_Text>();
-            if (text != null)
+            // Chờ cho NetworkManager dọn dẹp hoàn toàn
+            while (net.ShutdownInProgress)
             {
-                text.text = $"{lobby.Name} ({lobby.Players.Count}/{lobby.MaxPlayers})";
-            }
-
-            var button = item.GetComponent<Button>();
-            if (button != null)
-            {
-                string lobbyId = lobby.Id;
-                button.onClick.AddListener(() => JoinPublicLobby(lobbyId));
+                await Task.Yield();
             }
         }
-    }
-
-    /// <summary>
-    /// Join lobby public bằng ID
-    /// </summary>
-    private async void JoinPublicLobby(string lobbyId)
-    {
-        try
-        {
-            UpdateClientStatus("Đang vào phòng...");
-            SetClientInteractable(false);
-
-            var lobby = await LobbyManager.Instance.JoinLobbyById(lobbyId);
-            await VivoxManager.Instance.JoinChannelAsync(lobby.Id);
-            await ConnectToRelay();
-        }
-        catch (Exception e)
-        {
-            UpdateClientStatus($"Lỗi: {e.Message}");
-            SetClientInteractable(true);
-            Debug.LogError($"[MultiplayerCenter] JoinPublicLobby error: {e}");
-        }
-    }
-
-    /// <summary>
-    /// Join lobby private bằng code
-    /// </summary>
-    private async void OnJoinByCodeClicked()
-    {
-        string code = joinCodeInput != null ? joinCodeInput.text : "";
-        // TextMeshPro đôi khi dính ký tự zero-width \u200B, hoặc lúc copy bị dính ký tự xuống dòng
-        code = code.Replace("\u200B", "").Replace("\r", "").Replace("\n", "").Trim().ToUpper();
-
-        if (string.IsNullOrEmpty(code))
-        {
-            UpdateClientStatus("Vui lòng nhập mã phòng!");
-            return;
-        }
-
-        try
-        {
-            UpdateClientStatus("Đang vào phòng...");
-            SetClientInteractable(false);
-
-            var lobby = await LobbyManager.Instance.JoinLobbyByCode(code);
-            await VivoxManager.Instance.JoinChannelAsync(lobby.Id);
-            await ConnectToRelay();
-        }
-        catch (Exception e)
-        {
-            UpdateClientStatus($"Sai mã hoặc phòng không tồn tại!");
-            SetClientInteractable(true);
-            Debug.LogError($"[MultiplayerCenter] JoinByCode error: {e}");
-        }
-    }
-
-    /// <summary>
-    /// Sau khi join lobby, lấy relay code và kết nối Netcode
-    /// </summary>
-    private async Task ConnectToRelay()
-    {
-        string relayCode = LobbyManager.Instance.GetRelayCodeFromLobby();
-
-        if (string.IsNullOrEmpty(relayCode))
-        {
-            UpdateClientStatus("Phòng chưa sẵn sàng, thử lại...");
-            SetClientInteractable(true);
-            await LobbyManager.Instance.LeaveLobby();
-            return;
-        }
-
-        // Join Relay
-        JoinAllocation joinAllocation = await RelayService.Instance.JoinAllocationAsync(relayCode);
-        RelayServerData relayServerData = new RelayServerData(joinAllocation, "dtls");
         
-        var netManager = NetworkManager.Singleton;
-        if (netManager == null)
-        {
-            netManager = FindAnyObjectByType<NetworkManager>();
-        }
-
-        var transport = netManager.GetComponent<UnityTransport>();
-        transport.SetRelayServerData(relayServerData);
-
-        // Không dùng ConnectionApproval của Netcode nữa.
-
-        if (netManager.StartClient())
-        {
-            UpdateClientStatus("Đang kết nối...");
-        }
-        else
-        {
-            UpdateClientStatus("Lỗi kết nối!");
-            SetClientInteractable(true);
-            await LobbyManager.Instance.LeaveLobby();
-        }
+        _isLeaving = false; 
     }
 
-    #endregion
-
-    #region === CONNECTION APPROVAL ===
-
-    /// <summary>
-    /// Kiểm duyệt kết nối — chặn khi đã vào Map
-    /// </summary>
-    private void ApprovalCheck(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
+    private void ApprovalCheck(NetworkManager.ConnectionApprovalRequest req, NetworkManager.ConnectionApprovalResponse res)
     {
-        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-
-        // Chỉ cho join khi ở Waiting hoặc StartGame
-        if (currentScene != "Waiting" && currentScene != "StartGame")
-        {
-            response.Approved = false;
-            response.Reason = "Game đã bắt đầu, không thể vào phòng!";
-            Debug.Log($"[MultiplayerCenter] Từ chối: Host đang ở {currentScene}");
-            return;
-        }
-
-        // Kiểm tra phòng đầy
-        if (NetworkManager.Singleton.ConnectedClientsIds.Count >= maxPlayers)
-        {
-            response.Approved = false;
-            response.Reason = "Phòng đã đầy!";
-            return;
-        }
-
-        response.Approved = true;
-        response.CreatePlayerObject = true;
+        string sc = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (sc != "StartGame" && sc != "Waiting") { res.Approved = false; res.Reason = "Game is running"; return; }
+        if (Net.ConnectedClientsIds.Count >= maxPlayers) { res.Approved = false; res.Reason = "Full"; return; }
+        res.Approved = true; res.CreatePlayerObject = true;
     }
 
-    #endregion
-
-    #region === CALLBACKS ===
-
-    private void OnClientConnected(ulong clientId)
+    private void OnClientConnected(ulong id)
     {
-        if (NetworkManager.Singleton.IsServer)
+        var net = Net;
+        if (net != null && net.IsServer)
         {
-            UpdateStatus($"Người chơi: {NetworkManager.Singleton.ConnectedClientsIds.Count}/{maxPlayers}");
-            UpdateRoomInfoPlayers();
+            if (roomPlayersText) roomPlayersText.text = $"Players: {net.ConnectedClientsIds.Count}/{maxPlayers}";
         }
         
-        if (clientId == NetworkManager.Singleton.LocalClientId)
+        if (net != null && id == net.LocalClientId && !net.IsServer)
         {
-            UpdateStatus("Đã kết nối!");
-            if (!NetworkManager.Singleton.IsServer && LobbyManager.Instance.CurrentLobby != null)
-            {
-                ShowRoomInfo(LobbyManager.Instance.CurrentLobby, LobbyManager.Instance.CurrentLobby.IsPrivate);
-            }
+            ShowRoomInfo(LobbyManager.Instance.CurrentLobby);
         }
     }
 
-    private void OnClientDisconnected(ulong clientId)
+    private async void OnClientDisconnected(ulong id)
     {
-        if (NetworkManager.Singleton.IsServer)
-        {
-            UpdateStatus($"Người chơi: {NetworkManager.Singleton.ConnectedClientsIds.Count}/{maxPlayers}");
-            UpdateRoomInfoPlayers();
-        }
-        else if (clientId == NetworkManager.Singleton.LocalClientId)
-        {
-            string reason = NetworkManager.Singleton.DisconnectReason;
-            if (string.IsNullOrEmpty(reason)) reason = "Mất kết nối";
-            UpdateClientStatus($"Ngắt kết nối: {reason}");
-            SetClientInteractable(true);
+        if (_isLeaving) return; // Nếu đang chủ động ngắt kết nối thì bỏ qua
 
-            if (roomInfoPanel != null && roomInfoPanel.activeSelf)
-            {
-                roomInfoPanel.SetActive(false);
-                if (clientPanel != null) clientPanel.SetActive(true);
-            }
+        var net = Net;
+        if (net != null && net.IsServer)
+        {
+            if (roomPlayersText) roomPlayersText.text = $"Players: {net.ConnectedClientsIds.Count}/{maxPlayers}";
+        }
+        else if (net == null || id == net.LocalClientId || id == 0)
+        {
+            // Bị văng khỏi server (Host đóng phòng hoặc rớt mạng)
+            await SafeCleanupAndLeave();
+            ShowPanel(lobbyListPanel);
+            UpdateStatus("Disconnected from server");
         }
     }
-
-    #endregion
-
-    #region === HELPERS ===
-
-    private void UpdateStatus(string msg)
-    {
-        if (statusText != null) statusText.text = msg;
-        Debug.Log($"[MultiplayerCenter] {msg}");
-    }
-
-    private void UpdateHostStatus(string msg)
-    {
-        if (hostStatusText != null) hostStatusText.text = msg;
-    }
-
-    private void UpdateClientStatus(string msg)
-    {
-        if (clientStatusText != null) clientStatusText.text = msg;
-    }
-
-    private void SetHostInteractable(bool interactable)
-    {
-        if (publicButton != null) publicButton.interactable = interactable;
-        if (privateButton != null) privateButton.interactable = interactable;
-        if (lobbyNameInput != null) lobbyNameInput.interactable = interactable;
-    }
-
-    private void SetClientInteractable(bool interactable)
-    {
-        if (joinByCodeButton != null) joinByCodeButton.interactable = interactable;
-        if (joinCodeInput != null) joinCodeInput.interactable = interactable;
-        if (refreshLobbiesButton != null) refreshLobbiesButton.interactable = interactable;
-    }
-
-    #endregion
-
-    #region === AUTO SETUP ===
 
     private void AutoAssignUI()
     {
-        Button[] btns = GetComponentsInChildren<Button>(true);
-        foreach (var b in btns)
+        GameObject canvasObj = GameObject.Find("Canvas");
+        Canvas canvas = canvasObj != null ? canvasObj.GetComponent<Canvas>() : FindAnyObjectByType<Canvas>();
+        if (!canvas) 
+        {
+            Debug.LogError("[MultiplayerCenter] Cảnh báo: Không tìm thấy Canvas gốc!");
+            return;
+        }
+
+        foreach (var p in canvas.GetComponentsInChildren<Transform>(true))
+        {
+            string n = p.name.ToLower();
+            if (n.Contains("mainmenu") && n.Contains("panel")) mainMenuPanel = p.gameObject;
+            if (n.Contains("lobbylist") && n.Contains("panel")) lobbyListPanel = p.gameObject;
+            if (n.Contains("createroom") && n.Contains("panel")) createRoomPanel = p.gameObject;
+            if (n.Contains("joinprivate") && n.Contains("panel")) joinPrivatePanel = p.gameObject;
+            if (n.Contains("roominfo") && n.Contains("panel")) roomInfoPanel = p.gameObject;
+            if (n.Contains("container")) lobbyListContainer = p;
+        }
+
+        foreach (var b in canvas.GetComponentsInChildren<Button>(true))
         {
             string n = b.name.ToLower();
-            if (hostButton == null && (n.Contains("host") && !n.Contains("public") && !n.Contains("private"))) hostButton = b;
-            if (clientButton == null && (n.Contains("client") || n.Contains("join") && !n.Contains("code"))) clientButton = b;
-            if (backButton == null && n.Contains("back")) backButton = b;
-            if (publicButton == null && n.Contains("public")) publicButton = b;
-            if (privateButton == null && n.Contains("private")) privateButton = b;
-            if (joinByCodeButton == null && n.Contains("join")) joinByCodeButton = b;
-            if (refreshLobbiesButton == null && n.Contains("refresh")) refreshLobbiesButton = b;
-            if (startWaitingButton == null && n.Contains("startwaiting")) startWaitingButton = b;
-            if (copyCodeButton == null && n.Contains("copycode")) copyCodeButton = b;
-            if (cancelRoomButton == null && n.Contains("cancelroom")) cancelRoomButton = b;
+            if (n == "playbutton") playButton = b;
+            if (n == "continuebutton") continueButton = b;
+            if (n == "instructbutton") instructButton = b;
+            if (n == "exitbutton") exitButton = b;
+
+            if (n == "createroombutton") openCreateRoomButton = b;
+            if (n == "refreshbutton") refreshLobbiesButton = b;
+            if (n == "backbutton") backToMenuButton = b;
+
+            if (n == "setpublicbutton") setPublicButton = b;
+            if (n == "setprivatebutton") setPrivateButton = b;
+            if (n == "confirmcreatebutton") confirmCreateRoomButton = b;
+            if (n == "cancelbutton") cancelCreateRoomButton = b;
+
+            if (n == "confirmjoinbutton") confirmJoinButton = b;
+            if (n == "canceljoinbutton") cancelJoinButton = b;
+
+            if (n == "startwaitingbutton") startWaitingButton = b;
+            if (n == "copycodebutton") copyCodeButton = b;
+            if (n == "cancelroombutton") cancelRoomButton = b;
         }
 
-        Transform[] transforms = GetComponentsInChildren<Transform>(true);
-        foreach (var t in transforms)
-        {
-            string n = t.name.ToLower();
-            if (hostPanel == null && n.Contains("host") && n.Contains("panel")) hostPanel = t.gameObject;
-            if (clientPanel == null && n.Contains("client") && n.Contains("panel")) clientPanel = t.gameObject;
-            if (roomInfoPanel == null && n.Contains("roominfo") && n.Contains("panel")) roomInfoPanel = t.gameObject;
-            if (lobbyListContainer == null && n.Contains("container")) lobbyListContainer = t;
-        }
-
-        TMPro.TMP_InputField[] inputs = GetComponentsInChildren<TMPro.TMP_InputField>(true);
-        foreach (var i in inputs)
+        foreach (var i in canvas.GetComponentsInChildren<TMP_InputField>(true))
         {
             string n = i.name.ToLower();
-            if (lobbyNameInput == null && n.Contains("name")) lobbyNameInput = i;
-            if (joinCodeInput == null && n.Contains("code")) joinCodeInput = i;
+            if (n == "roomnameinput") roomNameInput = i;
+            if (n == "editroomnameinput") editRoomNameInput = i;
+            if (n == "joincodeinput") joinCodeInput = i;
         }
 
-        TMPro.TextMeshProUGUI[] texts = GetComponentsInChildren<TMPro.TextMeshProUGUI>(true);
-        foreach (var txt in texts)
+        foreach (var t in canvas.GetComponentsInChildren<TextMeshProUGUI>(true))
         {
-            string n = txt.name.ToLower();
-            if (statusText == null && n == "status") statusText = txt;
-            if (hostStatusText == null && n.Contains("host") && n.Contains("status")) hostStatusText = txt;
-            if (clientStatusText == null && n.Contains("client") && n.Contains("status")) clientStatusText = txt;
-            if (roomNameText == null && n.Contains("roomname")) roomNameText = txt;
-            if (roomCodeText == null && n.Contains("roomcode")) roomCodeText = txt;
-            if (roomTypeText == null && n.Contains("roomtype")) roomTypeText = txt;
-            if (roomPlayersText == null && n.Contains("roomplayers")) roomPlayersText = txt;
+            string n = t.name.ToLower();
+            if (n == "status") statusText = t;
+            if (n == "roomtypetext") roomTypeText = t;
+            if (n == "roomcodetext") roomCodeText = t;
+            if (n == "roomplayerstext") roomPlayersText = t;
         }
     }
-
-    #endregion
 }

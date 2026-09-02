@@ -23,6 +23,8 @@ public class EscapeRandomizer : MonoBehaviour
 
     System.Collections.IEnumerator Start()
     {
+        if (Unity.Netcode.NetworkManager.Singleton != null && !Unity.Netcode.NetworkManager.Singleton.IsServer) yield break;
+
         while (PlayerInventory.GlobalMatchSeed == 0) yield return null;
         _rng = new System.Random(PlayerInventory.GlobalMatchSeed + 1337);
 

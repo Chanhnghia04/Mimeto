@@ -111,17 +111,15 @@ public class BlackjackStation : MonoBehaviour, IInteractable
     void HandleHit(int card) {
         if (state != GameState.WaitingForServer) return;
         playerHand.Add(IntToCard(card));
-        int score = GetScore(playerHand);
         
-        if (score > 21) {
-            statusMessage = "BUST  —  Over 21";
-            EndGameCheck();
-        } else if (playerHand.Count >= 5) {
-            statusMessage = "❇  NGŨ LINH  —  Five Card Charlie!  ❇";
+        int pScore = GetScore(playerHand);
+        if (pScore > 21 || (playerHand.Count >= 5 && pScore <= 21)) {
+            if (pScore > 21) statusMessage = "BUST  —  Over 21";
+            else statusMessage = "❇  NGŨ LINH  —  Five Card Charlie!  ❇";
             EndGameCheck();
         } else {
             state = GameState.PlayerTurn;
-            statusMessage = $"Card dealt  ({score} pts)  —  HIT or STAND?";
+            statusMessage = $"Card dealt  ({pScore} pts)  —  HIT or STAND?";
         }
     }
     

@@ -29,7 +29,8 @@ public class ExilerAI : NetworkBehaviour
     public float hearRadius = 50f;
     [Tooltip("Player ngá»“i (crouch) di chuyá»ƒn cÃ³ bá»‹ phÃ¡t hiá»‡n khÃ´ng?")]
     public bool crouchDetectable = false;
-    public LayerMask obstacleMask;
+    [Tooltip("Layer chứa Player — đặt đúng layer để tối ưu hiệu năng OverlapSphere")]
+    public LayerMask playerLayer = ~0;
 
     [Header("References")]
     public NavMeshAgent agent;
@@ -51,6 +52,7 @@ public class ExilerAI : NetworkBehaviour
     private readonly int hashAlert = Animator.StringToHash("Alert");
     private float pathUpdateTimer = 0f;
     private MonsterAudioEmitter _audioEmitter;
+    private float stuckTimer = 0f;
 
     void Start()
     {
@@ -58,11 +60,21 @@ public class ExilerAI : NetworkBehaviour
         if (animator == null) animator = GetComponentInChildren<Animator>();
         _audioEmitter = GetComponent<MonsterAudioEmitter>();
         
+        // FIX: Chống giật khi va BoxCollider
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb == null) rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.interpolation = RigidbodyInterpolation.None;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+        
+        if (agent != null && agent.enabled)
+        {
+            agent.autoBraking = false;
+            agent.speed = patrolSpeed;
+        }
+        
         if (IsServer) currentHealth.Value = maxHealth;
         currentState = ExilerState.Patrol;
-        agent.speed = patrolSpeed;
-
-        if (obstacleMask == 0) obstacleMask = LayerMask.GetMask("Default", "Environment", "Wall", "Player");
     }
 
     public override void OnNetworkSpawn()
@@ -143,6 +155,8 @@ public class ExilerAI : NetworkBehaviour
 
             case ExilerState.Chase:
                 ChaseLogic();
+                senseTimer -= Time.deltaTime;
+                if (senseTimer <= 0f) { senseTimer = 0.5f; SensePlayer(); }
                 break;
 
             case ExilerState.Attack:
@@ -153,7 +167,8 @@ public class ExilerAI : NetworkBehaviour
 
     private void PatrolLogic()
     {
-        agent.isStopped = false; // Äáº£m báº£o quÃ¡i Ä‘Æ°á»£c phÃ©p di chuyá»ƒn
+        agent.stoppingDistance = 0f;
+        agent.isStopped = false; // Ä Ä‘áº£m báº£o quÃ¡i Ä‘Æ°á»£c phÃ©p di chuyá»ƒn
         agent.speed = patrolSpeed;
 
         patrolTimer -= Time.deltaTime;
@@ -210,9 +225,12 @@ public class ExilerAI : NetworkBehaviour
 
     private void SensePlayer()
     {
-        // === EXILER Bá»Š MÃ™ â€” CHá»ˆ PHÃ T HIá»†N Báº°NG Ã‚M THANH ===
-        Collider[] hits = Physics.OverlapSphere(transform.position, hearRadius);
+        // === EXILER BỊ MÙ – CHỈ PHÁT HIỆN BẰNG ÂM THANH ===
+        Collider[] hits = Physics.OverlapSphere(transform.position, hearRadius, playerLayer);
         
+        Transform bestTarget = null;
+        float closestDist = float.MaxValue;
+
         foreach (var hit in hits)
         {
             if (!hit.CompareTag("Player")) continue;
@@ -227,56 +245,59 @@ public class ExilerAI : NetworkBehaviour
             float distanceToPlayer = Vector3.Distance(transform.position, hit.transform.position);
             if (distanceToPlayer > hearRadius) continue;
 
-            // --- TÃ­nh toÃ¡n má»©c Ä‘á»™ tiáº¿ng á»“n ---
+            // --- Tính toán mức độ tiếng ồn ---
             bool isPlayerMakingNoise = false;
 
             if (RandomEventManager.IsBloodMoonActive)
             {
-                // TrÄƒng mÃ¡u: XuyÃªn tÆ°á»ng, tháº¥y háº¿t má»i thá»© dÃ¹ ngá»“i im hay trá»‘n
                 isPlayerMakingNoise = true;
             }
             else if (pc.netIsCrouching.Value)
             {
-                // Ngá»“i di chuyá»ƒn = gáº§n nhÆ° im láº·ng
                 isPlayerMakingNoise = crouchDetectable && pc.netIsMoving.Value;
             }
             else if (pc.netIsMoving.Value || pc.netIsSprinting.Value)
             {
-                // Äi bá»™ hoáº·c cháº¡y bÃ¬nh thÆ°á»ng = táº¡o tiáº¿ng á»“n
                 isPlayerMakingNoise = true;
             }
 
-            // Tim Ä‘áº­p nhanh, mÃ¡u tháº¥p, hoáº·c quÃ¡ gáº§n (< 4m) Ä‘á»u bá»‹ Exiler phÃ¡t hiá»‡n
-            if (survival.currentHealth < survival.maxHealth * 0.5f || survival.netCurrentBPM.Value > 90f || distanceToPlayer < 4f)
+            // Máu thấp, hoặc quá gần (< 4m) đều bị Exiler phát hiện
+            if (survival.currentHealth < survival.maxHealth * 0.5f || distanceToPlayer < 4f)
             {
                 isPlayerMakingNoise = true;
             }
 
-            if (isPlayerMakingNoise)
+            if (isPlayerMakingNoise && distanceToPlayer < closestDist)
             {
-                targetPlayer = hit.transform;
-                lastKnownPosition = targetPlayer.position;
+                closestDist = distanceToPlayer;
+                bestTarget = hit.transform;
+            }
+        }
 
-                if (currentState == ExilerState.Patrol || currentState == ExilerState.Investigate)
+        if (bestTarget != null)
+        {
+            targetPlayer = bestTarget;
+            lastKnownPosition = targetPlayer.position;
+
+            if (currentState == ExilerState.Patrol || currentState == ExilerState.Investigate)
+            {
+                if (RandomEventManager.IsBloodMoonActive)
                 {
-                    if (RandomEventManager.IsBloodMoonActive)
-                    {
-                        currentState = ExilerState.Alert;
-                        agent.isStopped = true;
-                        agent.velocity = Vector3.zero;
-                        TriggerAnimClientRpc(hashAlert);
-                        alertTimer = 1.5f; 
-                    }
-                    else
-                    {
-                        currentState = ExilerState.Chase;
-                        investigateTimer = 12f; // Khá»Ÿi táº¡o bá»™ nhá»› 12s
-                        agent.isStopped = false;
-                        agent.speed = chaseSpeed;
-                    }
+                    currentState = ExilerState.Alert;
+                    agent.isStopped = true;
+                    agent.velocity = Vector3.zero;
+                    TriggerAnimClientRpc(hashAlert);
+                    alertTimer = 1.5f; 
                 }
-                break; 
+                else
+                {
+                    currentState = ExilerState.Chase;
+                    investigateTimer = 12f;
+                    agent.isStopped = false;
+                    agent.speed = chaseSpeed;
+                }
             }
+            // Chase state: chỉ cập nhật target gần hơn, không đổi state
         }
     }
 
@@ -333,7 +354,7 @@ public class ExilerAI : NetworkBehaviour
         }
         
         float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
-        if (survival.currentHealth < survival.maxHealth * 0.5f || survival.netCurrentBPM.Value > 90f || distanceToPlayer < 4f)
+        if (survival.currentHealth < survival.maxHealth * 0.5f || distanceToPlayer < 4f)
             isMakingNoise = true;
             
         if (!isMakingNoise)
@@ -348,14 +369,14 @@ public class ExilerAI : NetworkBehaviour
         }
         else
         {
-            investigateTimer = 12f; // Äáº·t bá»™ nhá»› 12s má»—i khi nghe tháº¥y tiáº¿ng!
+            investigateTimer = 12f; // Ä áº·t bá»™ nhá»› 12s má»—i khi nghe tháº¥y tiáº¿ng!
         }
 
         lastKnownPosition = targetPlayer.position;
         agent.isStopped = false;
+        agent.stoppingDistance = attackRange * 0.8f;
         
-        // KÃ­ch hoáº¡t cuá»“ng ná»™ (Frenzy) náº¿u quÃ¡i máº¥t ná»­a mÃ¡u hoáº·c TrÄƒng MÃ¡u
-        bool isFrenzied = currentHealth.Value <= maxHealth * 0.5f || RandomEventManager.IsBloodMoonActive;
+        bool isFrenzied = currentHealth.Value <= maxHealth * 0.5f;
         agent.speed = isFrenzied ? chaseSpeed * 1.3f : chaseSpeed;
         
         pathUpdateTimer -= Time.deltaTime;
@@ -369,13 +390,39 @@ public class ExilerAI : NetworkBehaviour
         Vector3 flatTargetChase = new Vector3(targetPlayer.position.x, 0, targetPlayer.position.z);
         float distance = Vector3.Distance(flatPosChase, flatTargetChase);
         
+        // FIX: Stuck detection — nếu bị kẹt collider quá 1.5s → mất dấu
+        if (distance > attackRange)
+        {
+            bool isStuck = agent.velocity.sqrMagnitude < 0.25f && !agent.pathPending;
+            bool pathBlocked = agent.pathStatus == NavMeshPathStatus.PathPartial 
+                               && agent.remainingDistance < 1f;
+            
+            if (isStuck || pathBlocked)
+            {
+                stuckTimer += Time.deltaTime;
+                if (stuckTimer >= 1.5f)
+                {
+                    stuckTimer = 0f;
+                    LoseTarget();
+                    return;
+                }
+            }
+            else
+            {
+                stuckTimer = 0f;
+            }
+        }
+        else
+        {
+            stuckTimer = 0f;
+        }
+        
         if (distance <= attackRange)
         {
             currentState = ExilerState.Attack;
         }
         else if (distance > hearRadius * 1.2f) 
         {
-            // QuÃ¡ xa táº§m nghe â†’ máº¥t má»¥c tiÃªu
             LoseTarget();
         }
     }
@@ -400,7 +447,7 @@ public class ExilerAI : NetworkBehaviour
     {
         if (targetPlayer == null)
         {
-            currentState = ExilerState.Chase;
+            LoseTarget();
             return;
         }
 
@@ -453,7 +500,7 @@ public class ExilerAI : NetworkBehaviour
         {
             Vector3 flatPos = new Vector3(transform.position.x, 0, transform.position.z);
             Vector3 flatTarget = new Vector3(targetPlayer.position.x, 0, targetPlayer.position.z);
-            if (Vector3.Distance(flatPos, flatTarget) <= attackRange + 0.5f)
+            if (Vector3.Distance(flatPos, flatTarget) <= attackRange + 1.5f) // FIX: TÄƒng leniency Ä‘á»ƒ khÃ´ng báị miss khi player ngá»“i hoáº·c quÃ¡i bá»‹ Ä‘áº©y ra
             {
                 PlayerSurvival survival = targetPlayer.GetComponent<PlayerSurvival>();
                 if (survival != null && survival.currentHealth > 0)
@@ -475,8 +522,14 @@ public class ExilerAI : NetworkBehaviour
             if (IsServer)
             {
                 currentSpeed = (agent != null && agent.enabled && agent.isOnNavMesh) ? agent.velocity.magnitude : 0f;
-                _netSpeed.Value = currentSpeed;
-                _netState.Value = (int)currentState;
+                if (Mathf.Abs(currentSpeed - _netSpeed.Value) > 0.1f)
+                {
+                    _netSpeed.Value = currentSpeed;
+                }
+                if (_netState.Value != (int)currentState)
+                {
+                    _netState.Value = (int)currentState;
+                }
             }
             else
             {
@@ -518,19 +571,30 @@ public class ExilerAI : NetworkBehaviour
         if (currentState == ExilerState.Patrol || currentState == ExilerState.Idle || currentState == ExilerState.Investigate)
         {
             // Quay máº·t vá» hÆ°á»›ng bá»‹ báº¯n báº±ng cÃ¡ch tÃ¬m ngÆ°á»i chÆ¡i gáº§n nháº¥t
-            Collider[] hits = Physics.OverlapSphere(transform.position, hearRadius);
+            Collider[] hits = Physics.OverlapSphere(transform.position, hearRadius, playerLayer);
+            float closestDist = float.MaxValue;
+            Transform closestPlayer = null;
             foreach (var hit in hits)
             {
                 if (hit.CompareTag("Player"))
                 {
-                    targetPlayer = hit.transform;
-                    lastKnownPosition = targetPlayer.position;
-                    break;
+                    float d = Vector3.Distance(transform.position, hit.transform.position);
+                    if (d < closestDist)
+                    {
+                        closestDist = d;
+                        closestPlayer = hit.transform;
+                    }
                 }
+            }
+            if (closestPlayer != null)
+            {
+                targetPlayer = closestPlayer;
+                lastKnownPosition = targetPlayer.position;
             }
 
             if (targetPlayer == null)
             {
+                lastKnownPosition = transform.position; // FIX: TrÃ¡nh cháº¡y vá»  0,0,0 khi bá»‹ báº¯n lÃ©n mÃ  khÃ´ng tháº¥y ai
                 currentState = ExilerState.Alert;
                 agent.isStopped = true;
                 agent.velocity = Vector3.zero;

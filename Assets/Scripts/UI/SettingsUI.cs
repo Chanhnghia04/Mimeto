@@ -105,6 +105,13 @@ public class SettingsUI : MonoBehaviour
     public void CloseSettings()
     {
         settingsPanel.SetActive(false);
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "StartGame")
+        {
+            if (PauseMenuUI.Instance != null && !PauseMenuUI.Instance.IsOpen)
+            {
+                PauseMenuUI.Instance.OpenMenu();
+            }
+        }
     }
 
     public bool IsOpen => settingsPanel != null && settingsPanel.activeSelf;
@@ -126,7 +133,15 @@ public class SettingsUI : MonoBehaviour
         {
             string hostType = NetworkManager.Singleton.IsServer ? "Host" : "Client";
             roomNameText.text = $"Room: [Network Active] - You are {hostType}";
-            playerCountText.text = $"Players: {NetworkManager.Singleton.ConnectedClientsIds.Count} / 4";
+            
+            if (NetworkManager.Singleton.IsServer)
+            {
+                playerCountText.text = $"Players: {NetworkManager.Singleton.ConnectedClientsIds.Count} / 4";
+            }
+            else
+            {
+                playerCountText.text = "Players: Connected";
+            }
             
             // Unity NGO doesn't have built-in ping without Unity Transport modifications, so we use a placeholder or check RTT
             pingText.text = "Ping: <color=green>Good</color>"; 

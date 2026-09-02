@@ -11,7 +11,7 @@ using System.Collections;
 ///   3. Gắn script này vào. Tuỳ chọn: kéo Light, AudioSource vào.
 ///   4. EscapeManager sẽ tự bật nếu màn này chọn Beacon.
 /// </summary>
-public class EscapeBeacon : Unity.Netcode.NetworkBehaviour, IInteractable
+public class EscapeBeacon : MonoBehaviour, IInteractable
 {
     [Header("Chi phí xây dựng")]
     public int requiredCircuits  = 2;
@@ -29,11 +29,12 @@ public class EscapeBeacon : Unity.Netcode.NetworkBehaviour, IInteractable
     public AudioSource audioSource;
     public AudioClip   buildClip;
     public AudioClip   rescueClip;
+    public AudioClip   pingClip;
 
     // ── State ─────────────────────────────────────────────────────────────────
     private bool  _isBuilt    = false;
     private bool  _isDone     = false;
-    public Unity.Netcode.NetworkVariable<float> _remaining = new Unity.Netcode.NetworkVariable<float>(0f);
+    public float _remaining = 0f;
 
     // OnGUI message
     private string _msg      = "";
@@ -51,7 +52,7 @@ public class EscapeBeacon : Unity.Netcode.NetworkBehaviour, IInteractable
 
     void Start()
     {
-        if (IsServer) _remaining.Value = countdownSeconds;
+        _remaining = countdownSeconds;
 
         // Tìm đèn trong con trước khi tạo mới
         if (beaconLight == null)
@@ -89,7 +90,7 @@ public class EscapeBeacon : Unity.Netcode.NetworkBehaviour, IInteractable
         if (!_isBuilt || _isDone) return;
 
         // Nhấp nháy đèn xanh
-        float pulse = Mathf.Sin(Time.time * (2f + _remaining.Value < 30f ? 6f : 2f)) * 0.5f + 1f;
+        float pulse = Mathf.Sin(Time.time * (2f + _remaining < 30f ? 6f : 2f)) * 0.5f + 1f;
         if (beaconLight != null)
         {
             beaconLight.color     = activeColor;
@@ -97,10 +98,10 @@ public class EscapeBeacon : Unity.Netcode.NetworkBehaviour, IInteractable
         }
 
         // Đếm ngược
-        if (IsServer) _remaining.Value -= Time.deltaTime;
-        float progress = 1f - (_remaining.Value / countdownSeconds);
+        _remaining -= Time.deltaTime;
+        float progress = 1f - (_remaining / countdownSeconds);
         EscapeManager.Instance?.ReportProgress(
-            $"Sống sót thêm: {FormatTime(Mathf.Max(0, _remaining.Value))}  ←  Đội cứu hộ đang đến",
+            $"Sống sót thêm: {FormatTime(Mathf.Max(0, _remaining))}  ←  Đội cứu hộ đang đến",
             progress);
 
         // Báo động thu hút Mimic mỗi 5 giây
@@ -112,7 +113,7 @@ public class EscapeBeacon : Unity.Netcode.NetworkBehaviour, IInteractable
             // Phát âm thanh ping
             if (audioSource != null)
             {
-                AudioClip pingClip = Resources.Load<AudioClip>("Audio/ping");
+                if (pingClip == null) pingClip = Resources.Load<AudioClip>("SFX/Click");
                 if (pingClip != null) audioSource.PlayOneShot(pingClip);
             }
 
@@ -123,7 +124,7 @@ public class EscapeBeacon : Unity.Netcode.NetworkBehaviour, IInteractable
             foreach (var m in mutants) m.ForceInvestigate(transform.position);
         }
 
-        if (_remaining.Value <= 0f) StartCoroutine(RescueArrived());
+        if (_remaining <= 0f) StartCoroutine(RescueArrived());
     }
 
     // ── IInteractable ─────────────────────────────────────────────────────────
@@ -285,7 +286,7 @@ public class EscapeBeacon : Unity.Netcode.NetworkBehaviour, IInteractable
         s.fontStyle = FontStyle.Bold;
         s.alignment = TextAnchor.MiddleCenter;
 
-        string alarmText = $"BẦY QUÁI VẬT ĐANG TỚI\nCỨU HỘ ĐẾN SAU: {FormatTime(Mathf.Max(0, _remaining.Value))}";
+        string alarmText = $"BẦY QUÁI VẬT ĐANG TỚI\nCỨU HỘ ĐẾN SAU: {FormatTime(Mathf.Max(0, _remaining))}";
 
         // Đổ bóng chữ đen
         s.normal.textColor = Color.black;
@@ -366,7 +367,7 @@ public class EscapeBeacon : Unity.Netcode.NetworkBehaviour, IInteractable
         Gizmos.color = _isBuilt ? new Color(0.1f, 0.8f, 1f, 0.6f) : new Color(0.5f, 0.5f, 0.5f, 0.4f);
         Gizmos.DrawWireCube(transform.position + Vector3.up, new Vector3(0.7f, 2f, 0.7f));
         UnityEditor.Handles.Label(transform.position + Vector3.up * 2.5f,
-            _isBuilt ? $"[BEACON ON]  {FormatTime(_remaining.Value)}" : $"[BEACON OFF]  {requiredCircuits}x Circuit + {requiredBatteries}x Battery");
+            _isBuilt ? $"[BEACON ON]  {FormatTime(_remaining)}" : $"[BEACON OFF]  {requiredCircuits}x Circuit + {requiredBatteries}x Battery");
     }
 #endif
 }
