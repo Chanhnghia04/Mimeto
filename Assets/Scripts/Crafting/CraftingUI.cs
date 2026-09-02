@@ -78,7 +78,11 @@ public class CraftingUI : MonoBehaviour
         else
             _cancelAction = UnityEngine.InputSystem.InputSystem.actions.FindAction("Cancel");
 
-        _playerController = Object.FindAnyObjectByType<PlayerController>();
+        if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.LocalClient != null && Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject != null)
+            _playerController = Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<PlayerController>();
+        else
+            _playerController = Object.FindAnyObjectByType<PlayerController>();
+
         if (_playerController != null)
             _playerAnimator = _playerController.GetComponentInChildren<Animator>();
 

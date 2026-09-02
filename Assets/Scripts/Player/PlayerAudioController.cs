@@ -64,6 +64,9 @@ public class PlayerAudioController : MonoBehaviour
 
     private void PlayFootstep()
     {
+        // Khi đang ngồi (crouching) thì sẽ không phát tiếng bước chân
+        if (_playerController != null && _playerController.isCrouching) return;
+
         AudioClip clip = GetSurfaceClip();
         if (clip != null)
         {

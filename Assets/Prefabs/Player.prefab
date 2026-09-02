@@ -76,9 +76,9 @@ Light:
   m_Type: 0
   m_Color: {r: 0.95, g: 0.98, b: 1, a: 1}
   m_Intensity: 4
-  m_Range: 8
-  m_SpotAngle: 65
-  m_InnerSpotAngle: 35
+  m_Range: 15
+  m_SpotAngle: 85
+  m_InnerSpotAngle: 50
   m_CookieSize2D: {x: 0.5, y: 0.5}
   m_Shadows:
     m_Type: 0
@@ -182,6 +182,8 @@ GameObject:
   - component: {fileID: -4097166130733289245}
   - component: {fileID: -3784368437777255836}
   - component: {fileID: 4342159897611725707}
+  - component: {fileID: -8209674692687191047}
+  - component: {fileID: 2384445755150339027}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -266,7 +268,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 4001900879
+  GlobalObjectIdHash: 379144309
   InScenePlacedSourceGlobalObjectIdHash: 4001900879
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
@@ -321,8 +323,8 @@ MonoBehaviour:
     m_InternalValue: 0
   netIsCrouching:
     m_InternalValue: 0
-  footstepSource: {fileID: 0}
-  pickupClip: {fileID: 8300000, guid: 41951b8ff56bb8441b563585b5c99db5, type: 3}
+  footstepSource: {fileID: -8209674692687191047}
+  pickupClip: {fileID: 8300000, guid: 93aab9134b7c3ef4f9b759ad7cef49ac, type: 3}
   pickupVolume: 1.2
   bobSpeed: 10
   bobAmount: 0.05
@@ -390,8 +392,6 @@ MonoBehaviour:
   netHealth:
     m_InternalValue: 0
   toxicDamagePerSecond: 5
-  netCurrentBPM:
-    m_InternalValue: 60
   isGhost:
     m_InternalValue: 0
   spawnPoint: {fileID: 0}
@@ -419,10 +419,8 @@ MonoBehaviour:
   headTransform: {fileID: 0}
   breathingSource: {fileID: 0}
   sfxSource: {fileID: 0}
-  heartbeatSource: {fileID: 0}
-  heavyBreathingClip: {fileID: 8300000, guid: df69befefb6c37a43b2c57aabff89fdf, type: 3}
-  damageHitClip: {fileID: 8300000, guid: 2a3795365dbc0844982e35f142f8c8ec, type: 3}
-  heartbeatClip: {fileID: 8300000, guid: c9bbdded5fae49844b1f26a2f68624b8, type: 3}
+  heavyBreathingClip: {fileID: 8300000, guid: c36fd782cd72aba48a9000d59061683e, type: 3}
+  damageHitClip: {fileID: 8300000, guid: a7d06384b49ee384fa10daf1a06e9155, type: 3}
   lowOxygenThreshold: 30
 --- !u!114 &5352208273475910885
 MonoBehaviour:
@@ -708,6 +706,128 @@ MonoBehaviour:
     TriggerNameHash: -2101492
     TransitionIndex: 1
   m_Animator: {fileID: 5072377951627017906}
+--- !u!82 &-8209674692687191047
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1863494784221845881}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 8300000, guid: 4a2e71bcf70cb2241b36386e58f5547e, type: 3}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &2384445755150339027
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1863494784221845881}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbd78463fffcc2f4d82cf40794966daf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAudioController
+  footstepSource: {fileID: -8209674692687191047}
+  baseStepInterval: 0.5
+  sprintStepMultiplier: 0.6
+  dirtSteps:
+  - {fileID: 8300000, guid: ae906bad2c506424587f80fce5983abc, type: 3}
+  woodSteps:
+  - {fileID: 8300000, guid: 1d93f7c13e9c4f342a64a05c896e449e, type: 3}
+  metalSteps:
+  - {fileID: 8300000, guid: 1a9ce9baead23954c82a9897926c4027, type: 3}
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  rayDistance: 1.5
 --- !u!1 &4181633472087541533
 GameObject:
   m_ObjectHideFlags: 0

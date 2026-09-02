@@ -539,6 +539,8 @@ public class PlayerInventory : NetworkBehaviour
             {
                 // Tắt ngay lập tức để chặn các RPC nhặt đồ khác trong cùng một frame
                 
+                scrap.gameObject.SetActive(false);
+                
                 NetworkObject no = scrap.GetComponent<NetworkObject>();
                 if (no != null && no.IsSpawned) no.Despawn();
                 else Destroy(scrap.gameObject);
@@ -791,28 +793,37 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RequestSellScrapServerRpc(int c, int mp, int ip, int ch, int pl, int bat, ServerRpcParams rpcParams = default)
     {
-        int totalValue = 0;
-        totalValue += c * ShopData.CircuitSellPrice;
-        totalValue += mp * ShopData.MetalPipeSellPrice;
-        totalValue += ip * ShopData.IronPlateSellPrice;
-        totalValue += ch * ShopData.ChemicalSellPrice;
-        totalValue += pl * ShopData.PlasticPipeSellPrice;
-        totalValue += bat * ShopData.BatterySellPrice;
-
         var clientId = rpcParams.Receive.SenderClientId;
         var clientInv = NetworkManager.Singleton.SpawnManager.GetPlayerNetworkObject(clientId)?.GetComponent<PlayerInventory>();
         if (clientInv != null)
         {
-            clientInv.circuits = 0;
-            clientInv.metalPipes = 0;
-            clientInv.ironPlates = 0;
-            clientInv.chemicals = 0;
-            clientInv.plasticPipes = 0;
-            clientInv.scrapBatteries = 0;
-        }
+            c = Mathf.Clamp(c, 0, clientInv.circuits);
+            mp = Mathf.Clamp(mp, 0, clientInv.metalPipes);
+            ip = Mathf.Clamp(ip, 0, clientInv.ironPlates);
+            ch = Mathf.Clamp(ch, 0, clientInv.chemicals);
+            pl = Mathf.Clamp(pl, 0, clientInv.plasticPipes);
+            bat = Mathf.Clamp(bat, 0, clientInv.scrapBatteries);
 
-        AddCreditsServerInternal(totalValue);
-        SellScrapResultClientRpc(totalValue, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
+            int totalValue = 0;
+            totalValue += c * ShopData.CircuitSellPrice;
+            totalValue += mp * ShopData.MetalPipeSellPrice;
+            totalValue += ip * ShopData.IronPlateSellPrice;
+            totalValue += ch * ShopData.ChemicalSellPrice;
+            totalValue += pl * ShopData.PlasticPipeSellPrice;
+            totalValue += bat * ShopData.BatterySellPrice;
+
+            clientInv.circuits -= c;
+            clientInv.metalPipes -= mp;
+            clientInv.ironPlates -= ip;
+            clientInv.chemicals -= ch;
+            clientInv.plasticPipes -= pl;
+            clientInv.scrapBatteries -= bat;
+            
+            clientInv.SaveData();
+
+            AddCreditsServerInternal(totalValue);
+            SellScrapResultClientRpc(totalValue, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } });
+        }
     }
 
     [ClientRpc]
@@ -828,6 +839,8 @@ public class PlayerInventory : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void AddCreditsServerRpc(int amount, ServerRpcParams rpcParams = default)
     {
+        if (rpcParams.Receive.SenderClientId != OwnerClientId) return;
+
         // Khi client bán đồ, gọi hàm này để thêm tiền (amount > 0)
         // Nếu client muốn trừ tiền, ta chặn lại để tránh hack
         if (amount < 0) 
@@ -1025,12 +1038,13 @@ public class PlayerInventory : NetworkBehaviour
         if (itemId == "bag_10_slots" && maxSlots < 10) maxSlots = 10;
         else if (itemId == "bag_15_slots" && maxSlots < 15) maxSlots = 15;
 
-        BuyItemResultClientRpc(stationNetworkObjectId, itemId, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
+        BuyItemResultClientRpc(stationNetworkObjectId, itemId, maxSlots, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
     }
     
     [ClientRpc]
-    public void BuyItemResultClientRpc(ulong stationNetworkObjectId, string itemId, ClientRpcParams rpcParams = default)
+    public void BuyItemResultClientRpc(ulong stationNetworkObjectId, string itemId, int newMaxSlots, ClientRpcParams rpcParams = default)
     {
+        maxSlots = newMaxSlots;
         OnShopBuyResult?.Invoke(stationNetworkObjectId, itemId);
     }
 

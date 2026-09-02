@@ -33,6 +33,13 @@ namespace Mimeto.Audio
         private Coroutine fadeCoroutine;
         private Coroutine randomSoundCoroutine;
         private bool isPlayerInZone = false;
+        private Transform activePlayerTransform;
+
+        private void OnDisable()
+        {
+            isPlayerInZone = false;
+            activePlayerTransform = null;
+        }
 
         private void Awake()
         {
@@ -66,6 +73,7 @@ namespace Mimeto.Audio
                 if (netObj != null && netObj.IsOwner)
                 {
                     isPlayerInZone = true;
+                    activePlayerTransform = other.transform;
 
                     // Handle Ambient Sound Fade In
                     if (ambientSource != null)
@@ -145,8 +153,20 @@ namespace Mimeto.Audio
         {
             while (isPlayerInZone)
             {
+                if (activePlayerTransform == null)
+                {
+                    isPlayerInZone = false;
+                    break;
+                }
+
                 float waitTime = Random.Range(minInterval, maxInterval);
                 yield return new WaitForSeconds(waitTime);
+
+                if (activePlayerTransform == null)
+                {
+                    isPlayerInZone = false;
+                    break;
+                }
 
                 if (isPlayerInZone && randomClips.Length > 0)
                 {

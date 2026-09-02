@@ -47,15 +47,12 @@ public class ChestSpawner : MonoBehaviour
 
     System.Collections.IEnumerator WaitAndSpawn()
     {
-        float timeout = 10f;
-        float elapsed = 0f;
-        while (PlayerInventory.GlobalMatchSeed == 0 && elapsed < timeout)
+        while (PlayerInventory.GlobalMatchSeed == 0)
         {
-            elapsed += Time.deltaTime;
             yield return null;
         }
         
-        int seed = PlayerInventory.GlobalMatchSeed != 0 ? PlayerInventory.GlobalMatchSeed : UnityEngine.Random.Range(1, int.MaxValue);
+        int seed = PlayerInventory.GlobalMatchSeed;
         _rng = new System.Random(seed + 4001);
 
         // Lấy toàn bộ điểm trên NavMesh từ triangulation

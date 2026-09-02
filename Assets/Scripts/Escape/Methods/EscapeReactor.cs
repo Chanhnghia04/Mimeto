@@ -30,6 +30,8 @@ public class EscapeReactor : MonoBehaviour, IInteractable
     [Header("Audio")]
     public AudioSource audioSource;
     public AudioClip   shutdownClip;
+    public AudioClip   alarmClip;
+    public AudioClip   explosionClip;
 
     // ── State ─────────────────────────────────────────────────────────────────
     private bool  _isShutdown = false;
@@ -141,7 +143,7 @@ public class EscapeReactor : MonoBehaviour, IInteractable
         if (audioSource != null && shutdownClip != null)
             audioSource.PlayOneShot(shutdownClip);
 
-        AudioClip alarmClip = Resources.Load<AudioClip>("Audio/alarm");
+        if (alarmClip == null) alarmClip = Resources.Load<AudioClip>("Audio/alarm");
         float nextBeep = _meltdownTimer;
         
         // Chờ đếm ngược
@@ -156,7 +158,7 @@ public class EscapeReactor : MonoBehaviour, IInteractable
         }
 
         // --- BÙM! PHÁT NỔ ---
-        AudioClip explosionClip = Resources.Load<AudioClip>("Audio/explosion");
+        if (explosionClip == null) explosionClip = Resources.Load<AudioClip>("Audio/explosion");
         if (audioSource != null && explosionClip != null) audioSource.PlayOneShot(explosionClip);
 
         _isMeltdown = false;
@@ -192,16 +194,19 @@ public class EscapeReactor : MonoBehaviour, IInteractable
         fx.maxRadius = explosionRadius;
 
         // Tính toán sát thương nổ với Player
-        GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
-        foreach (GameObject player in players)
+        if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.IsServer)
         {
-            if (player != null)
+            GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
+            foreach (GameObject player in players)
             {
-                float dist = Vector3.Distance(transform.position, player.transform.position);
-                if (dist <= explosionRadius)
+                if (player != null)
                 {
-                    PlayerSurvival ps = player.GetComponent<PlayerSurvival>();
-                    if (ps != null) ps.TakeDamage(9999f, "Nổ Lò Phản Ứng!");
+                    float dist = Vector3.Distance(transform.position, player.transform.position);
+                    if (dist <= explosionRadius)
+                    {
+                        PlayerSurvival ps = player.GetComponent<PlayerSurvival>();
+                        if (ps != null) ps.TakeDamage(9999f, "Nổ Lò Phản Ứng!");
+                    }
                 }
             }
         }

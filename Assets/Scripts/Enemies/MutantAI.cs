@@ -22,9 +22,10 @@ public class MutantAI : NetworkBehaviour
     public float attackRate = 1.2f;
 
     [Header("Senses")]
-    [Tooltip("The radius where Enami can hear high BPM or sprinting")]
+    [Tooltip("The radius where Mutant can hear sprinting or detect nearby players")]
     public float hearRadius = 45f;
-
+    [Tooltip("Layer chứa Player — đặt đúng layer để tối ưu hiệu năng OverlapSphere")]
+    public LayerMask playerLayer = ~0;
 
     [Header("References")]
     public NavMeshAgent agent;
@@ -44,6 +45,7 @@ public class MutantAI : NetworkBehaviour
     private float heartbeatCheckTimer = 0f;
     private bool isDead = false;
     private MonsterAudioEmitter _audioEmitter;
+    private float stuckTimer = 0f;
 
     void Start()
     {
@@ -52,7 +54,21 @@ public class MutantAI : NetworkBehaviour
         if (audioSource == null) audioSource = GetComponent<AudioSource>();
         _audioEmitter = GetComponent<MonsterAudioEmitter>();
         
-        agent.speed = patrolSpeed;
+        // FIX: Chống giật khi va BoxCollider
+        // Thêm Rigidbody kinematic để physics không đẩy ngược NavMeshAgent
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb == null) rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.interpolation = RigidbodyInterpolation.None;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+        
+        // Tắt autoBraking — tránh dao động stop/go khi gần stoppingDistance
+        if (agent != null && agent.enabled)
+        {
+            agent.autoBraking = false;
+            agent.speed = patrolSpeed;
+        }
+        
         currentState = MutantState.Patrol;
     }
 
@@ -124,6 +140,7 @@ public class MutantAI : NetworkBehaviour
 
     void HandlePatrol()
     {
+        agent.stoppingDistance = 0f;
         agent.speed = patrolSpeed;
         patrolTimer += Time.deltaTime;
         
@@ -135,7 +152,7 @@ public class MutantAI : NetworkBehaviour
             NavMeshHit hit;
             if (NavMesh.SamplePosition(randomPos, out hit, 15f, NavMesh.AllAreas))
             {
-                agent.SetDestination(hit.position);
+                if (agent.isOnNavMesh) agent.SetDestination(hit.position); // FIX: Safe check
             }
         }
 
@@ -152,13 +169,15 @@ public class MutantAI : NetworkBehaviour
 
     void SenseSurroundings()
     {
-        PlayerController[] players = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        float maxRadius = Mathf.Max(viewRadius, hearRadius);
+        Collider[] hits = Physics.OverlapSphere(transform.position, maxRadius, playerLayer);
         PlayerController bestTarget = null;
         float highestThreat = 0f;
 
-        foreach (var p in players)
+        foreach (var col in hits)
         {
-            if (p.isHiding) continue;
+            PlayerController p = col.GetComponentInParent<PlayerController>();
+            if (p == null || p.isHiding) continue;
             PlayerSurvival ps = p.GetComponent<PlayerSurvival>();
             if (ps == null || ps.currentHealth <= 0) continue;
 
@@ -185,25 +204,21 @@ public class MutantAI : NetworkBehaviour
                 }
             }
 
-            // 2. HEARING / HEARTBEAT CHECK
+            // 2. HEARING CHECK
             if (dist <= hearRadius)
             {
-                float bpm = ps.netCurrentBPM.Value;
-                if (RandomEventManager.IsBloodMoonActive || bpm > 95f || p.netIsSprinting.Value || dist < 8f) 
+                if (RandomEventManager.IsBloodMoonActive || p.netIsSprinting.Value || dist < 8f) 
                 {
                     detected = true;
-                    threat += bpm - (dist * 0.5f);
+                    threat += 100f - (dist * 0.5f);
                     if (RandomEventManager.IsBloodMoonActive) threat += 100f;
                 }
             }
 
-            if (detected)
+            if (detected && threat > highestThreat)
             {
-                if (threat > highestThreat)
-                {
-                    highestThreat = threat;
-                    bestTarget = p;
-                }
+                highestThreat = threat;
+                bestTarget = p;
             }
         }
 
@@ -239,15 +254,12 @@ public class MutantAI : NetworkBehaviour
         Vector3 flatTarget = new Vector3(targetPlayer.transform.position.x, 0, targetPlayer.transform.position.z);
         float dist = Vector3.Distance(flatPos, flatTarget);
         
-        float bpm = ((ps.maxHealth - ps.currentHealth) / ps.maxHealth) * 50f + 40f;
-        if (ps.currentOxygen < ps.lowOxygenThreshold) bpm += 40f;
-        if (!targetPlayer.netIsMoving.Value && targetPlayer.netIsCrouching.Value) bpm -= 20f;
-
-        if (bpm < 85f && !targetPlayer.netIsMoving.Value && targetPlayer.netIsCrouching.Value)
+        // Nếu player ngồi yên và ở xa > 8m, Mutant mất dấu
+        if (!targetPlayer.netIsMoving.Value && targetPlayer.netIsCrouching.Value)
         {
             if (dist > 8f)
             {
-                // Đi tới vị trí cuối cùng nghe thấy tiếng tim thay vì đứng yên ngơ ngác ngay lập tức
+                // Đi tới vị trí cuối cùng nghe thấy thay vì đứng yên ngơ ngác ngay lập tức
                 if (agent.isOnNavMesh) agent.SetDestination(targetPlayer.transform.position);
                 targetPlayer = null;
                 SetConfused();
@@ -257,6 +269,7 @@ public class MutantAI : NetworkBehaviour
 
         agent.isStopped = false;
         agent.speed = chargeSpeed;
+        agent.stoppingDistance = attackRange * 0.8f;
 
         pathUpdateTimer -= Time.deltaTime;
         if (pathUpdateTimer <= 0f)
@@ -264,6 +277,35 @@ public class MutantAI : NetworkBehaviour
             if (agent.isOnNavMesh) agent.SetDestination(targetPlayer.transform.position);
             pathUpdateTimer = 0.2f;
         }
+        
+        // FIX: Stuck detection — nếu bị kẹt collider quá 1.5s → mất dấu, quay patrol
+        if (dist > attackRange)
+        {
+            bool isStuck = agent.velocity.sqrMagnitude < 0.25f && !agent.pathPending;
+            bool pathBlocked = agent.pathStatus == NavMeshPathStatus.PathPartial 
+                               && agent.remainingDistance < 1f;
+            
+            if (isStuck || pathBlocked)
+            {
+                stuckTimer += Time.deltaTime;
+                if (stuckTimer >= 1.5f)
+                {
+                    stuckTimer = 0f;
+                    targetPlayer = null;
+                    SetConfused();
+                    return;
+                }
+            }
+            else
+            {
+                stuckTimer = 0f;
+            }
+        }
+        else
+        {
+            stuckTimer = 0f;
+        }
+        
         if (dist <= attackRange)
         {
             // Bắt đầu tấn công: Giữ lại một chút quán tính trượt lên thay vì phanh cháy đường (Khựng lại hoàn toàn)
@@ -350,7 +392,7 @@ public class MutantAI : NetworkBehaviour
             float dist = Vector3.Distance(flatPos, flatTarget);
 
             // Chỉ gây sát thương nếu Player vẫn còn trong tầm đánh (thêm độ trễ / leniency 1.5f)
-            if (dist <= attackRange + 0.5f) 
+            if (dist <= attackRange + 1.5f) 
             {
                 PlayerSurvival survival = targetPlayer.GetComponent<PlayerSurvival>();
                 if (survival != null && survival.currentHealth > 0)
@@ -375,8 +417,14 @@ public class MutantAI : NetworkBehaviour
         if (IsServer)
         {
             currentSpeed = (agent != null && agent.enabled && agent.isOnNavMesh) ? agent.velocity.magnitude : 0f;
-            _netSpeed.Value = currentSpeed;
-            _netState.Value = (int)currentState;
+            if (Mathf.Abs(currentSpeed - _netSpeed.Value) > 0.1f)
+            {
+                _netSpeed.Value = currentSpeed;
+            }
+            if (_netState.Value != (int)currentState)
+            {
+                _netState.Value = (int)currentState;
+            }
         }
         else
         {
@@ -405,6 +453,12 @@ public class MutantAI : NetworkBehaviour
         
         // Bị đánh đau quá thì rống lên và nhắm vào người chơi gần nhất
         SenseSurroundings(); 
+
+        // FIX: Nếu bị bắn lén từ quá xa và không thấy ai, ít nhất phải cảnh giác tìm kiếm tại chỗ
+        if (targetPlayer == null && currentState != MutantState.Confused && currentState != MutantState.Investigate)
+        {
+            ForceInvestigate(transform.position);
+        }
 
         if (health.Value <= 0)
         {

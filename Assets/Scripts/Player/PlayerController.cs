@@ -1037,6 +1037,11 @@ public class PlayerController : NetworkBehaviour
             CycleSpectateTarget();
         }
 
+        if (spectateTarget == null && spectateIndex != -1)
+        {
+            CycleSpectateTarget();
+        }
+
         Vector2 moveInput = (moveAction != null) ? moveAction.ReadValue<Vector2>() : Vector2.zero;
         float upDown = 0;
         if (jumpAction != null && jumpAction.IsPressed()) upDown = 1;

@@ -19,8 +19,12 @@ public class NPCGreeting : MonoBehaviour
         {
             if (hitCollider.CompareTag("Player") || hitCollider.name.ToLower().Contains("player"))
             {
-                isNear = true;
-                break;
+                var netObj = hitCollider.GetComponentInParent<Unity.Netcode.NetworkObject>();
+                if (netObj != null && netObj.IsOwner)
+                {
+                    isNear = true;
+                    break;
+                }
             }
         }
         
