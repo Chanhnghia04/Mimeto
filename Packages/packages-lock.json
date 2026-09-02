@@ -7,14 +7,6 @@
       "dependencies": {},
       "hash": "e7cc815ce6a2a213f889756cdcb8f9c166651cd4"
     },
-    "com.chanhnghia43.com.unity.services.multiplayer": {
-      "version": "file:com.chanhnghia43.com.unity.services.multiplayer",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.unity.test-framework": "1.6.0"
-      }
-    },
     "com.ivanmurzak.unity.mcp": {
       "version": "file:com.ivanmurzak.unity.mcp",
       "depth": 0,
