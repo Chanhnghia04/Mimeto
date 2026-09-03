@@ -92,12 +92,12 @@ public class MultiplayerCenter : MonoBehaviour
 
         try
         {
-            UpdateStatus("Initializing Services...");
+            UpdateStatus("Đang khởi tạo dịch vụ...");
             await LobbyManager.Instance.InitializeAsync();
             await VivoxManager.Instance.LoginAsync();
             _isNetworkReady = true;
             SetButtonsInteractable(true);
-            UpdateStatus("Ready!");
+            UpdateStatus("Sẵn sàng!");
         }
         catch (Exception e)
         {
@@ -185,6 +185,10 @@ public class MultiplayerCenter : MonoBehaviour
                 if (net.StartHost())
                 {
                     UpdateStatus("Phòng đã tạo!");
+                    
+                    GlobalPlayerData.lastRoomName = lobby.Name;
+                    GlobalPlayerData.Save();
+                    
                     ShowRoomInfo(lobby);
                     return; // Thành công thì thoát
                 }
@@ -216,7 +220,7 @@ public class MultiplayerCenter : MonoBehaviour
         try
         {
             if (confirmCreateRoomButton) confirmCreateRoomButton.interactable = false;
-            UpdateStatus("Creating room...");
+            UpdateStatus("Đang tạo phòng...");
 
             Allocation alloc = await RelayService.Instance.CreateAllocationAsync(maxPlayers - 1);
             string relayCode = await RelayService.Instance.GetJoinCodeAsync(alloc.AllocationId);
@@ -232,7 +236,7 @@ public class MultiplayerCenter : MonoBehaviour
 
                 if (net.StartHost())
                 {
-                    UpdateStatus("Room created!");
+                    UpdateStatus("Phòng đã tạo!");
                     
                     // LƯU LẠI TÊN PHÒNG CHO LẦN "TIẾP TỤC" SAU NÀY
                     GlobalPlayerData.lastRoomName = rName;
@@ -264,7 +268,7 @@ public class MultiplayerCenter : MonoBehaviour
         try
         {
             if (refreshLobbiesButton) refreshLobbiesButton.interactable = false;
-            UpdateStatus("Refreshing...");
+            UpdateStatus("Đang làm mới...");
             var lobbies = await LobbyManager.Instance.FindPublicLobbies();
             PopulateLobbyList(lobbies);
             UpdateStatus("Đã làm mới danh sách.");
@@ -286,7 +290,7 @@ public class MultiplayerCenter : MonoBehaviour
             
             bool isPrivate = l.Data != null && l.Data.ContainsKey("IsPrivateMode") && l.Data["IsPrivateMode"].Value == "true";
             
-            if (txt) txt.text = $"{l.Name} ({l.Players.Count}/{l.MaxPlayers})" + (isPrivate ? " [PRIVATE]" : "");
+            if (txt) txt.text = $"{l.Name} ({l.Players.Count}/{l.MaxPlayers})" + (isPrivate ? " [RIÊNG TƯ]" : "");
             
             var btn = item.GetComponent<Button>();
             if (btn) 
@@ -295,9 +299,17 @@ public class MultiplayerCenter : MonoBehaviour
                 {
                     if (isPrivate)
                     {
-                        _selectedPrivateLobbyToJoin = l;
-                        if (joinCodeInput) joinCodeInput.text = "";
-                        ShowPanel(joinPrivatePanel);
+                        if (joinPrivatePanel != null)
+                        {
+                            _selectedPrivateLobbyToJoin = l;
+                            if (joinCodeInput) joinCodeInput.text = "";
+                            ShowPanel(joinPrivatePanel);
+                        }
+                        else
+                        {
+                            Debug.LogWarning("Missing JoinPrivatePanel UI!");
+                            UpdateStatus("Chưa có giao diện JoinPrivatePanel!");
+                        }
                     }
                     else
                     {
@@ -312,31 +324,38 @@ public class MultiplayerCenter : MonoBehaviour
     {
         if (_selectedPrivateLobbyToJoin == null) return;
         
-        string code = joinCodeInput != null ? joinCodeInput.text.Trim() : "";
+        string code = joinCodeInput != null ? joinCodeInput.text.Trim().ToUpper() : "";
         if (string.IsNullOrEmpty(code))
         {
-            UpdateStatus("Please enter room code.");
+            UpdateStatus("Vui lòng nhập mã phòng.");
             return;
         }
 
         try
         {
             if (confirmJoinButton) confirmJoinButton.interactable = false;
-            UpdateStatus("Verifying code...");
+            UpdateStatus("Đang kiểm tra mã...");
             
             var joined = await LobbyManager.Instance.JoinLobbyByCode(code);
             
             if (joined.Id != _selectedPrivateLobbyToJoin.Id)
             {
                 await SafeCleanupAndLeave();
-                UpdateStatus("Invalid code for this room.");
+                UpdateStatus("Mã phòng không hợp lệ.");
                 return;
             }
             
-            UpdateStatus("Joining room...");
+            UpdateStatus("Đang vào phòng...");
             await VivoxManager.Instance.JoinChannelAsync(joined.Id);
 
+            UpdateStatus("Đang lấy mã Relay...");
             string relayCode = LobbyManager.Instance.GetRelayCodeFromLobby();
+            if (string.IsNullOrEmpty(relayCode))
+            {
+                await LobbyManager.Instance.ForceRefreshLobby();
+                relayCode = LobbyManager.Instance.GetRelayCodeFromLobby();
+            }
+            
             var joinAlloc = await RelayService.Instance.JoinAllocationAsync(relayCode);
 
             var net = Net;
@@ -344,15 +363,15 @@ public class MultiplayerCenter : MonoBehaviour
             {
                 net.GetComponent<UnityTransport>().SetRelayServerData(new RelayServerData(joinAlloc, "dtls"));
 
-                if (net.StartClient()) { UpdateStatus("Connecting..."); return; }
+                if (net.StartClient()) { UpdateStatus("Đang kết nối..."); return; }
             }
             
-            UpdateStatus("Connection failed"); 
+            UpdateStatus("Kết nối thất bại"); 
             await SafeCleanupAndLeave();
         }
         catch (Exception e) 
         { 
-            UpdateStatus("Wrong code or room is full."); 
+            UpdateStatus("Mã sai hoặc phòng đã đầy."); 
             Debug.LogError($"Join Private Room Failed: {e.Message}");
             await SafeCleanupAndLeave();
         }
@@ -366,11 +385,29 @@ public class MultiplayerCenter : MonoBehaviour
     {
         try
         {
-            UpdateStatus("Joining room...");
+            UpdateStatus("Đang vào phòng...");
             var joined = await LobbyManager.Instance.JoinLobbyById(lobby.Id);
+            
+            UpdateStatus("Đang vào kênh chat...");
             await VivoxManager.Instance.JoinChannelAsync(joined.Id);
 
+            UpdateStatus("Đang lấy mã Relay...");
             string relayCode = LobbyManager.Instance.GetRelayCodeFromLobby();
+            if (string.IsNullOrEmpty(relayCode))
+            {
+                UpdateStatus("Mã Relay trống, đang thử tải lại...");
+                await LobbyManager.Instance.ForceRefreshLobby();
+                relayCode = LobbyManager.Instance.GetRelayCodeFromLobby();
+            }
+
+            if (string.IsNullOrEmpty(relayCode))
+            {
+                UpdateStatus("Lỗi: Không lấy được mã Relay từ máy chủ.");
+                await SafeCleanupAndLeave();
+                return;
+            }
+
+            UpdateStatus("Đang kết nối Relay...");
             var joinAlloc = await RelayService.Instance.JoinAllocationAsync(relayCode);
 
             var net = Net;
@@ -378,14 +415,15 @@ public class MultiplayerCenter : MonoBehaviour
             {
                 net.GetComponent<UnityTransport>().SetRelayServerData(new RelayServerData(joinAlloc, "dtls"));
 
-                if (net.StartClient()) { UpdateStatus("Connecting..."); return; }
+                if (net.StartClient()) { UpdateStatus("Đang kết nối..."); return; }
             }
             
-            UpdateStatus("Connection failed"); 
+            UpdateStatus("Kết nối thất bại"); 
             await SafeCleanupAndLeave();
         }
         catch (Exception e) { 
-            UpdateStatus($"Error: {e.Message}"); 
+            UpdateStatus($"Lỗi Public: {e.GetType().Name} - {e.Message}"); 
+            Debug.LogError($"JoinLobby Public Error: {e}");
             await SafeCleanupAndLeave();
         }
     }
@@ -396,9 +434,10 @@ public class MultiplayerCenter : MonoBehaviour
         bool isHost = Net != null && Net.IsHost;
 
         if (editRoomNameInput) { editRoomNameInput.text = lobby.Name; editRoomNameInput.interactable = isHost; }
-        if (roomCodeText) { roomCodeText.text = $"Room Code: {lobby.LobbyCode}"; roomCodeText.gameObject.SetActive(true); }
-        if (roomTypeText) roomTypeText.text = lobby.IsPrivate ? "Type: PRIVATE" : "Type: PUBLIC";
-        if (roomPlayersText) roomPlayersText.text = $"Players: {lobby.Players.Count}/{lobby.MaxPlayers}";
+        if (roomCodeText) { roomCodeText.text = $"Mã phòng: {lobby.LobbyCode}"; roomCodeText.gameObject.SetActive(true); }
+        bool isPrivateMode = lobby.Data != null && lobby.Data.ContainsKey("IsPrivateMode") && lobby.Data["IsPrivateMode"].Value == "true";
+        if (roomTypeText) roomTypeText.text = isPrivateMode ? "Loại: RIÊNG TƯ" : "Loại: CÔNG KHAI";
+        if (roomPlayersText) roomPlayersText.text = $"Người chơi: {lobby.Players.Count}/{lobby.MaxPlayers}";
         if (startWaitingButton) startWaitingButton.gameObject.SetActive(isHost);
     }
 
@@ -424,7 +463,7 @@ public class MultiplayerCenter : MonoBehaviour
         if (lobby != null && !string.IsNullOrEmpty(lobby.LobbyCode))
         {
             GUIUtility.systemCopyBuffer = lobby.LobbyCode;
-            UpdateStatus("Room code copied!");
+            UpdateStatus("Đã sao chép mã phòng!");
         }
     }
 
@@ -481,7 +520,7 @@ public class MultiplayerCenter : MonoBehaviour
         var net = Net;
         if (net != null && net.IsServer)
         {
-            if (roomPlayersText) roomPlayersText.text = $"Players: {net.ConnectedClientsIds.Count}/{maxPlayers}";
+            if (roomPlayersText) roomPlayersText.text = $"Người chơi: {net.ConnectedClientsIds.Count}/{maxPlayers}";
         }
         
         if (net != null && id == net.LocalClientId && !net.IsServer)
@@ -497,14 +536,14 @@ public class MultiplayerCenter : MonoBehaviour
         var net = Net;
         if (net != null && net.IsServer)
         {
-            if (roomPlayersText) roomPlayersText.text = $"Players: {net.ConnectedClientsIds.Count}/{maxPlayers}";
+            if (roomPlayersText) roomPlayersText.text = $"Người chơi: {net.ConnectedClientsIds.Count}/{maxPlayers}";
         }
         else if (net == null || id == net.LocalClientId || id == 0)
         {
             // Bị văng khỏi server (Host đóng phòng hoặc rớt mạng)
             await SafeCleanupAndLeave();
             ShowPanel(lobbyListPanel);
-            UpdateStatus("Disconnected from server");
+            UpdateStatus("Đã ngắt kết nối khỏi máy chủ");
         }
     }
 

@@ -637,7 +637,7 @@ public class PlayerSurvival : NetworkBehaviour
             }
         }
         
-        UpdateHealthClientRpc(currentHealth, amount, reason);
+        UpdateHealthWithReasonClientRpc(currentHealth, amount, reason);
         
         // Host (Server) tự gọi hàm Die hoặc phát âm thanh vì ClientRpc có thể không chạy trên Host nếu logic bọc sai
         if (IsOwner)
@@ -648,7 +648,7 @@ public class PlayerSurvival : NetworkBehaviour
     }
 
     [ClientRpc]
-    public void UpdateHealthClientRpc(float newHealth, float amount, string reason)
+    public void UpdateHealthWithReasonClientRpc(float newHealth, float amount, string reason)
     {
         // currentHealth setter only updates netHealth on Server, so it does nothing on Client.
         // We must use newHealth for immediate logic.

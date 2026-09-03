@@ -47,8 +47,8 @@ public class ScrapSellStation : MonoBehaviour, IInteractable
     private float _noiseOffset = 0f;
 
     // Colors
-    private static readonly Color COL_BG       = new Color(0.020f, 0.020f, 0.027f, 0.95f);
-    private static readonly Color COL_PANEL    = new Color(0.040f, 0.050f, 0.070f, 0.90f);
+    private static readonly Color COL_BG       = new Color(0f, 0f, 0f, 0f);
+    private static readonly Color COL_PANEL    = new Color(0.180f, 0.200f, 0.240f, 0.95f);
     private static readonly Color COL_CYAN     = new Color(0.000f, 0.949f, 1.000f);
     private static readonly Color COL_GREEN    = new Color(0.224f, 1.000f, 0.078f);
     private static readonly Color COL_AMBER    = new Color(1.000f, 0.702f, 0.000f);
@@ -147,9 +147,9 @@ public class ScrapSellStation : MonoBehaviour, IInteractable
         if (_bgTex != null) return;
         _bgTex          = MakeTex(COL_BG);
         _panelTex       = MakeTex(COL_PANEL);
-        _btnTex         = MakeTex(new Color(0.06f, 0.12f, 0.18f, 0.95f));
-        _btnHoverTex    = MakeTex(new Color(0.00f, 0.30f, 0.40f, 0.95f));
-        _btnDisabledTex = MakeTex(new Color(0.04f, 0.04f, 0.06f, 0.80f));
+        _btnTex         = MakeTex(new Color(0.12f, 0.18f, 0.25f, 0.95f));
+        _btnHoverTex    = MakeTex(new Color(0.00f, 0.40f, 0.50f, 0.95f));
+        _btnDisabledTex = MakeTex(new Color(0.04f, 0.04f, 0.05f, 0.50f));
 
         _scanlineTex = new Texture2D(2, 4);
         for (int y = 0; y < 4; y++)
@@ -185,10 +185,10 @@ public class ScrapSellStation : MonoBehaviour, IInteractable
             new Rect(0, _noiseOffset * 0.05f, Screen.width, Screen.height / 4f));
         GUI.color = Color.white;
 
-        float panelW = 460f;
-        float panelH = 550f;
+        float panelW = Mathf.Min(Screen.width * 0.52f, 620f);
+        float panelH = Mathf.Min(Screen.height * 0.82f, 720f);
         float px = (Screen.width - panelW) * 0.5f;
-        float py = ((Screen.height - panelH) * 0.5f) + 50f; // Dịch bảng UI xuống 50px
+        float py = (Screen.height - panelH) * 0.5f;
 
         GUI.DrawTexture(new Rect(px, py, panelW, panelH), _panelTex);
         DrawTechCorners(px, py, panelW, panelH, COL_GREEN);
@@ -196,18 +196,18 @@ public class ScrapSellStation : MonoBehaviour, IInteractable
         // Header
         float flicker = 0.85f + Mathf.PingPong(Time.unscaledTime * 3f, 0.15f);
         GUIStyle titleStyle = new GUIStyle();
-        titleStyle.fontSize = 22;
+        titleStyle.fontSize = Mathf.RoundToInt(Mathf.Min(panelW * 0.045f, 26f));
         titleStyle.fontStyle = FontStyle.Bold;
         titleStyle.normal.textColor = COL_GREEN;
         titleStyle.alignment = TextAnchor.MiddleCenter;
 
         GUI.color = new Color(1f, 1f, 1f, flicker);
-        GUI.Label(new Rect(px, py + 10f, panelW, 35f), "▼  SELL SCRAP  ▼", titleStyle);
+        GUI.Label(new Rect(px, py + 10f, panelW, 35f), "---  SELL SCRAP  ---", titleStyle);
         GUI.color = Color.white;
 
         // Market Event Banner
         GUIStyle eventStyle = new GUIStyle();
-        eventStyle.fontSize = 12;
+        eventStyle.fontSize = Mathf.RoundToInt(Mathf.Min(panelW * 0.022f, 13f));
         eventStyle.fontStyle = FontStyle.Bold;
         eventStyle.normal.textColor = ShopData.CurrentEvent == MarketEvent.Normal ? COL_DIM : COL_EVENT;
         eventStyle.alignment = TextAnchor.MiddleCenter;
@@ -219,15 +219,15 @@ public class ScrapSellStation : MonoBehaviour, IInteractable
         
         // Energy Cells
         GUIStyle credStyle = new GUIStyle();
-        credStyle.fontSize = 18;
+        credStyle.fontSize = Mathf.RoundToInt(Mathf.Min(panelW * 0.040f, 22f));
         credStyle.fontStyle = FontStyle.Bold;
         credStyle.normal.textColor = COL_AMBER;
         credStyle.alignment = TextAnchor.MiddleCenter;
-        GUI.Label(new Rect(px, py + 70f, panelW, 30f), $"◈  EC: {_inventory.credits}  ◈", credStyle);
+        GUI.Label(new Rect(px, py + 70f, panelW, 30f), $"-^  EC: {_inventory.credits}  -^", credStyle);
 
         // Close btn
         GUIStyle closeStyle = new GUIStyle();
-        closeStyle.fontSize = 18;
+        closeStyle.fontSize = 20;
         closeStyle.fontStyle = FontStyle.Bold;
         closeStyle.normal.textColor = COL_RED;
         closeStyle.alignment = TextAnchor.MiddleCenter;
@@ -279,7 +279,7 @@ public class ScrapSellStation : MonoBehaviour, IInteractable
         rowY += 15f;
 
         GUIStyle totalStyle = new GUIStyle();
-        totalStyle.fontSize = 15;
+        totalStyle.fontSize = Mathf.RoundToInt(Mathf.Min(panelW * 0.040f, 22f));
         totalStyle.fontStyle = FontStyle.Bold;
         totalStyle.normal.textColor = COL_AMBER;
         totalStyle.alignment = TextAnchor.MiddleRight;
@@ -329,7 +329,7 @@ public class ScrapSellStation : MonoBehaviour, IInteractable
         Color tCol = qty > 0 ? Color.white : COL_DIM;
 
         GUIStyle ns = new GUIStyle();
-        ns.fontSize = 13;
+        ns.fontSize = 15;
         ns.normal.textColor = tCol;
         
         GUIStyle vs = new GUIStyle(ns);
@@ -402,7 +402,7 @@ public class ScrapSellStation : MonoBehaviour, IInteractable
         DrawTechCorners(hintX, hintY, hintW, hintH, new Color(COL_GREEN.r, COL_GREEN.g, COL_GREEN.b, 0.8f), 8f, 2f);
 
         GUIStyle hintStyle = new GUIStyle();
-        hintStyle.fontSize = 14;
+        hintStyle.fontSize = 15;
         hintStyle.fontStyle = FontStyle.Bold;
         hintStyle.normal.textColor = COL_GREEN;
         hintStyle.alignment = TextAnchor.MiddleCenter;
