@@ -927,8 +927,9 @@ public class PlayerInventory : NetworkBehaviour
     }
 
     [ServerRpc(RequireOwnership = false)]
-    public void RequestLoadSceneServerRpc(string sceneName)
+    public void RequestLoadSceneServerRpc(string sceneName, ServerRpcParams rpcParams = default)
     {
+        if (rpcParams.Receive.SenderClientId != Unity.Netcode.NetworkManager.ServerClientId) return;
         if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.SceneManager != null)
         {
             Unity.Netcode.NetworkManager.Singleton.SceneManager.LoadScene(sceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
@@ -1035,8 +1036,23 @@ public class PlayerInventory : NetworkBehaviour
         if (credits < price) return;
         SpendCredits(price); // deducts on server, syncs to client
 
-        if (itemId == "bag_10_slots" && maxSlots < 10) maxSlots = 10;
-        else if (itemId == "bag_15_slots" && maxSlots < 15) maxSlots = 15;
+        switch (itemId)
+        {
+            case "antidote": antidotes++; break;
+            case "health_pack": healthPacks++; break;
+            case "full_health_kit": healthPacks += 2; break;
+            case "basic_gas_mask": basicGasMasks++; break;
+            case "advanced_gas_mask": advancedGasMasks++; break;
+            case "flashlight": hasFlashlight = true; break;
+            case "axe": hasAxe = true; break;
+            case "machete": hasMachete = true; break;
+            case "bag_10_slots": if (maxSlots < 10) maxSlots = 10; break;
+            case "bag_15_slots": if (maxSlots < 15) maxSlots = 15; break;
+            case "battery_pack": scrapBatteries += 3; break;
+            case "chemical_canister": chemicals += 2; break;
+            case "circuit_board": circuits += 2; break;
+            case "oxygen_tank": oxygenTanks++; break;
+        }
 
         BuyItemResultClientRpc(stationNetworkObjectId, itemId, maxSlots, new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { rpcParams.Receive.SenderClientId } } });
     }

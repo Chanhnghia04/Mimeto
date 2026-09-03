@@ -60,9 +60,9 @@ public class ShopStation : NetworkBehaviour, IInteractable
     private float _noiseOffset = 0f;
 
     // Colors
-    private static readonly Color COL_BG       = new Color(0.010f, 0.012f, 0.020f, 0.96f);
-    private static readonly Color COL_PANEL    = new Color(0.025f, 0.035f, 0.055f, 0.96f);
-    private static readonly Color COL_HEADER   = new Color(0.015f, 0.060f, 0.090f, 0.98f);
+    private static readonly Color COL_BG       = new Color(0f, 0f, 0f, 0f);
+    private static readonly Color COL_PANEL    = new Color(0.180f, 0.200f, 0.240f, 0.98f);
+    private static readonly Color COL_HEADER   = new Color(0.150f, 0.180f, 0.220f, 0.98f);
     private static readonly Color COL_CYAN     = new Color(0.000f, 0.878f, 1.000f);
     private static readonly Color COL_GREEN    = new Color(0.180f, 1.000f, 0.180f);
     private static readonly Color COL_AMBER    = new Color(1.000f, 0.780f, 0.100f);
@@ -194,11 +194,11 @@ public class ShopStation : NetworkBehaviour, IInteractable
         _headerTex      = MakeTex(COL_HEADER);
         _btnTex         = MakeTex(new Color(0.00f, 0.55f, 0.75f, 0.85f));
         _btnHoverTex    = MakeTex(new Color(0.00f, 0.75f, 1.00f, 0.95f));
-        _btnDisabledTex = MakeTex(new Color(0.08f, 0.08f, 0.10f, 0.70f));
-        _itemBgTex      = MakeTex(new Color(0.03f, 0.05f, 0.08f, 0.85f));
-        _itemBgAltTex   = MakeTex(new Color(0.04f, 0.06f, 0.10f, 0.85f));
-        _priceBgTex     = MakeTex(new Color(0.10f, 0.07f, 0.00f, 0.60f));
-        _creditsBgTex   = MakeTex(new Color(0.08f, 0.06f, 0.00f, 0.80f));
+        _btnDisabledTex = MakeTex(new Color(0.04f, 0.04f, 0.05f, 0.50f));
+        _itemBgTex      = MakeTex(new Color(0.15f, 0.18f, 0.22f, 0.95f));
+        _itemBgAltTex   = MakeTex(new Color(0.18f, 0.21f, 0.25f, 0.95f));
+        _priceBgTex     = MakeTex(new Color(0.15f, 0.12f, 0.05f, 0.80f));
+        _creditsBgTex   = MakeTex(new Color(0.12f, 0.10f, 0.05f, 0.90f));
         _separatorTex   = MakeTex(new Color(COL_CYAN.r, COL_CYAN.g, COL_CYAN.b, 0.20f));
 
         _scanlineTex = new Texture2D(2, 4);
