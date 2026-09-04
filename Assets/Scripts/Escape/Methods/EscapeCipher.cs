@@ -67,7 +67,7 @@ public class EscapeCipher : MonoBehaviour, IInteractable
     void SpawnNotes()
     {
         GameObject playerGO = GameObject.FindGameObjectWithTag("Player");
-        Vector3 playerPos   = playerGO != null ? playerGO.transform.position : Vector3.zero;
+        Vector3 playerPos   = Vector3.zero;
         List<Vector3> used  = new List<Vector3>();
 
         for (int i = 0; i < 2; i++)
@@ -166,18 +166,9 @@ public class EscapeCipher : MonoBehaviour, IInteractable
             foreach (var u in used) if (Vector3.Distance(pt, u) < 12f) { tooClose = true; break; }
             if (tooClose) continue;
 
-            if (Physics.CheckSphere(pt + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
-                continue;
-
             return pt;
         }
         
-        for (int i = 0; i < fallbackCount; i++)
-        {
-            Vector3 v = navData.vertices[fallbackIndices[i]];
-            if (!Physics.CheckSphere(v + Vector3.up * 0.5f, 0.2f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
-                return v;
-        }
         return navData.vertices[fallbackIndices[0]];
     }
 

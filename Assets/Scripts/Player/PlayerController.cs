@@ -66,7 +66,6 @@ public class PlayerController : NetworkBehaviour
     public float landDipSpeed = 10f;
 
     private float defaultPosY = 0;
-    private float timer = 0;
     private float currentTilt = 0f;
     private float yRotation = 0f; // Absolute world yaw for the head/camera
     private float bodyYaw = 0f;   // Current body yaw

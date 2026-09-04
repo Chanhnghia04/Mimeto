@@ -209,7 +209,7 @@ public class PauseMenuUI : MonoBehaviour
                 
                 if (_cachedLocalPlayer == null) 
                 {
-                    PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+                    PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsInactive.Exclude);
                     foreach (var p in allPlayers)
                     {
                         if (p.IsOwner)

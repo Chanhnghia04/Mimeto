@@ -82,11 +82,11 @@ List<GameObject> toDestroy = new List<GameObject>();
         gridRect.anchorMax = new Vector2(0.5f, 0.5f);
         gridRect.pivot = new Vector2(0.5f, 0.5f);
         gridRect.anchoredPosition = Vector2.zero;
-        gridRect.sizeDelta = new Vector2(440, 260);
+        gridRect.sizeDelta = new Vector2(400, 230); // 5*60 + 4*25 = 400, 3*60 + 2*25 = 230
 
         GridLayoutGroup gridLayout = gridGo.AddComponent<GridLayoutGroup>();
-        gridLayout.cellSize = new Vector2(80, 80);
-        gridLayout.spacing = new Vector2(10, 10);
+        gridLayout.cellSize = new Vector2(60, 60);
+        gridLayout.spacing = new Vector2(25, 25);
         gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         gridLayout.constraintCount = 5;
         gridLayout.startAxis = GridLayoutGroup.Axis.Horizontal;

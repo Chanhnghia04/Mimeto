@@ -34,6 +34,8 @@ public static class GlobalPlayerData
     public static int oxygenTanks = 0;
     public static int antidotes = 0;
 
+    public static string[] hotbarItems = new string[3] { "", "", "" };
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     public static void Initialize()
     {
@@ -65,7 +67,8 @@ public static class GlobalPlayerData
             rareLootCount = rareLootCount,
             healthPacks = healthPacks,
             oxygenTanks = oxygenTanks,
-            antidotes = antidotes
+            antidotes = antidotes,
+            hotbarItems = hotbarItems
         };
 
         string json = JsonUtility.ToJson(data);
@@ -110,6 +113,11 @@ public static class GlobalPlayerData
             oxygenTanks = data.oxygenTanks;
             antidotes = data.antidotes;
             
+            if (data.hotbarItems != null && data.hotbarItems.Length == 3)
+            {
+                hotbarItems = data.hotbarItems;
+            }
+            
             hasSavedData = true;
             Debug.Log("[GlobalPlayerData] Dữ liệu đã được TẢI từ ổ cứng.");
         }
@@ -148,6 +156,7 @@ public static class GlobalPlayerData
         healthPacks = 0;
         oxygenTanks = 0;
         antidotes = 0;
+        hotbarItems = new string[3] { "", "", "" };
         
         Debug.Log("[GlobalPlayerData] Đã XÓA toàn bộ dữ liệu lưu trữ.");
     }
@@ -178,4 +187,5 @@ public class PlayerDataSave
     public int healthPacks;
     public int oxygenTanks;
     public int antidotes;
+    public string[] hotbarItems;
 }

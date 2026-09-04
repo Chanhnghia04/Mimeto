@@ -84,11 +84,20 @@ public class InventoryUI : MonoBehaviour
         {
             openPressed = true;
         }
+        else if (KeybindManager.Instance != null && KeybindManager.Instance.GetKeyDown("Inventory"))
+        {
+            openPressed = true;
+        }
         else if (Keyboard.current != null && Keyboard.current.iKey.wasPressedThisFrame)
         {
             openPressed = true;
         }
-        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+
+        if (KeybindManager.Instance != null && KeybindManager.Instance.GetKeyDown("EscapeHUD"))
+        {
+            closePressed = true;
+        }
+        else if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
         {
             closePressed = true;
         }
