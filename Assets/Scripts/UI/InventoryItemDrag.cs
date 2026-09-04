@@ -88,6 +88,7 @@ public class InventoryItemDrag : MonoBehaviour, IBeginDragHandler, IDragHandler,
 
         // Check drop
         GameObject droppedOn = eventData.pointerCurrentRaycast.gameObject;
+        Debug.Log($"[InventoryItemDrag] OnEndDrag. Dropped on: {(droppedOn != null ? droppedOn.name : "null")}");
         if (droppedOn != null && inventoryUI != null)
         {
             // Nếu thả vào ô Hotbar → gọi trực tiếp HotbarSystem để nó nhận đồ
@@ -95,9 +96,18 @@ public class InventoryItemDrag : MonoBehaviour, IBeginDragHandler, IDragHandler,
             if (hotbarSlot != null)
             {
                 string typeToDrop = inventoryUI.gridSlots[slotIndex].currentItemType;
+                Debug.Log($"[InventoryItemDrag] Hit Hotbar slot {hotbarSlot.slotIndex}. TypeToDrop: {typeToDrop}");
                 if (!string.IsNullOrEmpty(typeToDrop) && HotbarSystem.Instance != null)
                 {
-                    HotbarSystem.Instance.OnItemDropped(hotbarSlot.slotIndex, typeToDrop);
+                    if (HotbarSystem.Instance.IsValidHotbarItem(typeToDrop))
+                    {
+                        Debug.Log("[InventoryItemDrag] Item is valid! Calling OnItemDropped");
+                        HotbarSystem.Instance.OnItemDropped(hotbarSlot.slotIndex, typeToDrop);
+                    }
+                    else
+                    {
+                        Debug.Log("[InventoryItemDrag] Item INVALID for hotbar! Refusing to drop.");
+                    }
                 }
                 
                 inventoryUI.UpdateUI();
@@ -107,6 +117,7 @@ public class InventoryItemDrag : MonoBehaviour, IBeginDragHandler, IDragHandler,
             InventoryItemDrag targetSlot = droppedOn.GetComponentInParent<InventoryItemDrag>();
             if (targetSlot != null && targetSlot != this)
             {
+                Debug.Log($"[InventoryItemDrag] Swapping Inventory slots: {slotIndex} and {targetSlot.slotIndex}");
                 inventoryUI.SwapSlots(slotIndex, targetSlot.slotIndex);
             }
             else if (droppedOn.GetComponentInParent<UnityEngine.UI.Graphic>() == null)

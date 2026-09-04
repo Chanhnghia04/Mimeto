@@ -117,10 +117,10 @@ public class EscapeBeacon : MonoBehaviour, IInteractable
                 if (pingClip != null) audioSource.PlayOneShot(pingClip);
             }
 
-            ExilerAI[] exilers = FindObjectsByType<ExilerAI>(FindObjectsSortMode.None);
+            ExilerAI[] exilers = FindObjectsByType<ExilerAI>(FindObjectsInactive.Exclude);
             foreach (var e in exilers) e.ForceInvestigate(transform.position);
 
-            MutantAI[] mutants = FindObjectsByType<MutantAI>(FindObjectsSortMode.None);
+            MutantAI[] mutants = FindObjectsByType<MutantAI>(FindObjectsInactive.Exclude);
             foreach (var m in mutants) m.ForceInvestigate(transform.position);
         }
 

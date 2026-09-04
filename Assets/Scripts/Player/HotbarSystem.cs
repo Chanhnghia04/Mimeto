@@ -36,6 +36,17 @@ public class HotbarSystem : MonoBehaviour
         if (hotbarCanvas == null)
         {
             CreateHotbarUI();
+            
+            // Khôi phục hiển thị Hotbar từ dữ liệu đã load
+            for (int i = 0; i < 3; i++)
+            {
+                if (!string.IsNullOrEmpty(hotbarItems[i]))
+                {
+                    string itemToRestore = hotbarItems[i];
+                    hotbarItems[i] = ""; // Tạm xóa để hàm OnItemDropped nhận diện thay đổi và update UI
+                    OnItemDropped(i, itemToRestore);
+                }
+            }
         }
 
         HandleHotkeys();
@@ -264,6 +275,23 @@ public class HotbarSystem : MonoBehaviour
         InventoryUI invUI = GetComponent<InventoryUI>();
         if (invUI != null) invUI.UpdateUI();
     }
+
+    public bool IsValidHotbarItem(string itemType)
+    {
+        string lowerType = itemType.ToLower();
+        bool isValid = lowerType == "crowbar" || 
+               lowerType == "shovel" || 
+               lowerType == "machete" || 
+               lowerType == "axe" || 
+               lowerType == "bat" || 
+               lowerType == "flashlight" || 
+               lowerType == "uvflashlight" ||
+               lowerType == "basic_gasmask" || 
+               lowerType == "adv_gasmask" || 
+               lowerType == "antidote";
+        Debug.Log($"[HotbarSystem] Checking IsValidHotbarItem for '{itemType}' -> lower '{lowerType}' -> Valid: {isValid}");
+        return isValid;
+    }
 }
 
 public class UIDragItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
@@ -342,6 +370,11 @@ public class UIDropSlot : MonoBehaviour, IDropHandler
         UIDragItem dragItem = eventData.pointerDrag?.GetComponent<UIDragItem>();
         if (dragItem != null && !string.IsNullOrEmpty(dragItem.itemType))
         {
+            if (HotbarSystem.Instance != null && !HotbarSystem.Instance.IsValidHotbarItem(dragItem.itemType))
+            {
+                return; // Chỉ cho phép trang bị, từ chối scrap (phế liệu)
+            }
+
             if (HotbarSystem.Instance != null)
             {
                 HotbarSystem.Instance.OnItemDropped(slotIndex, dragItem.itemType);

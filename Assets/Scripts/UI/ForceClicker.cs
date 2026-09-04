@@ -13,7 +13,7 @@ public class ForceClicker : MonoBehaviour, IPointerClickHandler
         if (currentPanel) currentPanel.SetActive(false);
         if (targetPanel) targetPanel.SetActive(true);
         
-        var mc = FindObjectOfType<MultiplayerCenter>();
+        var mc = FindAnyObjectByType<MultiplayerCenter>();
         if (mc != null)
         {
             var m = mc.GetType().GetMethod("OnRefreshLobbies", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
