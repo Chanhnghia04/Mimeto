@@ -293,17 +293,41 @@ public class PauseMenuUI : MonoBehaviour
         }
     }
 
-    private void OnDisconnectClicked()
+    private bool _isDisconnecting = false;
+
+    private async void OnDisconnectClicked()
     {
+        if (_isDisconnecting) return;
+        _isDisconnecting = true;
+        
+        // Ẩn UI đi nhưng VẪN GIỮ _isOpen = true để PlayerController KHÔNG tự ý lock chuột lại trong lúc chờ mạng!
+        if (_uiContainer != null) _uiContainer.SetActive(false);
+        
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
         if (NetworkManager.Singleton != null)
         {
             NetworkManager.Singleton.Shutdown();
         }
+
+        // --- Đảm bảo dọn dẹp sạch sẽ Lobby (để sau đó tạo phòng mới không bị lỗi) ---
+        if (LobbyManager.Instance != null)
+        {
+            await LobbyManager.Instance.LeaveLobby();
+        }
+
+        // Chờ Shutdown hoàn tất trước khi đổi Scene
+        if (NetworkManager.Singleton != null)
+        {
+            while (NetworkManager.Singleton.ShutdownInProgress)
+            {
+                await System.Threading.Tasks.Task.Yield();
+            }
+        }
         
-        // Không gọi CloseMenu() ở đây vì nó sẽ khóa chuột khi về StartGame
+        // Giờ mới trả lại trạng thái mở cửa sổ và load scene
         _isOpen = false;
-        _uiContainer.SetActive(false);
-        
         SceneManager.LoadScene("StartGame");
     }
 
