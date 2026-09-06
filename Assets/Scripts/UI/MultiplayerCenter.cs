@@ -62,7 +62,7 @@ public class MultiplayerCenter : MonoBehaviour
         // "Tiếp tục" = Load save cũ, tạo phòng, vào thẳng roomInfoPanel
         if (continueButton) continueButton.onClick.AddListener(() => OnContinueGame());
         if (instructButton) instructButton.onClick.AddListener(() => UpdateStatus("Coming soon"));
-        if (exitButton) exitButton.onClick.AddListener(Application.Quit);
+        if (exitButton) exitButton.onClick.AddListener(QuitGame);
 
         if (openCreateRoomButton) openCreateRoomButton.onClick.AddListener(() => { ShowPanel(createRoomPanel); SetCreateRoomMode(false); });
         if (refreshLobbiesButton) refreshLobbiesButton.onClick.AddListener(OnRefreshLobbies);
@@ -93,6 +93,16 @@ public class MultiplayerCenter : MonoBehaviour
         try
         {
             UpdateStatus("Đang khởi tạo dịch vụ...");
+            
+            // Nếu đã khởi tạo rồi (khi rời phòng quay lại) thì không cần init lại toàn bộ
+            if (Unity.Services.Core.UnityServices.State == Unity.Services.Core.ServicesInitializationState.Initialized)
+            {
+                _isNetworkReady = true;
+                SetButtonsInteractable(true);
+                UpdateStatus("Sẵn sàng!");
+                return;
+            }
+
             await LobbyManager.Instance.InitializeAsync();
             await VivoxManager.Instance.LoginAsync();
             _isNetworkReady = true;
@@ -102,6 +112,9 @@ public class MultiplayerCenter : MonoBehaviour
         catch (Exception e)
         {
             UpdateStatus($"Init failed: {e.Message}");
+            // Vẫn mở khóa nút nếu lỡ dịch vụ đã auth nhưng Vivox/Lobby báo lỗi (do quay lại phòng)
+            _isNetworkReady = true; 
+            SetButtonsInteractable(true);
         }
     }
 
@@ -609,5 +622,13 @@ public class MultiplayerCenter : MonoBehaviour
             if (n == "roomcodetext") roomCodeText = t;
             if (n == "roomplayerstext") roomPlayersText = t;
         }
+    }
+
+    private void QuitGame()
+    {
+        Application.Quit();
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#endif
     }
 }

@@ -9,6 +9,34 @@ public class StartGameUI : MonoBehaviour
 
     private void Start()
     {
+        // Ép hiện chuột ở màn hình Start
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+        Time.timeScale = 1f;
+
+        // --- ĐẢM BẢO LUÔN CÓ CAMERA CHO SCENE NÀY ---
+        Camera[] cams = Resources.FindObjectsOfTypeAll<Camera>();
+        bool hasActiveCamera = false;
+        foreach (Camera c in cams)
+        {
+            // Chỉ xét những camera thuộc scene hiện tại
+            if (c.gameObject.scene == this.gameObject.scene)
+            {
+                c.gameObject.SetActive(true); // Bật nó lên nếu nó lỡ bị tắt
+                hasActiveCamera = true;
+            }
+        }
+        
+        // Nếu không có bất kỳ Camera nào trong scene, tự tạo 1 cái
+        if (!hasActiveCamera)
+        {
+            GameObject camObj = new GameObject("Main Camera Auto");
+            Camera autoCam = camObj.AddComponent<Camera>();
+            camObj.tag = "MainCamera";
+            autoCam.clearFlags = CameraClearFlags.SolidColor;
+            autoCam.backgroundColor = Color.black;
+        }
+
         if (startButton != null)
             startButton.onClick.AddListener(OnStartButtonClicked);
 
@@ -17,6 +45,27 @@ public class StartGameUI : MonoBehaviour
         // Ẩn panel multiplayer ban đầu
         if (multiplayerPanel != null)
             multiplayerPanel.SetActive(false);
+    }
+
+    private void Update()
+    {
+        // Liên tục ép mở chuột và hiển thị chuột trong menu
+        if (Cursor.lockState != CursorLockMode.None)
+        {
+            Cursor.lockState = CursorLockMode.None;
+        }
+        if (!Cursor.visible)
+        {
+            Cursor.visible = true;
+        }
+
+        // Đảm bảo EventSystem luôn tồn tại để có thể click vào UI
+        if (UnityEngine.EventSystems.EventSystem.current == null)
+        {
+            GameObject es = new GameObject("EventSystem");
+            es.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+        }
     }
 
     private void FindMultiplayerPanel()
