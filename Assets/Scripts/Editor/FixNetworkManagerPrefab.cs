@@ -7,7 +7,10 @@ public class FixNetworkManagerPrefab
     [InitializeOnLoadMethod]
     static void Run()
     {
-        var nmObj = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/NetworkManager.prefab");
+        // NetworkManager lives under Prefabs/UI in this project.  The old path
+        // silently made this auto-fix a no-op on every editor reload.
+        const string networkManagerPath = "Assets/Prefabs/UI/NetworkManager.prefab";
+        var nmObj = AssetDatabase.LoadAssetAtPath<GameObject>(networkManagerPath);
         if(nmObj != null)
         {
             var nm = nmObj.GetComponent<NetworkManager>();
@@ -41,7 +44,7 @@ public class FixNetworkManagerPrefab
             {
                 EditorUtility.SetDirty(nmObj);
                 PrefabUtility.SavePrefabAsset(nmObj);
-                Debug.Log("[FixNetworkManagerPrefab] Added Mimic, Mutant and DefaultList directly to NetworkManager.prefab!");
+                Debug.Log($"[FixNetworkManagerPrefab] Updated {networkManagerPath} with network prefabs.");
             }
         }
     }
