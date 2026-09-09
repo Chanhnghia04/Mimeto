@@ -84,7 +84,13 @@ public class EquipmentManager : MonoBehaviour
         Transform socket = GetSocket(slot);
         if (socket == null) return;
 
-        GameObject instance = Instantiate(prefab, socket);
+        // Equipment prefabs are also used as networked world/drop prefabs.  A
+        // held item is only a local visual, so do not parent an unspawned
+        // NetworkObject directly under the player socket: Netcode treats that
+        // as an invalid network reparent and throws SpawnStateException.
+        GameObject instance = Instantiate(prefab);
+        DisableNetworkSyncForLocalVisual(instance);
+        instance.transform.SetParent(socket, false);
 
         bool foundOffset = false;
         foreach (var offset in itemOffsets)
@@ -224,6 +230,27 @@ public class EquipmentManager : MonoBehaviour
         else if (slot == EquipmentSlot.Face && nameKey == "gasmask")
         {
             StartCoroutine(AnimateGasMaskEquip(instance));
+        }
+    }
+
+    private static void DisableNetworkSyncForLocalVisual(GameObject instance)
+    {
+        if (instance == null)
+            return;
+
+        NetworkObject networkObject = instance.GetComponent<NetworkObject>();
+        if (networkObject != null && !networkObject.IsSpawned)
+        {
+            // Prevent NetworkObject.OnTransformParentChanged from trying to
+            // synchronize this local-only visual while it is being attached.
+            networkObject.AutoObjectParentSync = false;
+            networkObject.enabled = false;
+        }
+
+        foreach (NetworkBehaviour behaviour in instance.GetComponentsInChildren<NetworkBehaviour>(true))
+        {
+            if (!behaviour.IsSpawned)
+                behaviour.enabled = false;
         }
     }
 
